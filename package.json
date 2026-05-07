@@ -3,10 +3,13 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron:preview": "vite build && electron .",
+    "electron:build": "vite build && electron-builder --win --x64"
   },
   "dependencies": {
     "react": "^18.3.1",
@@ -16,7 +19,32 @@
     "@types/react": "^18.3.1",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^42.0.0",
+    "electron-builder": "^26.8.1",
     "typescript": "^5.5.3",
     "vite": "^5.4.2"
+  },
+  "build": {
+    "appId": "com.curvabarro.app",
+    "productName": "CurvaBarro",
+    "copyright": "Cranmellar",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*"
+    ],
+    "win": {
+      "icon": "public/icon.ico",
+      "forceCodeSigning": false,
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    }
   }
 }
