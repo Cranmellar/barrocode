@@ -20,6 +20,7 @@
 
 import type { WaveLayer, WavePoint, PrintParams, SVGViewBox } from '../types';
 import { svgToMM } from './waveGenerator';
+import { buildArcPath, findCrossings, hopAtArc, HOP_RADIUS } from './hopUtils';
 
 function fmt(n: number, d = 3) { return n.toFixed(d); }
 
@@ -77,78 +78,6 @@ function toMM(
     pt, params.scaleFactor, params.originX, params.originY, params.flipY, svgH,
     params.centerX, params.centerY, params.scaleX, params.scaleY,
   );
-}
-
-// ── Z-hop intersection detection ─────────────────────────────────────────────
-
-const HOP_RADIUS = 5; // mm — arc distance on each side of crossing
-
-/**
- * Segment AB × CD intersection test. Returns t ∈ (0,1) for AB if they cross,
- * or null if parallel / touching only at endpoints.
- */
-function segSegIntersect(
-  ax: number, ay: number, bx: number, by: number,
-  cx: number, cy: number, dx: number, dy: number,
-): number | null {
-  const dxAB = bx - ax, dyAB = by - ay;
-  const dxCD = dx - cx, dyCD = dy - cy;
-  const denom = dxAB * dyCD - dyAB * dxCD;
-  if (Math.abs(denom) < 1e-10) return null;
-  const t = ((cx - ax) * dyCD - (cy - ay) * dxCD) / denom;
-  const s = ((cx - ax) * dyAB - (cy - ay) * dxAB) / denom;
-  if (t > 0.01 && t < 0.99 && s > 0.01 && s < 0.99) return t;
-  return null;
-}
-
-interface ArcPt { x: number; y: number; arc: number }
-
-/** Build cumulative arc-length path in mm. */
-function buildArcPath(mmPts: MMPoint[]): ArcPt[] {
-  const out: ArcPt[] = [];
-  let arc = 0;
-  for (let i = 0; i < mmPts.length; i++) {
-    if (i > 0) arc += dist(mmPts[i - 1].x, mmPts[i - 1].y, mmPts[i].x, mmPts[i].y);
-    out.push({ x: mmPts[i].x, y: mmPts[i].y, arc });
-  }
-  return out;
-}
-
-/**
- * Find arc positions (mm) where the path crosses itself.
- * Only checks non-adjacent segments to avoid false positives.
- */
-function findCrossings(arcPath: ArcPt[]): number[] {
-  const crossings: number[] = [];
-  const n = arcPath.length;
-  for (let i = 0; i < n - 1; i++) {
-    for (let j = i + 2; j < n - 1; j++) {
-      // Skip if segments share an endpoint
-      if (i === 0 && j === n - 2) continue;
-      const t = segSegIntersect(
-        arcPath[i].x, arcPath[i].y, arcPath[i + 1].x, arcPath[i + 1].y,
-        arcPath[j].x, arcPath[j].y, arcPath[j + 1].x, arcPath[j + 1].y,
-      );
-      if (t !== null) {
-        const crossArc = arcPath[i].arc + t * (arcPath[i + 1].arc - arcPath[i].arc);
-        crossings.push(crossArc);
-      }
-    }
-  }
-  return crossings;
-}
-
-/** Parabolic z-hop contribution at arc position `arc` given a list of crossings. */
-function hopAtArc(arc: number, crossings: number[], zHopHeight: number): number {
-  if (zHopHeight <= 0 || crossings.length === 0) return 0;
-  let hop = 0;
-  for (const crossArc of crossings) {
-    const d = Math.abs(arc - crossArc);
-    if (d < HOP_RADIUS) {
-      hop = Math.max(hop, zHopHeight * (1 - (d / HOP_RADIUS) ** 2));
-    }
-  }
-  return hop;
 }
 
 // ── Soft transition between layers ──────────────────────────────────────────

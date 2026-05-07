@@ -156,11 +156,11 @@ export function LissajousParams({ params, onChange, onReset }: Props) {
       {/* ── Eje N ── */}
       <Sec title="Eje N — Normal  (izq. / der.)">
         <Slider label="Amplitud N" value={params.lissAmpN}
-          min={0} max={30} step={0.1} unit="mm" cls="n-range" valCls="n-value"
+          min={0} max={30} step={0.1} unit="mm"
           hint="Desplazamiento máximo a izquierda/derecha de la línea central"
           onChange={v => set('lissAmpN', v)} />
         <Slider label="Longitud de onda N" value={params.lissWlN}
-          min={1} max={200} step={1} unit="mm" cls="n-range" valCls="n-value"
+          min={1} max={200} step={1} unit="mm"
           hint="Longitud de arco por ciclo completo en dirección normal"
           onChange={v => set('lissWlN', v)} />
       </Sec>
@@ -168,11 +168,11 @@ export function LissajousParams({ params, onChange, onReset }: Props) {
       {/* ── Eje T ── */}
       <Sec title="Eje T — Tangente  (adelante / atrás)">
         <Slider label="Amplitud T" value={params.lissAmpT}
-          min={0} max={30} step={0.1} unit="mm" cls="t-range" valCls="t-value"
+          min={0} max={30} step={0.1} unit="mm"
           hint="Desplazamiento máximo en la dirección de avance del trayecto"
           onChange={v => set('lissAmpT', v)} />
         <Slider label="Longitud de onda T" value={params.lissWlT}
-          min={1} max={200} step={1} unit="mm" cls="t-range" valCls="t-value"
+          min={1} max={200} step={1} unit="mm"
           hint="Longitud de arco por ciclo completo en dirección tangente"
           onChange={v => set('lissWlT', v)} />
       </Sec>

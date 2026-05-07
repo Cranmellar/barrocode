@@ -15,6 +15,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { svgToMM } from '../lib/waveGenerator';
+import { buildArcPath, findCrossings, hopAtArc } from '../lib/hopUtils';
 import { NumInput } from './NumInput';
 
 interface Props {
@@ -36,12 +37,12 @@ interface View3D {
   offsetY: number;
 }
 
-// Vivid palette: slate-blue (bottom) → warm terracotta (top)
+// Vivid palette: cobalt-blue (bottom) → warm terracotta (top)
 function layerColor(index: number, total: number, alpha = 1): string {
   const t = total <= 1 ? 0 : index / (total - 1);
-  const hue = Math.round(215 - 195 * t);   // 215 (slate) → 20 (terracotta)
-  const sat = 55 + t * 20;                  // 55 % → 75 %
-  const lit = 52 + t * 14;                  // 52 % → 66 %
+  const hue = Math.round(218 - 198 * t);   // 218 (cobalt) → 20 (terracotta)
+  const sat = 72 + t * 16;                  // 72 % → 88 %
+  const lit = 50 + t * 12;                  // 50 % → 62 %
   return `hsla(${hue},${sat.toFixed(0)}%,${lit.toFixed(0)}%,${alpha})`;
 }
 
@@ -55,13 +56,25 @@ function project(x: number, y: number, z: number, az: number, el: number): [numb
 
 interface FlatPoint { x: number; y: number; z: number; layerIndex: number }
 
+function toMM(p: { x: number; y: number }, params: PrintParams, svgH: number) {
+  return svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH,
+    params.centerX, params.centerY, params.scaleX, params.scaleY);
+}
+
 function flattenPoints(layers: WaveLayer[], params: PrintParams, svgH: number): FlatPoint[] {
   const pts: FlatPoint[] = [];
   for (const layer of layers) {
+    // Build full mm path to compute arc lengths + z-hop crossings
+    const allMm = layer.paths.flatMap(path => path.map(p => toMM(p, params, svgH)));
+    const arcPath = buildArcPath(allMm);
+    const crossings = params.zHopHeight > 0 ? findCrossings(arcPath) : [];
+    let idx = 0;
     for (const path of layer.paths) {
-      for (const p of path) {
-        const mm = svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH, params.centerX, params.centerY, params.scaleX, params.scaleY);
-        pts.push({ x: mm.x, y: mm.y, z: layer.z, layerIndex: layer.index });
+      for (const _p of path) {
+        const { x, y, arc } = arcPath[idx];
+        const hop = hopAtArc(arc, crossings, params.zHopHeight);
+        pts.push({ x, y, z: layer.z + hop, layerIndex: layer.index });
+        idx++;
       }
     }
   }
@@ -184,25 +197,33 @@ export function Preview2D({
       ctx.restore();
     }
 
-    // Layer paths — heavier strokes, clearer alpha
+    // Layer paths — vivid strokes with z-hop applied
     for (let li = 0; li < numLayers; li++) {
       const layer = layers[li];
-      const alpha = 0.55 + (li / Math.max(1, numLayers - 1)) * 0.45;
+      const alpha = 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
+
+      // Pre-compute mm points + z-hop for this layer
+      const allMm = layer.paths.flatMap(svgPts => svgPts.map(p => toMM(p, params, svgH)));
+      const arcPath = buildArcPath(allMm);
+      const crossings = params.zHopHeight > 0 ? findCrossings(arcPath) : [];
 
       ctx.save();
       ctx.strokeStyle = layerColor(li, numLayers);
       ctx.globalAlpha = alpha;
-      ctx.lineWidth   = Math.max(0.5, 2.0 / Math.sqrt(Math.max(scale, 0.05)));
+      ctx.lineWidth   = Math.max(0.8, 3.2 / Math.sqrt(Math.max(scale, 0.05)));
       ctx.lineJoin    = 'round';
       ctx.lineCap     = 'round';
 
+      let ptIdx = 0;
       for (const svgPts of layer.paths) {
-        if (svgPts.length < 2) continue;
+        if (svgPts.length < 2) { ptIdx += svgPts.length; continue; }
         ctx.beginPath();
         for (let i = 0; i < svgPts.length; i++) {
-          const mm = svgToMM(svgPts[i], params.scaleFactor, params.originX, params.originY, params.flipY, svgH, params.centerX, params.centerY, params.scaleX, params.scaleY);
-          const [sx, sy] = toScreen(mm.x, mm.y, layer.z);
+          const { x, y, arc } = arcPath[ptIdx];
+          const hop = hopAtArc(arc, crossings, params.zHopHeight);
+          const [sx, sy] = toScreen(x, y, layer.z + hop);
           if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+          ptIdx++;
         }
         ctx.stroke();
       }
@@ -223,8 +244,8 @@ export function Preview2D({
         if (!a?.length || !b?.length) continue;
         const lastA  = a[a.length - 1];
         const firstB = b[0];
-        const mmA = svgToMM(lastA,  params.scaleFactor, params.originX, params.originY, params.flipY, svgH, params.centerX, params.centerY, params.scaleX, params.scaleY);
-        const mmB = svgToMM(firstB, params.scaleFactor, params.originX, params.originY, params.flipY, svgH, params.centerX, params.centerY, params.scaleX, params.scaleY);
+        const mmA = toMM(lastA,  params, svgH);
+        const mmB = toMM(firstB, params, svgH);
         ctx.strokeStyle = layerColor(li, numLayers, 0.7);
         ctx.beginPath();
         const [ax, ay] = toScreen(mmA.x, mmA.y, layer.z);
@@ -242,9 +263,14 @@ export function Preview2D({
         const kfPt  = flat[kfIdx];
         const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
         const isSelected = kf.id === selectedKfId;
+        const kfSize = isSelected ? 7 : 5;
         ctx.save();
         ctx.beginPath();
-        ctx.arc(kx, ky, isSelected ? 7 : 5, 0, Math.PI * 2);
+        ctx.moveTo(kx,          ky - kfSize);
+        ctx.lineTo(kx + kfSize, ky);
+        ctx.lineTo(kx,          ky + kfSize);
+        ctx.lineTo(kx - kfSize, ky);
+        ctx.closePath();
         ctx.fillStyle   = isSelected ? '#6366F1' : layerColor(kfPt.layerIndex, numLayers);
         ctx.strokeStyle = '#fff';
         ctx.lineWidth   = 2;
@@ -269,7 +295,11 @@ export function Preview2D({
 
       ctx.save();
       ctx.beginPath();
-      ctx.arc(ex, ey, 7, 0, Math.PI * 2);
+      ctx.moveTo(ex,     ey - 8);
+      ctx.lineTo(ex + 8, ey);
+      ctx.lineTo(ex,     ey + 8);
+      ctx.lineTo(ex - 8, ey);
+      ctx.closePath();
       ctx.fillStyle   = layerColor(pt.layerIndex, numLayers);
       ctx.strokeStyle = '#fff';
       ctx.lineWidth   = 2.5;
@@ -293,7 +323,7 @@ export function Preview2D({
         if (!path.enabled || path.points.length < 2) continue;
         ctx.beginPath();
         path.points.forEach((p, i) => {
-          const mm = svgToMM({ x: p.x, y: p.y }, params.scaleFactor, params.originX, params.originY, params.flipY, svgH, params.centerX, params.centerY, params.scaleX, params.scaleY);
+          const mm = toMM({ x: p.x, y: p.y }, params, svgH);
           const [sx, sy] = toScreen(mm.x, mm.y, 0);
           if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
         });
