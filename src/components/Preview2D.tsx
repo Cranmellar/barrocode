@@ -103,7 +103,50 @@ export function Preview2D({
     button: number; startX: number; startY: number; startView: View3D;
   } | null>(null);
 
+  // ── Keyframe drag refs ────────────────────────────────────────────────────
+  const kfDragRef    = useRef<{ id: string; startX: number; moved: boolean } | null>(null);
+  const trackRef     = useRef<HTMLDivElement>(null);
+  // Stable refs so window handlers never capture stale closure values
+  const kfsRef       = useRef(keyframes);
+  const onKfsRef     = useRef(onKeyframesChange);
+  useEffect(() => { kfsRef.current   = keyframes;         }, [keyframes]);
+  useEffect(() => { onKfsRef.current = onKeyframesChange; }, [onKeyframesChange]);
+
   const svgH = viewBox?.height ?? 200;
+
+  // ── Keyframe drag (window-level so it works outside the track) ───────────
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      const d = kfDragRef.current;
+      if (!d || !trackRef.current) return;
+      if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
+      d.moved = true;
+      document.body.style.cursor = 'ew-resize';
+      const rect = trackRef.current.getBoundingClientRect();
+      const newT  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+      onKfsRef.current(
+        kfsRef.current
+          .map(k => k.id === d.id ? { ...k, t: newT } : k)
+          .sort((a, b) => a.t - b.t),
+      );
+    }
+    function onUp() {
+      const d = kfDragRef.current;
+      if (!d) return;
+      if (!d.moved) {
+        // Pure click → select / deselect
+        setSelectedKfId(prev => prev === d.id ? null : d.id);
+      }
+      kfDragRef.current = null;
+      document.body.style.cursor = '';
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    };
+  }, []); // stable — all state accessed through refs
 
   // ── Auto-fit ────────────────────────────────────────────────────────────
   const fitView = useCallback(() => {
@@ -707,7 +750,7 @@ export function Preview2D({
           <span className="timeline-label">Extrusor</span>
 
           {/* Track with keyframe diamond markers */}
-          <div className="timeline-track">
+          <div className="timeline-track" ref={trackRef}>
             <input
               type="range" min={0} max={1} step={0.0005}
               value={timelineProgress}
@@ -722,9 +765,12 @@ export function Preview2D({
                 <div
                   key={kf.id}
                   className={`kf-diamond ${kf.id === selectedKfId ? 'kf-selected' : ''}`}
-                  style={{ left: `${kf.t * 100}%`, background: kfColor }}
-                  onClick={() => setSelectedKfId(kf.id === selectedKfId ? null : kf.id)}
-                  title={`Keyframe ${(kf.t * 100).toFixed(1)}%`}
+                  style={{ left: `${kf.t * 100}%`, background: kfColor, cursor: 'ew-resize' }}
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
+                  }}
+                  title={`KF ${(kf.t * 100).toFixed(1)}% — arrastrar para mover`}
                 />
               );
             })}

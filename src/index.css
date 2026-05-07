@@ -703,10 +703,11 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   border: 2px solid var(--card);
   border-radius: 2px;
   transform: translate(-50%, -50%) rotate(45deg);
-  cursor: pointer;
+  cursor: ew-resize;
   z-index: 2;
   top: 50%;
   transition: background 0.1s, transform 0.12s;
+  user-select: none;
 }
 .kf-diamond:hover    { transform: translate(-50%, -50%) rotate(45deg) scale(1.3); }
 .kf-diamond.kf-selected {
