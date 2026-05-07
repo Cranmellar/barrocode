@@ -1,162 +1,219 @@
-# SVG Clay Wave — G-code Generator
+# CurvaBarro
 
-A local-first web app that converts SVG centerline curves into oscillating/wavy
-toolpaths for clay extrusion 3D printing, then exports G-code.
+Herramienta web local para convertir curvas SVG en trayectorias oscilantes para impresión 3D en arcilla, exportadas como G-code.
 
-## Quick Start
+Diseñada para ceramistas, artistas y educadores que trabajan con extrusoras de arcilla controladas por máquina CNC o impresora 3D.
+
+---
+
+## Inicio rápido
 
 ```bash
-cd svg-clay-wave
 npm install
 npm run dev
 ```
 
-Open the URL shown in the terminal (usually `http://localhost:5173`).
+Abre la URL que aparece en la terminal (normalmente `http://localhost:5173`).
+
+### Versión portable (USB)
+
+El repo incluye un build precompilado en `dist/`. En cualquier computador con Node.js instalado:
+
+```bash
+node dist/server.js
+```
+
+O simplemente haz doble clic en `dist/Abrir CurvaBarro.bat` (Windows).
 
 ---
 
-## Architecture — Two-Motion System
+## Cómo funciona
 
-The toolpath is the **sum of two independent motions**:
+El trayecto de impresión es la **suma de dos movimientos independientes**:
 
 ```
-final_point(s) = centerline(s)                        ← global motion
-              + N(s) · ampN · sin(2π·s/wlN + δ)       ← Lissajous N component
-              + T(s) · ampT · sin(2π·s/wlT)           ← Lissajous T component
+punto_final(s) = línea_central(s)                      ← trayecto global del SVG
+               + N(s) · ampN · sin(2π·s/λN + δ)        ← oscilación lateral (normal)
+               + T(s) · ampT · sin(2π·s/λT)            ← oscilación adelante/atrás (tangente)
 ```
 
-- `s` = cumulative arc length along the SVG path (mm)
-- `N(s)` = unit normal at `s` (perpendicular to path, left of travel direction)
-- `T(s)` = unit tangent at `s` (forward direction)
-- Both wavelengths are measured **along the arc**, so the pattern is consistent regardless of path curvature
-- `δ` (delta) is the phase difference between N and T — this controls the **Lissajous shape** (0° = line, 90° = ellipse when wlN=wlT, etc.)
+- `s` = longitud de arco acumulada a lo largo del camino SVG (en mm)
+- `N(s)` = vector normal unitario en `s` (perpendicular al trayecto, apunta a la izquierda del sentido de avance)
+- `T(s)` = vector tangente unitario en `s` (sentido de avance)
+- Las longitudes de onda (`λN`, `λT`) se miden **sobre el arco**, no sobre un eje recto, por lo que el patrón es consistente sin importar la curvatura del camino
+- `δ` (delta) es la diferencia de fase entre N y T — controla la **forma de Lissajous** (0° = línea, 90° = elipse cuando λN = λT, etc.)
 
-The **Extruder Frame** preview in the centre-top panel shows only the Lissajous figure in local (T, N) coordinates — completely decoupled from the global path shape. Use it to tune the figure before worrying about the path.
-
-### Soft Layer Join
-
-When **Smooth Z transition** is enabled, the end of layer N connects to the start of layer N+1 via a continuous print move that interpolates XY (smoothstep) and Z (linear) over `transition arc` mm. No retract, no lift — ideal for clay.
+La previsualización **Marco del extrusor** en el panel inferior izquierdo muestra únicamente la figura de Lissajous en coordenadas locales (T, N), desacoplada completamente de la forma del trayecto global. Úsala para afinar la figura antes de preocuparte por el camino.
 
 ---
 
-## How to Use
+## Flujo de uso
 
-### 1. Upload an SVG
+### 1. Cargar un SVG
 
-Click the upload area or drag an SVG file onto it.  
-The app reads `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`,
-`<ellipse>`, and `<rect>` elements.
+Arrastra un archivo SVG al área de carga o haz clic en ella.
 
-A **sample SVG** (with an S-curve, an ellipse, and a diagonal line) is bundled —
-click **"Load sample SVG"** to try it immediately.
+El sistema lee elementos `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` y `<rect>`.
 
-### 2. Check the Path List
+Si no tienes un archivo a mano, haz clic en **"Cargar SVG de ejemplo"** — incluye una curva en S, una elipse y una línea diagonal.
 
-Each detected geometry element appears in the **SVG Paths** list.  
-- Toggle individual paths on/off.  
-- Override **Amplitude** or **Wavelength** per path (leave blank to use the global value).
+### 2. Revisar la lista de trayectos
 
-### 3. Adjust Parameters
+Cada elemento geométrico detectado aparece en la lista **Trayectos SVG**:
 
-| Parameter | Effect |
-|-----------|--------|
-| **Sample spacing** | How densely the path is sampled (SVG units). Smaller = smoother wave, more points. |
-| **Layer height** | Z increment between stacked print layers (mm). |
-| **Num layers / Total height** | How tall the print is. |
-| **Nozzle Z offset** | Added to every layer's Z (first-layer calibration). |
-| **Amplitude** | Half-amplitude of the sinusoidal oscillation (mm). The toolpath swings this far left and right of the centerline. |
-| **Wavelength** | Arc-length of one full wave cycle (mm). Measured along the curve, not along a straight axis. |
-| **Phase offset** | Starting phase of the wave (degrees). |
-| **Phase shift / layer** | Extra phase added per layer — creates a helical/spiralling appearance. |
-| **Scale factor** | Converts SVG user units to mm. Use `1` if your SVG was drawn in mm, `0.2645` for 96 dpi pixels. |
-| **Origin X / Y** | Shift the entire print on the bed (mm). |
-| **Flip Y** | Mirrors the Y axis (SVG Y grows downward; most printers want Y upward). |
-| **Print / Travel speed** | mm/min for extrusion and travel moves. |
-| **Generate E values** | Include cumulative extrusion distance in G-code. Disable for motion-only output. |
-| **Extrusion multiplier** | E units per mm of travel. Tune for your clay pump/auger system (typical: 0.02–0.1). |
-| **Alternate direction** | Odd-numbered layers print in reverse — reduces directional drift in clay. |
-| **Close paths** | Appends a move back to the start of each path (useful for ellipses). |
-| **Dwell at start** | G4 pause (ms) at the first print position, giving clay time to start flowing. |
-| **Priming move** | Extrudes a short line before the main print to prime the nozzle. |
+- Activa o desactiva trayectos individualmente.
+- Sobreescribe la **amplitud** o la **longitud de onda** por trayecto (si lo dejas en blanco, se usa el valor global).
 
-### 4. Preview
+### 3. Ajustar parámetros
 
-- **Gray dashed lines** = original SVG centerlines.
-- **Coloured lines** = generated wave toolpath, one colour per layer (cyan → amber gradient).
-- **Scroll** to zoom, **drag** to pan, **Fit** button to reset view.
+#### Panel izquierdo — parámetros de impresión
 
-### 5. Export G-code
+| Parámetro | Efecto |
+|---|---|
+| **Espaciado de muestras** | Densidad de muestreo del camino (unidades SVG). Menor valor = onda más suave, más puntos. |
+| **Altura de capa** | Incremento Z entre capas apiladas (mm). |
+| **Número de capas / Altura total** | Controla cuántas capas se generan. Puedes definirlo por cantidad de capas o por altura total. |
+| **Offset Z de boquilla** | Se suma al Z de cada capa (calibración de primera capa). |
+| **Z seguro** | Altura a la que se mueve la boquilla durante los desplazamientos entre trayectos. |
+| **Factor de escala** | Convierte unidades SVG a mm. Usá `1` si tu SVG está dibujado en mm; `0.2645` para píxeles a 96 dpi. |
+| **Origen X / Y** | Desplaza toda la impresión sobre la cama (mm). |
+| **Invertir Y** | Espeja el eje Y (el eje Y de SVG crece hacia abajo; la mayoría de las impresoras lo quieren hacia arriba). |
+| **Velocidad de impresión / desplazamiento** | mm/min para movimientos de extrusión y de viaje. |
+| **Generar valores E** | Incluye la columna E en el G-code. Desactivalo para una salida de solo movimiento. |
+| **Multiplicador de extrusión** | Unidades E por mm de desplazamiento. Ajustalo a tu sistema de bomba o tornillo sin fin (típico: 0.02–0.1). |
+| **Transición suave entre capas** | Conecta el final de la capa N con el inicio de la capa N+1 con un movimiento continuo (interpola XY con smoothstep y Z linealmente). Sin retracción ni levantamiento — ideal para arcilla. |
+| **Longitud de transición** | Longitud en mm del tramo de unión entre capas. |
+| **Dirección alternada** | Las capas impares imprimen en sentido inverso, lo que reduce la deriva direccional en arcilla. |
+| **Cerrar trayecto** | Agrega un movimiento de regreso al inicio de cada trayecto (útil para elipses y formas cerradas). |
+| **Pausa al inicio** | Pausa G4 (ms) en la primera posición de impresión, dándole tiempo a la arcilla para comenzar a fluir. |
+| **Movimiento de cebado** | Extrude una línea corta antes de la impresión principal para cebar la boquilla. |
 
-Click **↓ Download .gcode** to save the file.  
-The filename matches your uploaded SVG (e.g. `my-vase.gcode`).
+#### Panel derecho — parámetros de Lissajous
+
+| Parámetro | Efecto |
+|---|---|
+| **Amplitud N** | Semi-amplitud de la oscilación lateral (mm). El trayecto se desvía esta distancia hacia los lados del centro. |
+| **Amplitud T** | Semi-amplitud de la oscilación adelante/atrás (mm). |
+| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda (mm). Se mide sobre la curva. |
+| **Delta (δ)** | Diferencia de fase entre N y T. Controla la forma: 0° = línea, 90° = elipse (si λN = λT), valores intermedios = formas de Lissajous. |
+| **Offset de fase** | Fase inicial de la onda (radianes). |
+| **Desfase de fase por capa** | Fase extra que se suma por cada capa — crea una apariencia helicoidal o en espiral. |
+
+Los **preajustes** en la parte superior del panel derecho aplican configuraciones predefinidas de Lissajous con una miniatura visual de la figura resultante.
+
+### 4. Sistema de keyframes
+
+La barra de línea de tiempo debajo de la previsualización 3D permite **anclar valores de Lissajous en puntos específicos del trayecto**:
+
+1. Mové el slider de la línea de tiempo al punto deseado (0% = inicio, 100% = fin).
+2. Ajustá los parámetros de Lissajous al valor que querés en ese punto.
+3. Hacé clic en **⊕ KF** para crear un keyframe.
+4. Entre keyframes, los valores se interpolan linealmente.
+
+Hacé clic en un keyframe (diamante naranja) para seleccionarlo y editar sus valores. El botón **✕** elimina el keyframe seleccionado; el ícono de papelera elimina todos.
+
+### 5. Previsualización 3D
+
+- **Líneas coloreadas** = trayecto generado, una tonalidad por capa (azul pizarra en la base → terracota en la cima).
+- **Líneas punteadas** = transiciones entre capas.
+- **Punto animado** = posición del extrusor virtual según la línea de tiempo.
+- **Cubo de orientación** (esquina inferior derecha) = muestra los ejes X/Y/Z en tiempo real.
+
+| Control | Acción |
+|---|---|
+| Arrastrar (botón izquierdo) | Desplazar (pan) |
+| Arrastrar (botón derecho) | Rotar (azimut / elevación) |
+| Rueda del mouse | Zoom |
+| Botón **Ajustar** | Encuadre automático |
+
+### 6. Exportar G-code
+
+Hacé clic en **↓ Descargar .gcode** para guardar el archivo.  
+El nombre del archivo coincide con el SVG cargado (ej. `mi-vasija.gcode`).
 
 ---
 
-## G-code Structure
+## Estructura del G-code generado
 
-```
-; Header with all parameter values
-G21       ; mm units
-G90       ; absolute positioning
-G92 E0    ; reset extrusion
-G1 Z20    ; safe Z
-; optional priming move
-; --- Layer 1 Z=1.000 ---
-G1 X.. Y.. F1500   ; travel
-G1 Z1.000 F1500    ; descend
-G1 X.. Y.. E.. F600 ; print
+```gcode
+; Encabezado con todos los valores de parámetros
+G21        ; unidades en mm
+G90        ; posicionamiento absoluto
+G92 E0     ; resetear extrusión
+G1 Z20     ; Z seguro
+
+; --- Capa 1  Z=1.000 ---
+G1 X.. Y.. F1500     ; desplazamiento
+G1 Z1.000 F1500      ; descenso
+G1 X.. Y.. E.. F600  ; impresión
 ...
 ```
 
 ---
 
-## Wave Geometry
-
-The wave is computed in the **local frame of the curve**:
+## Geometría de la onda
 
 ```
-phase   = 2π × arcLength / wavelength + phaseOffset + layerIndex × phaseShiftPerLayer
-offset  = amplitude × sin(phase)
-point   = centerlinePoint + normal × offset
+fase    = 2π × arcoLongitud / longitudDeOnda + offsetFase + índiceCapa × desfasePorCapa
+offsetN = amplitudN × sin(fase + delta)
+offsetT = amplitudT × sin(fase)
+punto   = puntoCentral + normal × offsetN + tangente × offsetT
 ```
 
-- `normal` is the unit vector perpendicular to the curve's tangent at each sample.
-- `arcLength` is the cumulative distance along the curve — so wavelength is
-  always measured along the path, regardless of its shape.
-- For closed curves (circles, ellipses), the wave seamlessly wraps around.
+- `normal` es el vector perpendicular al trayecto en cada muestra.
+- `arcoLongitud` es la distancia acumulada a lo largo de la curva — la longitud de onda siempre se mide sobre el camino, independientemente de su forma.
+- Para curvas cerradas (círculos, elipses), la onda cierra sin discontinuidades.
 
 ---
 
-## Limitations & Assumptions
+## Optimización de desplazamientos
 
-- **No transform inheritance across nested `<g>` groups with complex transforms.**  
-  Simple translate/rotate on individual elements works. Deeply nested transforms
-  may not be fully resolved.
-- **SVG units ≠ mm by default.** Set the scale factor to match your SVG's coordinate system.
-- **No retraction** is generated (clay printing rarely retracts).
-- **Extrusion model is linear** (`E += distance × multiplier`). This suits
-  air-pressure and auger-based clay extruders where E is proportional to pump
-  speed/time. Tune `extrusionMultiplier` to your machine.
-- **No bed-levelling mesh** is applied.
-- The preview is 2D only (overhead view with colour-coded layers).
+Al cambiar de capa, la herramienta aplica una estrategia **nearest-neighbor** para ordenar los trayectos de forma que minimice la distancia total de los saltos entre ellos. Esto reduce el tiempo de impresión y la cantidad de movimientos que cruzan el área ya impresa.
 
 ---
 
-## Project Structure
+## Limitaciones conocidas
+
+- **Transforms anidadas complejas en SVG**: los transforms simples (traslación, rotación) sobre elementos individuales funcionan bien. Transforms sobre grupos `<g>` profundamente anidados pueden no resolverse completamente.
+- **Unidades SVG ≠ mm por defecto**: ajustá el factor de escala según el sistema de coordenadas de tu SVG.
+- **Sin retracción**: el G-code generado no incluye movimientos de retracción (la impresión en arcilla raramente los requiere).
+- **Modelo de extrusión lineal**: `E += distancia × multiplicador`. Adecuado para extrusoras de arcilla por presión de aire o tornillo sin fin.
+- **Sin malla de nivelación de cama**.
+
+---
+
+## Estructura del proyecto
 
 ```
 src/
-  types/index.ts          — shared TypeScript types
+  types/index.ts              tipos TypeScript compartidos
   lib/
-    svgParser.ts          — SVG parsing & path sampling (uses browser SVG DOM)
-    waveGenerator.ts      — sinusoidal wave math & layer stacking
-    gcodeGenerator.ts     — G-code formatting & download
+    svgParser.ts              parseo de SVG y muestreo de trayectos (usa el DOM SVG del navegador)
+    waveGenerator.ts          matemática de la onda de Lissajous, apilado de capas y keyframes
+    gcodeGenerator.ts         formato de G-code, optimización nearest-neighbor y descarga
   components/
-    ControlPanel.tsx      — parameter UI
-    PathList.tsx          — per-path enable/override UI
-    Preview2D.tsx         — canvas preview with pan/zoom
-    GcodeOutput.tsx       — G-code display & download button
-  App.tsx                 — main app state & data flow
+    App.tsx                   estado principal y flujo de datos
+    PathParams.tsx            UI de parámetros de impresión (panel izquierdo)
+    LissajousParams.tsx       UI de parámetros de Lissajous y preajustes (panel derecho)
+    PathList.tsx              lista de trayectos con activación y sobreescritura por trayecto
+    Preview2D.tsx             previsualización 3D ortográfica con línea de tiempo y keyframes
+    LissajousPreview.tsx      previsualización animada de la figura de Lissajous
+    GcodeOutput.tsx           visualización y descarga del G-code
+    NumInput.tsx              input numérico con soporte de scroll para cambiar valores
 public/
-  sample.svg              — bundled test file
+  sample.svg                  archivo de prueba incluido
+  logo.png                    logotipo completo
+  isotype.png                 isotipo (ícono cuadrado)
+  fonts/                      GSCode variable font
+dist/
+  server.js                   servidor Node.js portátil para uso sin conexión
+  Abrir CurvaBarro.bat        lanzador para Windows
 ```
+
+---
+
+## Tecnologías
+
+- [Vite 5](https://vitejs.dev/) + [React 18](https://react.dev/) + TypeScript (strict)
+- Canvas API para previsualización (sin WebGL)
+- Sin dependencias de UI externas — todo el sistema de diseño está en `src/index.css`
