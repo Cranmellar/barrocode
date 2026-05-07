@@ -89,7 +89,7 @@ export default function App() {
   const [layers, setLayers] = useState<WaveLayer[]>([]);
   const [gcode, setGcode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [gcodeFilename, setGcodeFilename] = useState('curvabarro.gcode');
+  const [gcodeFilename, setGcodeFilename] = useState('curva.de.barro.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
   const [keyframes, setKeyframes] = useState<WaveKeyframe[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -177,7 +177,7 @@ export default function App() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const text = await res.text();
       if (!text.trim().startsWith('<')) throw new Error('Respuesta inesperada del servidor');
-      setGcodeFilename('sample-curvabarro.gcode');
+      setGcodeFilename('curva.de.barro.gcode');
       doParse(text, params.sampleSpacing);
     } catch (e) {
       setError(`No se pudo cargar el SVG de ejemplo. ${(e as Error).message}`);
