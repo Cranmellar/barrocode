@@ -527,7 +527,27 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+.path-item-right {
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
+}
 .path-len { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.path-collapse-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  background: transparent;
+  border: 1px solid var(--border-rule);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.1s, color 0.1s;
+  flex-shrink: 0;
+}
+.path-collapse-btn:hover {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--card-2);
+}
 .path-overrides { padding-left: 22px; }
 .path-overrides .param-row { padding: 2px 0; }
 .path-overrides input[type="number"] { width: 62px; }
