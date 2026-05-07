@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import logoUrl from './assets/logo.png';
 import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers } from './lib/waveGenerator';
@@ -189,7 +190,7 @@ export default function App() {
       {/* ── Panel izquierdo ── */}
       <div className="sidebar left-sidebar" style={{ width: leftPanel.size }}>
         <div className="app-banner">
-          <img src={import.meta.env.BASE_URL + 'logo.png'} alt="CurvaBarro" />
+          <img src={logoUrl} alt="CurvaBarro" />
           <div className="banner-sub">SVG → Lissajous → G-code</div>
         </div>
 
