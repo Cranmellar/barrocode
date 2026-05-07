@@ -134,6 +134,39 @@ html, body, #root { height: 100%; overflow: hidden; }
 }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
+.upload-area-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  margin: 0;
+  position: relative;
+}
+.upload-area-row .upload-area {
+  flex: 1;
+  margin-right: 0;
+}
+.btn-clear-svg {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  border-radius: var(--radius);
+  z-index: 1;
+  transition: color 0.12s;
+}
+.btn-clear-svg:hover {
+  color: #C83838;
+  background: transparent;
+}
 .upload-area {
   margin: 12px 12px 0;
   border: 1.5px dashed var(--border-rule);

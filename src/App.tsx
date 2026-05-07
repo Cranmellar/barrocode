@@ -161,13 +161,25 @@ export default function App() {
     });
   }
 
+  function clearSVG() {
+    setParsedSVG(null);
+    setLayers([]);
+    setGcode('');
+    setError(null);
+    lastRawRef.current = null;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
   async function loadSample() {
     try {
-      const text = await (await fetch('/sample.svg')).text();
+      const res = await fetch(import.meta.env.BASE_URL + 'sample.svg');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const text = await res.text();
+      if (!text.trim().startsWith('<')) throw new Error('Respuesta inesperada del servidor');
       setGcodeFilename('sample-curvabarro.gcode');
       doParse(text, params.sampleSpacing);
-    } catch {
-      setError('No se pudo cargar el SVG de ejemplo.');
+    } catch (e) {
+      setError(`No se pudo cargar el SVG de ejemplo. ${(e as Error).message}`);
     }
   }
 
@@ -177,24 +189,38 @@ export default function App() {
       {/* ── Panel izquierdo ── */}
       <div className="sidebar left-sidebar" style={{ width: leftPanel.size }}>
         <div className="app-banner">
-          <img src="/logo.png" alt="CurvaBarro" />
+          <img src={import.meta.env.BASE_URL + 'logo.png'} alt="CurvaBarro" />
           <div className="banner-sub">SVG → Lissajous → G-code</div>
         </div>
 
-        <div
-          className="upload-area"
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={e => e.preventDefault()}
-          onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-        >
-          <div className="upload-icon">↑</div>
-          <div className="upload-label">
-            {parsedSVG ? `${parsedSVG.paths.length} ruta(s) cargadas` : 'Carga un SVG…'}
+        <div className="upload-area-row">
+          <div
+            className="upload-area"
+            onClick={() => fileInputRef.current?.click()}
+            onDragOver={e => e.preventDefault()}
+            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
+          >
+            <div className="upload-icon">↑</div>
+            <div className="upload-label">
+              {parsedSVG ? `${parsedSVG.paths.length} ruta(s) cargadas` : 'Carga un SVG…'}
+            </div>
+            <div className="upload-hint">clic o arrastra y suelta</div>
+            <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
+              style={{ display: 'none' }}
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
           </div>
-          <div className="upload-hint">clic o arrastra y suelta</div>
-          <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
-            style={{ display: 'none' }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+          {parsedSVG && (
+            <button
+              className="btn-clear-svg"
+              title="Descartar SVG importado"
+              onClick={clearSVG}
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                <line x1="2" y1="2" x2="10" y2="10" />
+                <line x1="10" y1="2" x2="2" y2="10" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <button className="btn-sample" onClick={loadSample}>

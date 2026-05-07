@@ -135,9 +135,32 @@ function sampleElement(
  * @param svgString  Raw SVG markup.
  * @param spacing    Sample spacing in SVG user units.
  */
+/**
+ * Replace HTML named entities that are not valid in XML (only &lt; &gt; &amp; &quot; &apos;
+ * are allowed by the XML spec) with their numeric equivalents so the strict
+ * DOMParser('image/svg+xml') does not choke on them.
+ */
+function sanitizeXmlEntities(svg: string): string {
+  // Map of common HTML entities → numeric character references
+  const htmlEntities: Record<string, string> = {
+    nbsp: '&#160;', middot: '&#183;', mdash: '&#8212;', ndash: '&#8211;',
+    laquo: '&#171;', raquo: '&#187;', copy: '&#169;', reg: '&#174;',
+    trade: '&#8482;', euro: '&#8364;', pound: '&#163;', yen: '&#165;',
+    cent: '&#162;', deg: '&#176;', plusmn: '&#177;', times: '&#215;',
+    divide: '&#247;', frac12: '&#189;', frac14: '&#188;', frac34: '&#190;',
+    hellip: '&#8230;', lsquo: '&#8216;', rsquo: '&#8217;', ldquo: '&#8220;',
+    rdquo: '&#8221;', bull: '&#8226;', rarr: '&#8594;', larr: '&#8592;',
+    uarr: '&#8593;', darr: '&#8595;', infin: '&#8734;', alpha: '&#945;',
+    beta: '&#946;', pi: '&#960;', sigma: '&#963;', mu: '&#956;',
+  };
+  return svg.replace(/&([a-zA-Z]+);/g, (match, name) => {
+    return htmlEntities[name] ?? match;
+  });
+}
+
 export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(svgString, 'image/svg+xml');
+  const doc = parser.parseFromString(sanitizeXmlEntities(svgString), 'image/svg+xml');
 
   // Detect parser errors (malformed XML).
   const parseError = doc.querySelector('parsererror');
