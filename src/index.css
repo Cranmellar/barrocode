@@ -725,45 +725,75 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
 /* ── Keyframe editor panel ───────────────────────────────────────────────── */
 .kf-editor {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 5px 12px;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
   background: var(--card-2);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  width: 100%;
+  min-height: 52px;
 }
 .kf-editor-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
   font-size: 8px;
   font-weight: 700;
   font-variation-settings: 'wght' 700;
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.12em;
   color: var(--accent);
   white-space: nowrap;
-  min-width: 50px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+}
+/* thin rule between logical groups */
+.kf-divider {
+  width: 1px;
+  background: var(--border);
+  align-self: stretch;
+  flex-shrink: 0;
 }
 .kf-field {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  gap: 4px;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  padding: 4px 6px;
+  gap: 2px;
+  border-right: 1px solid var(--border);
 }
+.kf-field:last-child { border-right: none; }
 .kf-field label {
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 700;
   font-variation-settings: 'wght' 700;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   white-space: nowrap;
+  line-height: 1;
+}
+.kf-field-input-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
 }
 .kf-field input[type="number"] {
-  width: 54px;
+  flex: 1;
+  min-width: 0;
+  width: 0;          /* flex:1 takes over — override any browser default */
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   color: var(--ink);
-  padding: 3px 5px;
+  padding: 3px 4px;
   font: inherit;
   font-size: 12px;
   font-weight: 700;
@@ -776,15 +806,20 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   border-color: var(--accent);
 }
 .kf-unit {
-  font-size: 8.5px;
+  font-size: 8px;
   color: var(--muted);
+  flex-shrink: 0;
+  line-height: 1;
 }
 .kf-pad-wrap {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: center;
   gap: 2px;
-  align-self: center;
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-right: 1px solid var(--border);
 }
 .kf-pad-label {
   font-size: 8px;
@@ -793,10 +828,11 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   text-transform: uppercase;
   letter-spacing: 0.1em;
   color: var(--muted);
+  line-height: 1;
 }
 .center-pad-canvas {
-  width: 72px;
-  height: 72px;
+  width: 56px;
+  height: 56px;
   border: 1px solid var(--border-rule);
   border-radius: var(--radius-sm);
   cursor: crosshair;

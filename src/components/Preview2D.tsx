@@ -805,39 +805,53 @@ export function Preview2D({
           <span className="kf-editor-title">
             KF {(selectedKf.t * 100).toFixed(1)}%
           </span>
+
+          {/* ── Wave ── */}
           <div className="kf-field">
             <label>Amp N</label>
-            <NumInput value={selectedKf.ampN} min={0} max={30} step={0.1}
-              onChange={v => updateKf('ampN', v)} />
-            <span className="kf-unit">mm</span>
+            <div className="kf-field-input-row">
+              <NumInput value={selectedKf.ampN} min={0} max={30} step={0.1}
+                onChange={v => updateKf('ampN', v)} />
+              <span className="kf-unit">mm</span>
+            </div>
           </div>
           <div className="kf-field">
             <label>Amp T</label>
-            <NumInput value={selectedKf.ampT} min={0} max={30} step={0.1}
-              onChange={v => updateKf('ampT', v)} />
-            <span className="kf-unit">mm</span>
+            <div className="kf-field-input-row">
+              <NumInput value={selectedKf.ampT} min={0} max={30} step={0.1}
+                onChange={v => updateKf('ampT', v)} />
+              <span className="kf-unit">mm</span>
+            </div>
           </div>
           <div className="kf-field">
             <label>λ N</label>
-            <NumInput value={selectedKf.wlN} min={1} max={200} step={1}
-              onChange={v => updateKf('wlN', v)} />
-            <span className="kf-unit">mm</span>
+            <div className="kf-field-input-row">
+              <NumInput value={selectedKf.wlN} min={1} max={200} step={1}
+                onChange={v => updateKf('wlN', v)} />
+              <span className="kf-unit">mm</span>
+            </div>
           </div>
           <div className="kf-field">
             <label>λ T</label>
-            <NumInput value={selectedKf.wlT} min={1} max={200} step={1}
-              onChange={v => updateKf('wlT', v)} />
-            <span className="kf-unit">mm</span>
+            <div className="kf-field-input-row">
+              <NumInput value={selectedKf.wlT} min={1} max={200} step={1}
+                onChange={v => updateKf('wlT', v)} />
+              <span className="kf-unit">mm</span>
+            </div>
           </div>
           <div className="kf-field">
-            <label>δ</label>
-            <NumInput
-              value={parseFloat((selectedKf.delta * 180 / Math.PI).toFixed(1))}
-              min={-180} max={180} step={1}
-              onChange={v => updateKf('delta', v * Math.PI / 180)}
-            />
-            <span className="kf-unit">°</span>
+            <label>Delta</label>
+            <div className="kf-field-input-row">
+              <NumInput
+                value={parseFloat((selectedKf.delta * 180 / Math.PI).toFixed(1))}
+                min={-180} max={180} step={1}
+                onChange={v => updateKf('delta', v * Math.PI / 180)}
+              />
+              <span className="kf-unit">°</span>
+            </div>
           </div>
+
+          {/* ── Center ── */}
           <div className="kf-pad-wrap">
             <span className="kf-pad-label">Centro</span>
             <CenterPad
@@ -855,15 +869,21 @@ export function Preview2D({
               }}
             />
           </div>
+
+          {/* ── Scale ── */}
           <div className="kf-field">
             <label>Escala X</label>
-            <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
-              onChange={v => updateKf('scaleX', v)} />
+            <div className="kf-field-input-row">
+              <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
+                onChange={v => updateKf('scaleX', v)} />
+            </div>
           </div>
-          <div className="kf-field">
+          <div className="kf-field" style={{ borderRight: 'none' }}>
             <label>Escala Y</label>
-            <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
-              onChange={v => updateKf('scaleY', v)} />
+            <div className="kf-field-input-row">
+              <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
+                onChange={v => updateKf('scaleY', v)} />
+            </div>
           </div>
         </div>
       )}
