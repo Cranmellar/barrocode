@@ -1,155 +1,136 @@
 # BarroCode
 
-Herramienta web para convertir curvas (.svg) en trayectorias oscilantes (.gcode) para el modelado por deposición líquida. Diseñada para quienes trabajan con extrusoras de arcilla y máquinas CNC.
+Herramienta web para convertir curvas `.svg` en trayectorias oscilantes `.gcode` para modelado por deposición líquida. Está pensada para extrusoras de arcilla y máquinas CNC donde importa sostener flujo, continuidad de capa y control geométrico.
 
----
+BarroCode toma un dibujo vectorial como línea central, lo muestrea sobre su longitud de arco y desplaza cada punto con una figura local de Lissajous. El resultado es una trayectoria imprimible por capas, con unión suave entre alturas, Z-hop sobre cruces, viajes concéntricos y exportación directa a G-code.
 
-## Pendientes
-```
-Slider de coordenadas para ubicar un eje z en el espacio de trabajo para que funcione como centro, y que dentro de los paramametros del keyframe pueda escalar esa curva en particular, como para hacer gradaciones de escala, en relación a las trayectorias. Este slider es  vertical, en el mismo estilo que todo lo demás, se ubica en una columna de ancho 1/5 del tercio de panel inferior. Se posiciona a en el centro, entre la visualización de lissajous y el visualizador del gcode.
-
-Make a zhop-like movement a bit before, during, and after the line intersects itself or another line at each layer height, so as not to interrupt the flow of clay when printing.
-
-In the trayectory vis, make the line stroke subtly adjust according to the zoom level on the panel. Also, make their color a bit more saturated and a bit lighter. It looks too dull currently.
-
-(v2) Que un plano normal a cada vector de la dirección actual en la trayectori sea el lugar donde se evalua y desplaza el punto cada lissajous, para generar una trayectoria helicoidal y no plana entre capas; así se suaviza el transito entre capas.
-
-COlores: keyframes individually colored according to ther location along the trayectory, reflecting the visualization marker color at that point.
-
-eje n y eje t tienen dos colores en los acentos, pero esos no tienen relación con la visualización de lissajou, deberías estilizar los paneles de ejes igual que el de acoplamiento de fase. También, en esa letra negra que se usa para todos los valores numéricos; bajarle un poco lo oscuro; si ahora está en un value 10, dame un value 9.  
-
-Make "Drop svg box" smaller. Logo 50% biggger 
-```
-
-## Inicio rápido
+## Inicio Rápido
 
 ```bash
 npm install
 npm run dev
 ```
 
-Abre la URL que aparece en la terminal (normalmente `http://localhost:5173`).
+Abre la URL que aparece en la terminal, normalmente `http://localhost:5173`.
 
-### Build de producción
+Para generar una versión estática:
 
 ```bash
 npm run build
 ```
 
-Genera la versión web estática en `dist/`. Esa carpeta puede servirse desde cualquier servidor estático o publicarse en GitHub Pages (ver `.github/workflows/deploy.yml`).
+El build queda en `dist/` y puede servirse desde cualquier servidor estático o publicarse en GitHub Pages.
 
----
+## Qué Genera
 
-## Cómo funciona
+- **Entrada:** un SVG con `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` o `<rect>`.
+- **Proceso:** muestreo por longitud de arco, marco local tangente/normal, onda de Lissajous, apilado por capas y optimización de viajes.
+- **Salida:** G-code absoluto en milímetros, con opción de extrusión `E`.
+- **Uso previsto:** impresión continua de arcilla, sin retracción, con trayectorias orgánicas controladas desde una curva central.
 
-El trayecto de impresión es la **suma de dos movimientos independientes**:
-
+```mermaid
+flowchart LR
+  A["SVG importado"] --> B["Muestreo de trayectos"]
+  B --> C["Marco local T/N"]
+  C --> D["Onda de Lissajous"]
+  D --> E["Capas con Z"]
+  E --> F["Previsualización"]
+  E --> G["G-code"]
+  H["Parámetros y keyframes"] --> D
+  H --> E
 ```
-punto_final(s) = línea_central(s)                      ← trayecto global del SVG
-               + N(s) · ampN · sin(2π·s/λN + δ)        ← oscilación lateral (normal)
-               + T(s) · ampT · sin(2π·s/λT)            ← oscilación adelante/atrás (tangente)
+
+## Cómo Funciona
+
+El trayecto de impresión es la suma de una línea central y dos oscilaciones locales:
+
+```text
+punto_final(s) = línea_central(s)
+               + N(s) · ampN · sin(2π·s/λN + δ)
+               + T(s) · ampT · sin(2π·s/λT)
 ```
 
-- `s` = longitud de arco acumulada a lo largo del camino SVG (en mm)
-- `N(s)` = vector normal unitario en `s` (perpendicular al trayecto, apunta a la izquierda del sentido de avance)
-- `T(s)` = vector tangente unitario en `s` (sentido de avance)
-- Las longitudes de onda (`λN`, `λT`) se miden **sobre el arco**, no sobre un eje recto, por lo que el patrón es consistente sin importar la curvatura del camino
-- `δ` (delta) es la diferencia de fase entre N y T — controla la **forma de Lissajous** (0° = línea, 90° = elipse cuando λN = λT, etc.)
+- `s` es la longitud de arco acumulada sobre el camino SVG.
+- `N(s)` es el vector normal unitario del trayecto.
+- `T(s)` es el vector tangente unitario del trayecto.
+- `λN` y `λT` son longitudes de onda medidas sobre el arco, no sobre un eje recto.
+- `δ` controla la diferencia de fase entre normal y tangente, y por lo tanto la figura de Lissajous.
 
-La previsualización **Marco del extrusor** en el panel inferior izquierdo muestra únicamente la figura de Lissajous en coordenadas locales (T, N), desacoplada completamente de la forma del trayecto global. Úsala para afinar la figura antes de preocuparte por el camino.
+```mermaid
+flowchart LR
+  S["s: longitud de arco"] --> C["punto central"]
+  C --> T["T(s): tangente"]
+  C --> N["N(s): normal"]
+  T --> OT["offsetT = ampT * sin(faseT)"]
+  N --> ON["offsetN = ampN * sin(faseN + delta)"]
+  OT --> PF["punto final"]
+  ON --> PF
+```
 
----
+La previsualización **Marco del extrusor** muestra la figura de Lissajous en coordenadas locales `(T, N)`, desacoplada del trayecto global. Sirve para afinar la forma de la oscilación antes de evaluar cómo se adapta al SVG.
 
-## Flujo de uso
+## Flujo De Uso
 
-### 1. Cargar un SVG
+```mermaid
+sequenceDiagram
+  participant U as Usuario
+  participant UI as BarroCode UI
+  participant SVG as Parser SVG
+  participant W as Generador de ondas
+  participant G as Generador G-code
 
-Arrastra un archivo SVG al área de carga o haz clic en ella.
+  U->>UI: Carga un SVG
+  UI->>SVG: parseSVG(raw, spacing)
+  SVG-->>UI: Trayectos muestreados
+  U->>UI: Ajusta parámetros y keyframes
+  UI->>W: generateWaveLayers(paths, params, keyframes)
+  W-->>UI: Capas y trayectoria
+  UI->>G: generateGcode(layers, params)
+  G-->>UI: Texto .gcode
+  U->>UI: Descarga archivo
+```
 
-El sistema lee elementos `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` y `<rect>`.
+1. Carga un SVG o usa el archivo de ejemplo.
+2. Activa, desactiva o ajusta trayectos individuales.
+3. Define muestreo, escala, capas, velocidades y comportamiento de arcilla.
+4. Ajusta amplitud, longitud de onda y fase de Lissajous.
+5. Usa keyframes para interpolar parámetros a lo largo de la trayectoria.
+6. Previsualiza capas, transiciones, Z-hop y posición del extrusor.
+7. Exporta el `.gcode`.
 
-Si no tienes un archivo a mano, haz clic en **"Cargar SVG de ejemplo"** — incluye una curva en S, una elipse y una línea diagonal.
+Los parámetros detallados están en [docs/usage.md](docs/usage.md).
 
-### 2. Revisar la lista de trayectos
+## Arquitectura
 
-Cada elemento geométrico detectado aparece en la lista **Trayectos SVG**:
+```mermaid
+flowchart TB
+  UI["UI React<br/>paneles, timeline, canvas"] --> State["Estado principal<br/>App.tsx"]
+  State --> Geometry["Geometría SVG<br/>svgParser.ts"]
+  State --> Toolpath["Trayectoria ondulada<br/>waveGenerator.ts"]
+  State --> Export["Exportación<br/>gcodeGenerator.ts"]
 
-- Activa o desactiva trayectos individualmente.
-- Sobreescribe la **amplitud** o la **longitud de onda** por trayecto (si lo dejas en blanco, se usa el valor global).
+  Geometry --> Sampled["SampledPath<br/>puntos, tangente, normal"]
+  Sampled --> Toolpath
+  Params["PrintParams + keyframes"] --> Toolpath
+  Params --> Export
+  Toolpath --> Layers["WaveLayer[]"]
+  Layers --> Preview["Preview2D / LissajousPreview"]
+  Layers --> Export
+  Export --> Travel["hopUtils.ts + skirtUtils.ts"]
+  Export --> File["archivo .gcode"]
+```
 
-### 3. Ajustar parámetros
+- `src/lib/svgParser.ts` inserta el SVG en un contenedor oculto y usa la API SVG del navegador para medir longitudes y puntos.
+- `src/lib/waveGenerator.ts` calcula offsets de Lissajous, keyframes, escala alrededor de centro y capas.
+- `src/lib/gcodeGenerator.ts` convierte capas a G-code, ordena trayectos por nearest-neighbor, aplica soft join, Z-hop y viajes concéntricos.
+- `src/components/Preview2D.tsx` dibuja la previsualización ortográfica en Canvas.
 
-#### Panel izquierdo — parámetros de impresión
+Más detalle técnico en [docs/architecture.md](docs/architecture.md).
 
-| Parámetro | Efecto |
-|---|---|
-| **Espaciado de muestras** | Densidad de muestreo del camino (unidades SVG). Menor valor = onda más suave, más puntos. |
-| **Altura de capa** | Incremento Z entre capas apiladas (mm). |
-| **Número de capas / Altura total** | Controla cuántas capas se generan. Puedes definirlo por cantidad de capas o por altura total. |
-| **Offset Z de boquilla** | Se suma al Z de cada capa (calibración de primera capa). |
-| **Z seguro** | Altura a la que se mueve la boquilla durante los desplazamientos entre trayectos. |
-| **Factor de escala** | Convierte unidades SVG a mm. Usá `1` si tu SVG está dibujado en mm; `0.2645` para píxeles a 96 dpi. |
-| **Origen X / Y** | Desplaza toda la impresión sobre la cama (mm). |
-| **Invertir Y** | Espeja el eje Y (el eje Y de SVG crece hacia abajo; la mayoría de las impresoras lo quieren hacia arriba). |
-| **Velocidad de impresión / desplazamiento** | mm/min para movimientos de extrusión y de viaje. |
-| **Generar valores E** | Incluye la columna E en el G-code. Desactivalo para una salida de solo movimiento. |
-| **Multiplicador de extrusión** | Unidades E por mm de desplazamiento. Ajustalo a tu sistema de bomba o tornillo sin fin (típico: 0.02–0.1). |
-| **Transición suave entre capas** | Conecta el final de la capa N con el inicio de la capa N+1 con un movimiento continuo (interpola XY con smoothstep y Z linealmente). Sin retracción ni levantamiento — ideal para arcilla. |
-| **Longitud de transición** | Longitud en mm del tramo de unión entre capas. |
-| **Dirección alternada** | Las capas impares imprimen en sentido inverso, lo que reduce la deriva direccional en arcilla. |
-| **Cerrar trayecto** | Agrega un movimiento de regreso al inicio de cada trayecto (útil para elipses y formas cerradas). |
-| **Pausa al inicio** | Pausa G4 (ms) en la primera posición de impresión, dándole tiempo a la arcilla para comenzar a fluir. |
-| **Movimiento de cebado** | Extrude una línea corta antes de la impresión principal para cebar la boquilla. |
-
-#### Panel derecho — parámetros de Lissajous
-
-| Parámetro | Efecto |
-|---|---|
-| **Amplitud N** | Semi-amplitud de la oscilación lateral (mm). El trayecto se desvía esta distancia hacia los lados del centro. |
-| **Amplitud T** | Semi-amplitud de la oscilación adelante/atrás (mm). |
-| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda (mm). Se mide sobre la curva. |
-| **Delta (δ)** | Diferencia de fase entre N y T. Controla la forma: 0° = línea, 90° = elipse (si λN = λT), valores intermedios = formas de Lissajous. |
-| **Offset de fase** | Fase inicial de la onda (radianes). |
-| **Desfase de fase por capa** | Fase extra que se suma por cada capa — crea una apariencia helicoidal o en espiral. |
-
-Los **preajustes** en la parte superior del panel derecho aplican configuraciones predefinidas de Lissajous con una miniatura visual de la figura resultante.
-
-### 4. Sistema de keyframes
-
-La barra de línea de tiempo debajo de la previsualización 3D permite **anclar valores de Lissajous en puntos específicos del trayecto**:
-
-1. Mové el slider de la línea de tiempo al punto deseado (0% = inicio, 100% = fin).
-2. Ajustá los parámetros de Lissajous al valor que querés en ese punto.
-3. Hacé clic en **⊕ KF** para crear un keyframe.
-4. Entre keyframes, los valores se interpolan linealmente.
-
-Hacé clic en un keyframe (diamante naranja) para seleccionarlo y editar sus valores. El botón **✕** elimina el keyframe seleccionado; el ícono de papelera elimina todos.
-
-### 5. Previsualización 3D
-
-- **Líneas coloreadas** = trayecto generado, una tonalidad por capa (azul pizarra en la base → terracota en la cima).
-- **Líneas punteadas** = transiciones entre capas.
-- **Punto animado** = posición del extrusor virtual según la línea de tiempo.
-- **Cubo de orientación** (esquina inferior derecha) = muestra los ejes X/Y/Z en tiempo real.
-
-| Control | Acción |
-|---|---|
-| Arrastrar (botón izquierdo) | Desplazar (pan) |
-| Arrastrar (botón derecho) | Rotar (azimut / elevación) |
-| Rueda del mouse | Zoom |
-| Botón **Ajustar** | Encuadre automático |
-
-### 6. Exportar G-code
-
-Hacé clic en **↓ Descargar .gcode** para guardar el archivo.  
-El nombre del archivo coincide con el SVG cargado (ej. `mi-vasija.gcode`).
-
----
-
-## Estructura del G-code generado
+## G-code Generado
 
 ```gcode
-; Encabezado con todos los valores de parámetros
+; Encabezado con valores de parámetros
 G21        ; unidades en mm
 G90        ; posicionamiento absoluto
 G92 E0     ; resetear extrusión
@@ -162,69 +143,65 @@ G1 X.. Y.. E.. F600  ; impresión
 ...
 ```
 
----
+La estrategia de desplazamientos ordena trayectos por cercanía y evita saltos largos cuando corresponde:
 
-## Geometría de la onda
-
+```mermaid
+flowchart TD
+  A["Trayectos de una capa"] --> B["Calcular punto inicial y final"]
+  B --> C["Elegir trayecto más cercano"]
+  C --> D["Emitir impresión"]
+  D --> E{"¿Quedan trayectos?"}
+  E -- "sí" --> C
+  E -- "no" --> F{"¿softJoin activo?"}
+  F -- "sí" --> G["Transición continua a la siguiente capa"]
+  F -- "no" --> H["Viaje con arco concéntrico o salto corto"]
 ```
-fase    = 2π × arcoLongitud / longitudDeOnda + offsetFase + índiceCapa × desfasePorCapa
-offsetN = amplitudN × sin(fase + delta)
-offsetT = amplitudT × sin(fase)
-punto   = puntoCentral + normal × offsetN + tangente × offsetT
-```
 
-- `normal` es el vector perpendicular al trayecto en cada muestra.
-- `arcoLongitud` es la distancia acumulada a lo largo de la curva — la longitud de onda siempre se mide sobre el camino, independientemente de su forma.
-- Para curvas cerradas (círculos, elipses), la onda cierra sin discontinuidades.
+## Limitaciones Conocidas
 
----
+- **Transforms anidados complejos en SVG:** los transforms simples sobre elementos individuales funcionan bien; grupos profundamente anidados pueden no resolverse completamente.
+- **Unidades SVG no son mm por defecto:** ajusta el factor de escala según el sistema de coordenadas del archivo.
+- **Sin retracción:** la salida está orientada a arcilla, donde cortar flujo suele ser indeseable.
+- **Modelo de extrusión lineal:** `E += distancia * multiplicador`.
+- **Sin malla de nivelación de cama.**
 
-## Optimización de desplazamientos
+## Estructura Del Proyecto
 
-Al cambiar de capa, la herramienta aplica una estrategia **nearest-neighbor** para ordenar los trayectos de forma que minimice la distancia total de los saltos entre ellos. Esto reduce el tiempo de impresión y la cantidad de movimientos que cruzan el área ya impresa.
-
----
-
-## Limitaciones conocidas
-
-- **Transforms anidadas complejas en SVG**: los transforms simples (traslación, rotación) sobre elementos individuales funcionan bien. Transforms sobre grupos `<g>` profundamente anidados pueden no resolverse completamente.
-- **Unidades SVG ≠ mm por defecto**: ajustá el factor de escala según el sistema de coordenadas de tu SVG.
-- **Sin retracción**: el G-code generado no incluye movimientos de retracción (la impresión en arcilla raramente los requiere).
-- **Modelo de extrusión lineal**: `E += distancia × multiplicador`. Adecuado para extrusoras de arcilla por presión de aire o tornillo sin fin.
-- **Sin malla de nivelación de cama**.
-
----
-
-## Estructura del proyecto
-
-```
+```text
 src/
-  types/index.ts              tipos TypeScript compartidos
+  types/index.ts
   lib/
-    svgParser.ts              parseo de SVG y muestreo de trayectos (usa el DOM SVG del navegador)
-    waveGenerator.ts          matemática de la onda de Lissajous, apilado de capas y keyframes
-    gcodeGenerator.ts         formato de G-code, optimización nearest-neighbor y descarga
+    svgParser.ts
+    waveGenerator.ts
+    gcodeGenerator.ts
+    hopUtils.ts
+    skirtUtils.ts
   components/
-    App.tsx                   estado principal y flujo de datos
-    PathParams.tsx            UI de parámetros de impresión (panel izquierdo)
-    LissajousParams.tsx       UI de parámetros de Lissajous y preajustes (panel derecho)
-    PathList.tsx              lista de trayectos con activación y sobreescritura por trayecto
-    Preview2D.tsx             previsualización 3D ortográfica con línea de tiempo y keyframes
-    LissajousPreview.tsx      previsualización animada de la figura de Lissajous
-    GcodeOutput.tsx           visualización y descarga del G-code
-    NumInput.tsx              input numérico con soporte de scroll para cambiar valores
+    PathParams.tsx
+    LissajousParams.tsx
+    PathList.tsx
+    Preview2D.tsx
+    LissajousPreview.tsx
+    GcodeOutput.tsx
+    CenterScaleParams.tsx
+    NumInput.tsx
 public/
-  sample.svg                  archivo de prueba incluido
-  logo.png                    logotipo completo
-  isotype.png                 isotipo (ícono cuadrado)
-  fonts/                      GSCode variable font
-dist/                         salida del build estático (GitHub Pages)
+  sample.svg
+  logo.png
+  isotype.png
+  fonts/
+dist/
 ```
 
----
+## Documentación
+
+- [docs/usage.md](docs/usage.md): flujo de uso y parámetros.
+- [docs/architecture.md](docs/architecture.md): pipeline interno y responsabilidades.
+- [docs/fabrication-notes.md](docs/fabrication-notes.md): criterios de fabricación con arcilla.
+- [pendientes.md](pendientes.md): notas de trabajo abiertas.
 
 ## Tecnologías
 
-- [Vite 5](https://vitejs.dev/) + [React 18](https://react.dev/) + TypeScript (strict)
-- Canvas API para previsualización (sin WebGL)
-- Sin dependencias de UI externas — todo el sistema de diseño está en `src/index.css`
+- [Vite 5](https://vitejs.dev/) + [React 18](https://react.dev/) + TypeScript strict.
+- Canvas API para previsualización.
+- Sin dependencias de UI externas; el sistema visual vive en `src/index.css`.
