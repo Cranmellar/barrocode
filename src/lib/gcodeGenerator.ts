@@ -134,7 +134,7 @@ function buildSkirtTravel(
   const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
 
   const lines: string[] = [];
-  lines.push(`G1 Z${fmt(params.safeZ)} F${params.travelSpeed}  ; lift`);
+  lines.push(`G1 Z${fmt(z + 2)} F${params.travelSpeed}  ; lift`);
 
   if (!arcPts) {
     // Short hop — direct XY travel
@@ -315,14 +315,18 @@ export function generateGcode(
         // Very first move: direct travel to start position
         blocks.push(`G1 X${fmt(destMM.x)} Y${fmt(destMM.y)} F${params.travelSpeed}  ; travel to start`);
         blocks.push(`G1 Z${fmt(layer.z)} F${params.travelSpeed}  ; descend`);
-      } else if (!params.softJoin) {
-        // Inter-path travel: concentric skirt arc (or short hop if close)
+        if (params.dwellAtStart > 0) {
+          blocks.push(`G4 P${params.dwellAtStart}  ; dwell — wait for clay flow`);
+        }
+      } else if (!params.softJoin || pi > 0) {
+        // Inter-path travel: skirt arc (or short hop).
+        // Always needed for pi > 0 even with softJoin; only the layer→layer
+        // transition (pi === 0, softJoin) arrives via continuous extrusion.
         const skirtLines = buildSkirtTravel(
           { x: curX, y: curY }, destMM, layerCentroid, layer.z, params,
         );
         blocks.push(skirtLines.join('\n'));
       }
-      // softJoin: continuous extrusion — no travel needed
 
       const lines = pathToGcode(svgPts, layer.z, params, svgH, eRef, layerCrossings, arcOffset);
       blocks.push(lines.join('\n'));

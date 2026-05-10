@@ -246,6 +246,7 @@ export default function App() {
           <PathList
             paths={parsedSVG.paths}
             params={params}
+            hasKeyframes={keyframes.length > 0}
             onToggle={togglePath}
             onOverride={setOverride}
           />

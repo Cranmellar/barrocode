@@ -5,6 +5,7 @@ import { NumInput } from './NumInput';
 interface Props {
   paths: SampledPath[];
   params: PrintParams;
+  hasKeyframes: boolean;
   onToggle: (id: string) => void;
   onOverride: (
     id: string,
@@ -13,7 +14,7 @@ interface Props {
   ) => void;
 }
 
-export function PathList({ paths, params, onToggle, onOverride }: Props) {
+export function PathList({ paths, params, hasKeyframes, onToggle, onOverride }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   if (paths.length === 0) return null;
@@ -55,6 +56,11 @@ export function PathList({ paths, params, onToggle, onOverride }: Props) {
 
             {!isCollapsed && (
               <div className="path-overrides">
+                {hasKeyframes && (
+                  <div className="path-overrides-note">
+                    Desactivado con keyframes activos
+                  </div>
+                )}
                 {([
                   { key: 'ampNOverride' as const, label: 'Amp N', unit: 'mm', ph: params.lissAmpN },
                   { key: 'ampTOverride' as const, label: 'Amp T', unit: 'mm', ph: params.lissAmpT },
@@ -67,6 +73,7 @@ export function PathList({ paths, params, onToggle, onOverride }: Props) {
                       min={0} step={0.5}
                       value={path[key] ?? ph}
                       placeholder={String(ph)}
+                      disabled={hasKeyframes}
                       onChange={v => onOverride(path.id, key, v)}
                     />
                   </div>

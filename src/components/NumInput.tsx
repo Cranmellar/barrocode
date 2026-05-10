@@ -7,6 +7,7 @@ interface Props {
   step?: number;
   className?: string;
   placeholder?: string;
+  disabled?: boolean;
   onChange: (v: number) => void;
 }
 
@@ -21,7 +22,7 @@ interface Props {
  * 2. Scroll-to-change: wheel events increment / decrement by `step` without
  *    propagating to the parent panel scroll.
  */
-export function NumInput({ value, min, max, step, className, placeholder, onChange }: Props) {
+export function NumInput({ value, min, max, step, className, placeholder, disabled, onChange }: Props) {
   const inputRef  = useRef<HTMLInputElement>(null);
   const valRef    = useRef(value);
   const focusedRef = useRef(false);
@@ -68,6 +69,7 @@ export function NumInput({ value, min, max, step, className, placeholder, onChan
       step={step ?? 'any'}
       className={className}
       placeholder={placeholder}
+      disabled={disabled}
       onFocus={() => { focusedRef.current = true; }}
       onBlur={() => {
         focusedRef.current = false;

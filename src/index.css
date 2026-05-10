@@ -550,6 +550,8 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
 .path-overrides .param-row { padding: 2px 0; }
 .path-overrides input[type="number"] { width: 62px; }
 .path-overrides input::placeholder { color: var(--muted); opacity: 0.6; }
+.path-overrides input:disabled { opacity: 0.35; cursor: not-allowed; }
+.path-overrides-note { font-size: 9px; color: var(--muted); font-style: italic; margin-bottom: 4px; }
 
 /* ── Center panel ────────────────────────────────────────────────────────── */
 .main-content {
