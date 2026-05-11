@@ -46,6 +46,8 @@ export interface ParsedSVG {
 export interface WavePoint {
   x: number;
   y: number;
+  /** Z oscillation offset in mm (added on top of WaveLayer.z at emit time). */
+  zOffset: number;
 }
 
 /**
@@ -78,6 +80,9 @@ export interface WaveKeyframe {
   wlN: number;      // mm
   wlT: number;      // mm
   delta: number;    // radians
+  ampZ?: number;    // mm — Z oscillation amplitude (optional; falls back to global)
+  wlZ?:  number;    // mm — Z oscillation wavelength
+  phaseZ?: number;  // radians — Z oscillation phase offset
   // Scale pivot — optional; falls back to global PrintParams values when absent
   centerX?: number; // mm
   centerY?: number; // mm
@@ -94,9 +99,12 @@ export interface PrintParams {
   // ── Lissajous (extruder local frame) ──
   lissAmpN: number;              // mm — amplitude along the curve normal
   lissAmpT: number;              // mm — amplitude along the curve tangent
+  lissAmpZ: number;              // mm — amplitude of Z oscillation
   lissWlN: number;               // mm — wavelength (arc length per cycle) for N
   lissWlT: number;               // mm — wavelength for T
+  lissWlZ: number;               // mm — wavelength for Z oscillation
   lissDelta: number;             // radians — phase shift of N relative to T
+  lissPhaseZ: number;            // radians — phase offset for Z oscillation
   lissPhaseOffset: number;       // radians — global start phase at arc=0
   phaseShiftPerLayer: number;    // radians — extra phase added per layer
 

@@ -25,9 +25,10 @@ const TWO_PI = 2 * Math.PI;
 // ── Local params struct ─────────────────────────────────────────────────────
 
 export interface LocalParams {
-  ampN: number; ampT: number;
-  wlN: number;  wlT: number;
+  ampN: number; ampT: number; ampZ: number;
+  wlN: number;  wlT: number;  wlZ: number;
   delta: number;
+  phaseZ: number;
   centerX: number; centerY: number;  // mm
   scaleX:  number; scaleY:  number;  // multipliers
 }
@@ -40,9 +41,10 @@ export function getParamsAtT(
   base: PrintParams,
 ): LocalParams {
   const baseFull: LocalParams = {
-    ampN: base.lissAmpN, ampT: base.lissAmpT,
-    wlN:  base.lissWlN,  wlT:  base.lissWlT,
+    ampN: base.lissAmpN, ampT: base.lissAmpT, ampZ: base.lissAmpZ,
+    wlN:  base.lissWlN,  wlT:  base.lissWlT,  wlZ:  base.lissWlZ,
     delta: base.lissDelta,
+    phaseZ: base.lissPhaseZ,
     centerX: base.centerX, centerY: base.centerY,
     scaleX:  base.scaleX,  scaleY:  base.scaleY,
   };
@@ -53,7 +55,10 @@ export function getParamsAtT(
 
   function kfFull(k: WaveKeyframe): LocalParams {
     return {
-      ampN: k.ampN, ampT: k.ampT, wlN: k.wlN, wlT: k.wlT, delta: k.delta,
+      ampN: k.ampN, ampT: k.ampT, ampZ: k.ampZ ?? base.lissAmpZ,
+      wlN:  k.wlN,  wlT:  k.wlT,  wlZ:  k.wlZ  ?? base.lissWlZ,
+      delta: k.delta,
+      phaseZ: k.phaseZ ?? base.lissPhaseZ,
       centerX: k.centerX ?? base.centerX,
       centerY: k.centerY ?? base.centerY,
       scaleX:  k.scaleX  ?? base.scaleX,
@@ -78,9 +83,12 @@ export function getParamsAtT(
   return {
     ampN:    lerp(loF.ampN,    hiF.ampN),
     ampT:    lerp(loF.ampT,    hiF.ampT),
+    ampZ:    lerp(loF.ampZ,    hiF.ampZ),
     wlN:     Math.max(0.1, lerp(loF.wlN,  hiF.wlN)),
     wlT:     Math.max(0.1, lerp(loF.wlT,  hiF.wlT)),
+    wlZ:     Math.max(0.1, lerp(loF.wlZ,  hiF.wlZ)),
     delta:   lerp(loF.delta,   hiF.delta),
+    phaseZ:  lerp(loF.phaseZ,  hiF.phaseZ),
     centerX: lerp(loF.centerX, hiF.centerX),
     centerY: lerp(loF.centerY, hiF.centerY),
     scaleX:  lerp(loF.scaleX,  hiF.scaleX),
@@ -94,9 +102,12 @@ function lissajousPoint(
   p: SampledPoint,
   ampN: number,
   ampT: number,
+  ampZ: number,
   wlN: number,
   wlT: number,
+  wlZ: number,
   delta: number,
+  phaseZ: number,
   phaseBase: number,
 ): WavePoint {
   const s = p.arcLength;
@@ -104,9 +115,11 @@ function lissajousPoint(
   const phaseT = TWO_PI * (s / wlT)         + phaseBase;
   const oN = ampN * Math.sin(phaseN);
   const oT = ampT * Math.sin(phaseT);
+  const zOffset = ampZ * Math.sin(TWO_PI * (s / wlZ) + phaseZ + phaseBase);
   return {
     x: p.x + p.normalX * oN + p.tangentX * oT,
     y: p.y + p.normalY * oN + p.tangentY * oT,
+    zOffset,
   };
 }
 
@@ -141,6 +154,7 @@ function applyScaleSVG(
   return {
     x: cxSVG + (pt.x - cxSVG) * scaleX,
     y: cySVG + (pt.y - cySVG) * scaleY,
+    zOffset: pt.zOffset,
   };
 }
 
@@ -196,9 +210,12 @@ export function generateWaveLayers(
           lp = {
             ampN: (path.ampNOverride ?? params.lissAmpN) / sf,
             ampT: (path.ampTOverride ?? params.lissAmpT) / sf,
+            ampZ: params.lissAmpZ,  // Z amplitude stays in mm (not scaled by sf)
             wlN:  (path.wlNOverride  ?? params.lissWlN)  / sf,
             wlT:  (path.wlTOverride  ?? params.lissWlT)  / sf,
+            wlZ:  params.lissWlZ / sf,
             delta: params.lissDelta,
+            phaseZ: params.lissPhaseZ,
             centerX: params.centerX, centerY: params.centerY,
             scaleX:  params.scaleX,  scaleY:  params.scaleY,
           };
@@ -207,10 +224,14 @@ export function generateWaveLayers(
 
         const aN = useKeyframes ? lp.ampN / sf : lp.ampN;
         const aT = useKeyframes ? lp.ampT / sf : lp.ampT;
+        const aZ = lp.ampZ;  // always mm — not converted to SVG units
         const wN = useKeyframes ? lp.wlN  / sf : lp.wlN;
         const wT = useKeyframes ? lp.wlT  / sf : lp.wlT;
+        const wZ = useKeyframes ? lp.wlZ  / sf : lp.wlZ;
 
-        const wavePt = lissajousPoint(adjusted, aN, aT, wN, wT, lp.delta, phaseBase);
+        const wavePt = lissajousPoint(
+          adjusted, aN, aT, aZ, wN, wT, wZ, lp.delta, lp.phaseZ, phaseBase,
+        );
 
         // Apply per-point scale around center (in SVG space)
         return applyScaleSVG(
@@ -243,7 +264,7 @@ export function generateWaveLayers(
 // is a pure SVG→mm projection: scaleFactor, origin offset, optional Y-flip.
 
 export function svgToMM(
-  pt: WavePoint,
+  pt: { x: number; y: number },
   scaleFactor: number,
   originX: number,
   originY: number,
