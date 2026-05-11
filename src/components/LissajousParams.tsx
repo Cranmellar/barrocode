@@ -202,6 +202,30 @@ export function LissajousParams({ params, onChange, onReset }: Props) {
           onChange={v => set('lissWlT', v)} />
       </Sec>
 
+      {/* ── Eje Z ── */}
+      <Sec title="Eje Z — Vertical  (arriba / abajo)">
+        {params.lissAmpZ > params.layerHeight && (
+          <div style={{ fontSize: 9, color: '#c0392b', marginBottom: 4, lineHeight: 1.3 }}>
+            ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
+            ({params.layerHeight} mm) — riesgo de colisión de boquilla
+          </div>
+        )}
+        <Slider label="Amplitud Z" value={params.lissAmpZ}
+          min={0} max={20} step={0.1} unit="mm"
+          hint="Desplazamiento máximo vertical. Valores mayores que la altura de capa pueden causar colisión."
+          onChange={v => set('lissAmpZ', v)} />
+        {params.lissAmpZ > 0 && <>
+          <Slider label="Longitud de onda Z" value={params.lissWlZ}
+            min={1} max={200} step={1} unit="mm"
+            hint="Longitud de arco por ciclo completo en dirección vertical"
+            onChange={v => set('lissWlZ', v)} />
+          <Slider label="Fase Z" value={deg(params.lissPhaseZ)}
+            min={-180} max={180} step={1} unit="°"
+            hint="Desfase de la oscilación Z respecto a la fase base"
+            onChange={v => set('lissPhaseZ', rad(v))} />
+        </>}
+      </Sec>
+
       {/* ── Fase ── */}
       <Sec title="Acoplamiento de fase">
         <Slider label="Delta  (N respecto a T)" value={deg(params.lissDelta)}

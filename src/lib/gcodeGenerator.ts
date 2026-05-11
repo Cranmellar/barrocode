@@ -162,22 +162,23 @@ function buildSkirtTravel(
 /**
  * Emit G-code for one continuous print path.
  * Travel to the path start must be handled by the caller BEFORE this call.
+ * Returns the Z coordinate of the last emitted point (for soft-join callers).
  */
 function pathToGcode(
   svgPts: WavePoint[],
-  z: number,
+  layerZ: number,
   params: PrintParams,
   svgH: number,
   eRef: { value: number },
-  crossings: number[],    // arc positions (mm) of intersections in the full layer path
-  arcOffset: number,      // cumulative arc at start of this path segment
+  zRef: { value: number },  // tracks current nozzle Z across calls
+  crossings: number[],
+  arcOffset: number,
 ): string[] {
   if (svgPts.length < 2) return [];
 
   const mmPts = svgPts.map(p => toMM(p, params, svgH));
   const lines: string[] = [];
 
-  // Build arc-length accumulator for this path (local arc + offset = global arc)
   let localArc = arcOffset;
 
   for (let i = 1; i < mmPts.length; i++) {
@@ -187,12 +188,16 @@ function pathToGcode(
     if (d < 1e-6) continue;
 
     localArc += d;
-    const hop = hopAtArc(localArc, crossings, params.zHopHeight);
-    const zOut = z + hop;
+    const hop    = hopAtArc(localArc, crossings, params.zHopHeight);
+    const zOscil = svgPts[i].zOffset;
+    const zOut   = layerZ + zOscil + hop;
 
     eRef.value += d * params.extrusionMultiplier;
     const eStr = params.generateE ? ` E${fmt(eRef.value)}` : '';
-    const zStr = (hop > 0.001 || i === 1) ? ` Z${fmt(zOut)}` : '';
+    const zChanged = Math.abs(zOut - zRef.value) > 0.001;
+    const zStr = zChanged ? ` Z${fmt(zOut)}` : '';
+    if (zChanged) zRef.value = zOut;
+
     lines.push(`G1 X${fmt(curr.x)} Y${fmt(curr.y)}${zStr}${eStr} F${params.printSpeed}`);
   }
 
@@ -254,6 +259,7 @@ export function generateGcode(
   blocks.push(`G1 Z${fmt(params.safeZ)} F${params.travelSpeed}  ; safe Z\n`);
 
   const eRef = { value: 0 };
+  const zRef = { value: params.safeZ };
   let isFirstMove = true;
 
   if (params.primingMove) {
@@ -315,6 +321,7 @@ export function generateGcode(
         // Very first move: direct travel to start position
         blocks.push(`G1 X${fmt(destMM.x)} Y${fmt(destMM.y)} F${params.travelSpeed}  ; travel to start`);
         blocks.push(`G1 Z${fmt(layer.z)} F${params.travelSpeed}  ; descend`);
+        zRef.value = layer.z;
         if (params.dwellAtStart > 0) {
           blocks.push(`G4 P${params.dwellAtStart}  ; dwell — wait for clay flow`);
         }
@@ -326,9 +333,11 @@ export function generateGcode(
           { x: curX, y: curY }, destMM, layerCentroid, layer.z, params,
         );
         blocks.push(skirtLines.join('\n'));
+        // skirt travel lands at layer.z; first point's zOffset applied on first G1
+        zRef.value = layer.z;
       }
 
-      const lines = pathToGcode(svgPts, layer.z, params, svgH, eRef, layerCrossings, arcOffset);
+      const lines = pathToGcode(svgPts, layer.z, params, svgH, eRef, zRef, layerCrossings, arcOffset);
       blocks.push(lines.join('\n'));
       isFirstMove = false;
 
@@ -348,10 +357,11 @@ export function generateGcode(
           const toMM2 = toMM(firstNextSvgPt, params, svgH);
           const tLines = buildTransition(
             fromMM, toMM2,
-            layer.z, nextLayer.z,
+            zRef.value, nextLayer.z + firstNextSvgPt.zOffset,
             params.transitionLength,
             params, eRef,
           );
+          zRef.value = nextLayer.z + firstNextSvgPt.zOffset;
           blocks.push(tLines.join('\n'));
         }
       }
