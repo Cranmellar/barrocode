@@ -8,9 +8,10 @@ import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
 import { Preview2D } from './components/Preview2D';
-import { GcodeOutput } from './components/GcodeOutput';
 import { PathList } from './components/PathList';
 import { CenterScaleParams } from './components/CenterScaleParams';
+import { NumInput } from './components/NumInput';
+import { CenterPad } from './components/CenterPad';
 
 const DEFAULT_PARAMS: PrintParams = {
   sampleSpacing: 2,
@@ -94,6 +95,8 @@ function useResize(
   return { size, onMouseDown };
 }
 
+function uid() { return Math.random().toString(36).slice(2, 9); }
+
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
@@ -103,16 +106,49 @@ export default function App() {
   const [gcodeFilename, setGcodeFilename] = useState('curva.de.barro.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
   const [keyframes, setKeyframes] = useState<WaveKeyframe[]>([]);
+  const [centerTab, setCenterTab] = useState<'preview' | 'gcode'>('preview');
+  const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
 
+  const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
+  const svgH = parsedSVG?.viewBox.height ?? 200;
+
+  function addKeyframe() {
+    const newKf: WaveKeyframe = {
+      id: uid(), t: timelineProgress,
+      ampN: params.lissAmpN, ampT: params.lissAmpT,
+      wlN: params.lissWlN, wlT: params.lissWlT,
+      delta: params.lissDelta,
+      centerX: params.centerX, centerY: params.centerY,
+      scaleX: params.scaleX, scaleY: params.scaleY,
+    };
+    const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
+    setKeyframes(updated);
+    setSelectedKfId(newKf.id);
+  }
+
+  function deleteKeyframe() {
+    if (!selectedKfId) return;
+    setKeyframes(keyframes.filter(k => k.id !== selectedKfId));
+    setSelectedKfId(null);
+  }
+
+  function clearAllKeyframes() {
+    setKeyframes([]);
+    setSelectedKfId(null);
+  }
+
+  function updateKf<K extends keyof WaveKeyframe>(key: K, val: WaveKeyframe[K]) {
+    if (!selectedKfId) return;
+    setKeyframes(keyframes.map(k => k.id === selectedKfId ? { ...k, [key]: val } : k));
+  }
+
   // Resizable panels
-  const leftPanel        = useResize(272, 200, 480, 'x');
-  const rightPanel       = useResize(288, 200, 480, 'x', true);
-  // Bottom row — taller default so Lissajous canvas has breathing room
-  const bottomRow        = useResize(280, 140, 520, 'y', true);
-  const centerScalePanel = useResize(176, 140, 320, 'x');
-  const bottomSplit      = useResize(0, 0, 2000, 'x'); // 0 = 50/50 via flex
+  const leftPanel         = useResize(272, 200, 480, 'x');
+  const rightPanel        = useResize(288, 200, 480, 'x', true);
+  const bottomRow         = useResize(200, 120, 480, 'y', true);
+  const lissPreviewHeight = useResize(200, 120, 400, 'y');
 
   const doParse = useCallback((raw: string, spacing: number) => {
     try {
@@ -253,6 +289,7 @@ export default function App() {
         )}
 
         <PathParams params={params} onChange={setParams} />
+        <CenterScaleParams params={params} onChange={setParams} />
       </div>
 
       {/* Divisor izquierdo */}
@@ -274,36 +311,130 @@ export default function App() {
           onTimelineChange={setTimelineProgress}
           keyframes={keyframes}
           onKeyframesChange={setKeyframes}
+          centerTab={centerTab}
+          onTabChange={setCenterTab}
+          gcode={gcode}
+          gcodeFilename={gcodeFilename}
+          selectedKfId={selectedKfId}
+          onKfSelect={setSelectedKfId}
         />
 
         {/* Divisor horizontal redimensionable */}
         <div className="drag-handle-h" onMouseDown={bottomRow.onMouseDown} />
 
-        {/* Fila inferior — Centro/Escala | Lissajous | G-code */}
+        {/* Fila inferior — Keyframes */}
         <div className="bottom-row" style={{ height: bottomRow.size }}>
-
-          {/* Centro y escala — izquierda */}
-          <div className="center-scale-pane" style={{ width: centerScalePanel.size }}>
-            <CenterScaleParams params={params} onChange={setParams} />
-          </div>
-
-          <div className="drag-handle-v" onMouseDown={centerScalePanel.onMouseDown} />
-
-          {/* Lissajous preview — centro */}
-          <div className="lissajous-pane" style={{ flex: 1 }}>
-            <div className="lissajous-container">
-              <LissajousPreview params={params} />
+          <div className="kf-panel">
+            <div className="toolbar">
+              <span className="toolbar-title">Keyframes</span>
+              <button className="btn-small kf-add-btn" onClick={addKeyframe}>
+                ⊕ Añadir en {Math.round(timelineProgress * 100)}%
+              </button>
+              {selectedKfId && (
+                <button className="btn-small kf-del-btn" onClick={deleteKeyframe}>
+                  ✕ Eliminar
+                </button>
+              )}
+              {keyframes.length > 0 && (
+                <button className="btn-small kf-del-btn kf-trash-btn" onClick={clearAllKeyframes}
+                  title="Eliminar todos los keyframes">
+                  <svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor"
+                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 3h9M3.5 3V2h4v1M2 3l.8 7h5.4l.8-7"/>
+                    <line x1="4.2" y1="5.5" x2="4" y2="8.5"/>
+                    <line x1="6.8" y1="5.5" x2="7" y2="8.5"/>
+                  </svg>
+                </button>
+              )}
+              {keyframes.length === 0 && (
+                <span className="kf-empty-hint">
+                  Añade un keyframe para animar la onda por capas
+                </span>
+              )}
             </div>
+
+            {selectedKf && (
+              <div className="kf-editor">
+                <span className="kf-editor-title">
+                  KF {(selectedKf.t * 100).toFixed(1)}%
+                </span>
+                <div className="kf-field">
+                  <label>Amp N</label>
+                  <div className="kf-field-input-row">
+                    <NumInput value={selectedKf.ampN} min={0} max={30} step={0.1}
+                      onChange={v => updateKf('ampN', v)} />
+                    <span className="kf-unit">mm</span>
+                  </div>
+                </div>
+                <div className="kf-field">
+                  <label>Amp T</label>
+                  <div className="kf-field-input-row">
+                    <NumInput value={selectedKf.ampT} min={0} max={30} step={0.1}
+                      onChange={v => updateKf('ampT', v)} />
+                    <span className="kf-unit">mm</span>
+                  </div>
+                </div>
+                <div className="kf-field">
+                  <label>λ N</label>
+                  <div className="kf-field-input-row">
+                    <NumInput value={selectedKf.wlN} min={1} max={200} step={1}
+                      onChange={v => updateKf('wlN', v)} />
+                    <span className="kf-unit">mm</span>
+                  </div>
+                </div>
+                <div className="kf-field">
+                  <label>λ T</label>
+                  <div className="kf-field-input-row">
+                    <NumInput value={selectedKf.wlT} min={1} max={200} step={1}
+                      onChange={v => updateKf('wlT', v)} />
+                    <span className="kf-unit">mm</span>
+                  </div>
+                </div>
+                <div className="kf-field">
+                  <label>Delta</label>
+                  <div className="kf-field-input-row">
+                    <NumInput
+                      value={parseFloat((selectedKf.delta * 180 / Math.PI).toFixed(1))}
+                      min={-180} max={180} step={1}
+                      onChange={v => updateKf('delta', v * Math.PI / 180)}
+                    />
+                    <span className="kf-unit">°</span>
+                  </div>
+                </div>
+                <div className="kf-pad-wrap">
+                  <span className="kf-pad-label">Centro</span>
+                  <CenterPad
+                    layers={layers}
+                    params={params}
+                    svgH={svgH}
+                    centerX={selectedKf.centerX ?? params.centerX}
+                    centerY={selectedKf.centerY ?? params.centerY}
+                    kfT={selectedKf.t}
+                    onChange={(x, y) => {
+                      if (!selectedKfId) return;
+                      setKeyframes(keyframes.map(k =>
+                        k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
+                      ));
+                    }}
+                  />
+                </div>
+                <div className="kf-field">
+                  <label>Escala X</label>
+                  <div className="kf-field-input-row">
+                    <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
+                      onChange={v => updateKf('scaleX', v)} />
+                  </div>
+                </div>
+                <div className="kf-field" style={{ borderRight: 'none' }}>
+                  <label>Escala Y</label>
+                  <div className="kf-field-input-row">
+                    <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
+                      onChange={v => updateKf('scaleY', v)} />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
-          {/* Divisor vertical interno */}
-          <div className="drag-handle-v" onMouseDown={bottomSplit.onMouseDown} />
-
-          {/* G-code output — derecha */}
-          <div className="gcode-pane" style={{ flex: 1 }}>
-            <GcodeOutput gcode={gcode} filename={gcodeFilename} />
-          </div>
-
         </div>
       </div>
 
@@ -312,11 +443,17 @@ export default function App() {
 
       {/* ── Panel derecho ── */}
       <div className="sidebar right-sidebar" style={{ width: rightPanel.size }}>
-        <LissajousParams
-          params={params}
-          onChange={setParams}
-          onReset={() => setParams(DEFAULT_PARAMS)}
-        />
+        <div className="liss-preview-panel" style={{ height: lissPreviewHeight.size }}>
+          <LissajousPreview params={params} />
+        </div>
+        <div className="drag-handle-h" onMouseDown={lissPreviewHeight.onMouseDown} />
+        <div className="right-sidebar-scroll">
+          <LissajousParams
+            params={params}
+            onChange={setParams}
+            onReset={() => setParams(DEFAULT_PARAMS)}
+          />
+        </div>
       </div>
 
     </div>

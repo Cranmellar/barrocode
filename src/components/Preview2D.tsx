@@ -18,8 +18,7 @@ import { svgToMM } from '../lib/waveGenerator';
 import { buildArcPath, findCrossings, hopAtArc } from '../lib/hopUtils';
 import { getParamsAtT } from '../lib/waveGenerator';
 import { computeCentroid, skirtArcPoints } from '../lib/skirtUtils';
-import { NumInput } from './NumInput';
-import { CenterPad } from './CenterPad';
+import { GcodeOutput } from './GcodeOutput';
 
 interface Props {
   sampledPaths: SampledPath[];
@@ -30,6 +29,12 @@ interface Props {
   onTimelineChange: (v: number) => void;
   keyframes: WaveKeyframe[];
   onKeyframesChange: (kf: WaveKeyframe[]) => void;
+  centerTab: 'preview' | 'gcode';
+  onTabChange: (tab: 'preview' | 'gcode') => void;
+  gcode: string;
+  gcodeFilename: string;
+  selectedKfId: string | null;
+  onKfSelect: (id: string | null) => void;
 }
 
 interface View3D {
@@ -92,12 +97,14 @@ export function Preview2D({
   sampledPaths, layers, params, viewBox,
   timelineProgress, onTimelineChange,
   keyframes, onKeyframesChange,
+  centerTab, onTabChange, gcode, gcodeFilename,
+  selectedKfId, onKfSelect,
 }: Props) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasRef   = useRef<HTMLCanvasElement>(null);
+  const topdownRef  = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState<View3D>({
     azimuth: 215, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
-  const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
 
   const dragRef = useRef<{
     button: number; startX: number; startY: number; startView: View3D;
@@ -107,10 +114,14 @@ export function Preview2D({
   const kfDragRef    = useRef<{ id: string; startX: number; moved: boolean } | null>(null);
   const trackRef     = useRef<HTMLDivElement>(null);
   // Stable refs so window handlers never capture stale closure values
-  const kfsRef       = useRef(keyframes);
-  const onKfsRef     = useRef(onKeyframesChange);
-  useEffect(() => { kfsRef.current   = keyframes;         }, [keyframes]);
-  useEffect(() => { onKfsRef.current = onKeyframesChange; }, [onKeyframesChange]);
+  const kfsRef          = useRef(keyframes);
+  const onKfsRef        = useRef(onKeyframesChange);
+  const selectedKfIdRef = useRef(selectedKfId);
+  const onKfSelectRef   = useRef(onKfSelect);
+  useEffect(() => { kfsRef.current          = keyframes;         }, [keyframes]);
+  useEffect(() => { onKfsRef.current        = onKeyframesChange; }, [onKeyframesChange]);
+  useEffect(() => { selectedKfIdRef.current = selectedKfId;      }, [selectedKfId]);
+  useEffect(() => { onKfSelectRef.current   = onKfSelect;        }, [onKfSelect]);
 
   const svgH = viewBox?.height ?? 200;
 
@@ -135,7 +146,8 @@ export function Preview2D({
       if (!d) return;
       if (!d.moved) {
         // Pure click → select / deselect
-        setSelectedKfId(prev => prev === d.id ? null : d.id);
+        const cur = selectedKfIdRef.current;
+        onKfSelectRef.current(cur === d.id ? null : d.id);
       }
       kfDragRef.current = null;
       document.body.style.cursor = '';
@@ -207,7 +219,7 @@ export function Preview2D({
     const W = rect.width, H = rect.height;
     const { azimuth, elevation, scale, offsetX, offsetY } = view;
 
-    ctx.fillStyle = '#EDEBE4';
+    ctx.fillStyle = '#EDEDF2';
     ctx.fillRect(0, 0, W, H);
 
     function toScreen(x: number, y: number, z: number): [number, number] {
@@ -584,7 +596,7 @@ export function Preview2D({
       ctx.save();
       ctx.beginPath();
       ctx.arc(GX, GY, GR, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(247,245,240,0.90)';
+      ctx.fillStyle = 'rgba(241,241,246,0.90)';
       ctx.fill();
       ctx.strokeStyle = 'rgba(140,135,125,0.30)';
       ctx.lineWidth = 0.75;
@@ -641,6 +653,53 @@ export function Preview2D({
 
   }, [sampledPaths, layers, params, viewBox, view, timelineProgress, svgH, keyframes, selectedKfId]);
 
+  // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
+  useEffect(() => {
+    if (centerTab !== 'gcode') return;
+    const canvas = topdownRef.current;
+    if (!canvas || layers.length === 0) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const W = canvas.width, H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = '#F5F5F9';
+    ctx.fillRect(0, 0, W, H);
+
+    const pad = 10;
+    const allPts = layers.flatMap(l =>
+      l.paths.flat().map(p => svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH)),
+    );
+    if (allPts.length === 0) return;
+    const xs = allPts.map(p => p.x), ys = allPts.map(p => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs);
+    const minY = Math.min(...ys), maxY = Math.max(...ys);
+    const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+    const sc = Math.min((W - pad * 2) / rangeX, (H - pad * 2) / rangeY);
+    const ox = pad + ((W - pad * 2) - rangeX * sc) / 2;
+    const oy = pad + ((H - pad * 2) - rangeY * sc) / 2;
+    const ts = (x: number, y: number): [number, number] => [
+      ox + (x - minX) * sc,
+      H - oy - (y - minY) * sc,
+    ];
+
+    for (let li = 0; li < layers.length; li++) {
+      ctx.strokeStyle = layerColor(li, layers.length, 0.75);
+      ctx.lineWidth = 0.9;
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      for (const svgPts of layers[li].paths) {
+        if (svgPts.length < 2) continue;
+        ctx.beginPath();
+        svgPts.forEach((p, i) => {
+          const mm = svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+          const [sx, sy] = ts(mm.x, mm.y);
+          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+        });
+        ctx.stroke();
+      }
+    }
+  }, [centerTab, layers, params, svgH]);
+
   // ── Mouse interaction ─────────────────────────────────────────────────────
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -676,73 +735,65 @@ export function Preview2D({
     });
   };
 
-  // ── Keyframe helpers ──────────────────────────────────────────────────────
-  const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
-
-  function addKeyframe() {
-    const newKf: WaveKeyframe = {
-      id:      uid(),
-      t:       timelineProgress,
-      ampN:    params.lissAmpN,
-      ampT:    params.lissAmpT,
-      wlN:     params.lissWlN,
-      wlT:     params.lissWlT,
-      delta:   params.lissDelta,
-      centerX: params.centerX,
-      centerY: params.centerY,
-      scaleX:  params.scaleX,
-      scaleY:  params.scaleY,
-    };
-    const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
-    onKeyframesChange(updated);
-    setSelectedKfId(newKf.id);
-  }
-
-  function deleteKeyframe() {
-    if (!selectedKfId) return;
-    onKeyframesChange(keyframes.filter(k => k.id !== selectedKfId));
-    setSelectedKfId(null);
-  }
-
-  function clearAllKeyframes() {
-    onKeyframesChange([]);
-    setSelectedKfId(null);
-  }
-
-  function updateKf<K extends keyof WaveKeyframe>(key: K, val: WaveKeyframe[K]) {
-    if (!selectedKfId) return;
-    onKeyframesChange(
-      keyframes.map(k => k.id === selectedKfId ? { ...k, [key]: val } : k),
-    );
-  }
-
   const numLayers = layers.length;
   const totalPts = layers.reduce((s, l) => s + l.paths.reduce((a, p) => a + p.length, 0), 0);
 
   return (
     <div className="preview-container">
       <div className="toolbar">
-        <span className="toolbar-title">Trayectoria global</span>
-        <button className="btn-small" onClick={fitView}>Ajustar</button>
-        <span className="toolbar-hint">Arrastrar = pan · Clic der. = rotar · Rueda = zoom</span>
-        {layers.length > 0 && (
-          <span className="toolbar-info">
-            {layers.length} capa{layers.length !== 1 ? 's' : ''} · {totalPts.toLocaleString()} pts
-          </span>
+        {centerTab === 'preview' && (
+          <>
+            <span className="toolbar-title">Trayectoria</span>
+            <button className="btn-small" onClick={fitView}>Ajustar</button>
+            <span className="toolbar-hint">Arrastrar = pan · Clic der. = rotar · Rueda = zoom</span>
+            {layers.length > 0 && (
+              <span className="toolbar-info">
+                {layers.length} capa{layers.length !== 1 ? 's' : ''} · {totalPts.toLocaleString()} pts
+              </span>
+            )}
+          </>
         )}
+        {centerTab === 'gcode' && (
+          <span className="toolbar-title">G-code</span>
+        )}
+        <div className="seg-switch">
+          <button
+            className={`seg-btn ${centerTab === 'preview' ? 'seg-btn--active' : ''}`}
+            onClick={() => onTabChange('preview')}
+          >
+            Trayectoria
+          </button>
+          <button
+            className={`seg-btn ${centerTab === 'gcode' ? 'seg-btn--active' : ''}`}
+            onClick={() => onTabChange('gcode')}
+          >
+            G-code
+          </button>
+        </div>
       </div>
 
-      <canvas
-        ref={canvasRef}
-        className="preview-canvas"
-        style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
-        onMouseDown={onMouseDown}
-        onMouseMove={onMouseMove}
-        onMouseUp={onMouseUp}
-        onMouseLeave={onMouseUp}
-        onContextMenu={onContextMenu}
-        onWheel={onWheel}
-      />
+      {centerTab === 'preview' && (
+        <canvas
+          ref={canvasRef}
+          className="preview-canvas"
+          style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
+          onMouseDown={onMouseDown}
+          onMouseMove={onMouseMove}
+          onMouseUp={onMouseUp}
+          onMouseLeave={onMouseUp}
+          onContextMenu={onContextMenu}
+          onWheel={onWheel}
+        />
+      )}
+
+      {centerTab === 'gcode' && (
+        <div className="gcode-tab-view">
+          <GcodeOutput gcode={gcode} filename={gcodeFilename} />
+          {layers.length > 0 && (
+            <canvas ref={topdownRef} width={160} height={120} className="gcode-topdown" />
+          )}
+        </div>
+      )}
 
       {/* Timeline row */}
       {layers.length > 0 && (
@@ -779,114 +830,9 @@ export function Preview2D({
           <span className="timeline-label" style={{ minWidth: 36, textAlign: 'right' }}>
             {Math.round(timelineProgress * 100)}%
           </span>
-          <button className="btn-small kf-add-btn" onClick={addKeyframe} title="Añadir keyframe aquí">
-            ⊕ KF
-          </button>
-          {selectedKf && (
-            <button className="btn-small kf-del-btn" onClick={deleteKeyframe} title="Eliminar keyframe seleccionado">
-              ✕
-            </button>
-          )}
-          {keyframes.length > 0 && (
-            <button className="btn-small kf-del-btn kf-trash-btn" onClick={clearAllKeyframes} title="Eliminar todos los keyframes">
-              <svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M1 3h9M3.5 3V2h4v1M2 3l.8 7h5.4l.8-7"/>
-                <line x1="4.2" y1="5.5" x2="4" y2="8.5"/>
-                <line x1="6.8" y1="5.5" x2="7" y2="8.5"/>
-              </svg>
-            </button>
-          )}
         </div>
       )}
 
-      {/* Keyframe editor */}
-      {selectedKf && (
-        <div className="kf-editor">
-          <span className="kf-editor-title">
-            KF {(selectedKf.t * 100).toFixed(1)}%
-          </span>
-
-          {/* ── Wave ── */}
-          <div className="kf-field">
-            <label>Amp N</label>
-            <div className="kf-field-input-row">
-              <NumInput value={selectedKf.ampN} min={0} max={30} step={0.1}
-                onChange={v => updateKf('ampN', v)} />
-              <span className="kf-unit">mm</span>
-            </div>
-          </div>
-          <div className="kf-field">
-            <label>Amp T</label>
-            <div className="kf-field-input-row">
-              <NumInput value={selectedKf.ampT} min={0} max={30} step={0.1}
-                onChange={v => updateKf('ampT', v)} />
-              <span className="kf-unit">mm</span>
-            </div>
-          </div>
-          <div className="kf-field">
-            <label>λ N</label>
-            <div className="kf-field-input-row">
-              <NumInput value={selectedKf.wlN} min={1} max={200} step={1}
-                onChange={v => updateKf('wlN', v)} />
-              <span className="kf-unit">mm</span>
-            </div>
-          </div>
-          <div className="kf-field">
-            <label>λ T</label>
-            <div className="kf-field-input-row">
-              <NumInput value={selectedKf.wlT} min={1} max={200} step={1}
-                onChange={v => updateKf('wlT', v)} />
-              <span className="kf-unit">mm</span>
-            </div>
-          </div>
-          <div className="kf-field">
-            <label>Delta</label>
-            <div className="kf-field-input-row">
-              <NumInput
-                value={parseFloat((selectedKf.delta * 180 / Math.PI).toFixed(1))}
-                min={-180} max={180} step={1}
-                onChange={v => updateKf('delta', v * Math.PI / 180)}
-              />
-              <span className="kf-unit">°</span>
-            </div>
-          </div>
-
-          {/* ── Center ── */}
-          <div className="kf-pad-wrap">
-            <span className="kf-pad-label">Centro</span>
-            <CenterPad
-              layers={layers}
-              params={params}
-              svgH={svgH}
-              centerX={selectedKf.centerX ?? params.centerX}
-              centerY={selectedKf.centerY ?? params.centerY}
-              kfT={selectedKf.t}
-              onChange={(x, y) => {
-                if (!selectedKfId) return;
-                onKeyframesChange(
-                  keyframes.map(k => k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k),
-                );
-              }}
-            />
-          </div>
-
-          {/* ── Scale ── */}
-          <div className="kf-field">
-            <label>Escala X</label>
-            <div className="kf-field-input-row">
-              <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
-                onChange={v => updateKf('scaleX', v)} />
-            </div>
-          </div>
-          <div className="kf-field" style={{ borderRight: 'none' }}>
-            <label>Escala Y</label>
-            <div className="kf-field-input-row">
-              <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
-                onChange={v => updateKf('scaleY', v)} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
