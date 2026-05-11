@@ -224,4 +224,4 @@ When you need context, this is where to look:
 
 - Conventional-commit prefixes are welcome but not enforced. The existing log mixes `feat:`, `fix:`, `chore:`, `ci:`, and plain prose.
 - Keep commits scoped to one logical change. If a change spans entangled files (rename + bug fix in the same function, etc.), split it manually — don't lump everything into a "misc" commit.
-- The remote is at [Cranmellar/curvabarro](https://github.com/Cranmellar/curvabarro) on GitHub. The repo name on GitHub has not been updated to match the new project name (`barrocode`); leave that for the user to do.
+- The remote is at [Cranmellar/barrocode](https://github.com/Cranmellar/barrocode) on GitHub.
