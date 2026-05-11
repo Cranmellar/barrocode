@@ -1,10 +1,10 @@
 # Frontend instructions for Claude Code: barrocode
 
-Build the frontend for **barrocode** as a minimal technical interface inspired by CLI installation panels, especially the `claude-mem install` flow. The UI should feel like a graphical console for a developer tool: sparse, precise, text-first, and structured around process state.
+Build the frontend for **barrocode** as a minimal technical interface inspired by CLI installation panels, especially the `claude-mem install` flow. The UI should feel like a light-code graphical instrument: sparse, precise, text-first, and structured around process state, but not visually identical to a code terminal.
 
 ## Visual Direction
 
-Use a terminal-adjacent interface with ASCII-style symbols, vertical process flows, compact data panels, thin lines, and simple diagnostic charts. Avoid a generic SaaS dashboard look.
+Use a light-code interface with ASCII-style symbols, vertical process flows, compact data panels, thin lines, and simple diagnostic charts. ASCII characters should work as graphic UI elements integrated into panels, controls, labels, and flows. Avoid a generic SaaS dashboard look, and avoid making the whole interface look like a terminal emulator.
 
 The first screen must be the usable product interface, not a landing page.
 
@@ -20,7 +20,7 @@ The first screen must be the usable product interface, not a landing page.
 
 ## ASCII UI Language
 
-Use text symbols as part of the interface language. Examples:
+Use text symbols as graphic elements inside the interface, not as a full terminal skin. They should evoke icons, flow markers, state indicators, dividers, and cursor focus. Examples:
 
 ```txt
 o  pending step
@@ -35,7 +35,9 @@ x  failed
 #  module/block marker
 ```
 
-Use these symbols in steppers, status lists, logs, compact controls, and diagnostic summaries. They should feel intentional, not decorative.
+Use these symbols in steppers, status lists, compact controls, panel headers, diagnostic summaries, timeline markers, and flow connectors. They should feel intentional and integrated with the UI layout, not decorative and not confined to code blocks.
+
+Inputs and controls must remain graphical UI controls. Do not style text fields, upload areas, sliders, or numeric inputs as if they were command-line prompts unless that control is explicitly a command/output surface.
 
 ## Suggested Layout
 
@@ -119,6 +121,8 @@ Keep most of the interface black, white, and gray. Do not build a one-hue theme.
 - Use segmented controls, checkboxes, toggles, and simple menus for configuration.
 - Hover/focus states should be visible but restrained.
 - All interactive elements must have accessible labels.
+- The app should be navigable by keyboard and cursor: clear focus states, logical tab order, arrow-key support where appropriate, and no interaction that requires dragging only.
+- Reveal detailed controls progressively. Keep the user's view clean by default, then expose overrides, diagnostics, and advanced parameters when the user selects, expands, focuses, or needs them.
 
 ## Copywriting
 
@@ -152,8 +156,7 @@ Avoid:
 The finished frontend should:
 
 - look like a minimal graphical console for barrocode
-- clearly reference CLI installation flows through ASCII symbols and vertical process state
+- clearly reference CLI installation flows through ASCII symbols and vertical process state without looking like a literal terminal emulator
 - expose real product functionality immediately on the first screen
 - use text, alignment, borders, and state color as the main visual system
 - avoid decorative SaaS patterns, generic hero pages, and heavy card layouts
-

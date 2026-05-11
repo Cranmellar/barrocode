@@ -4,9 +4,9 @@ Este documento define una dirección visual para la interfaz de **barrocode**. N
 
 ## Idea central
 
-Barrocode debe sentirse como una herramienta de código, no como una landing page. La interfaz puede tomar prestado el lenguaje de la terminal, los diagramas técnicos, las mediciones impresas y los paneles de instalación tipo CLI.
+Barrocode debe sentirse como una herramienta de código ligera, no como una landing page ni como una terminal literal. La interfaz puede tomar prestado el lenguaje de la terminal, los diagramas técnicos, las mediciones impresas y los paneles de instalación tipo CLI, pero debe integrarlos en una UI gráfica navegable.
 
-El referente principal es el panel de instalación de `claude-mem`: una experiencia basada en texto, pasos verticales, estados simples y símbolos ASCII que organizan el flujo sin depender de componentes decorativos.
+El referente principal es el panel de instalación de `claude-mem`: una experiencia basada en texto, pasos verticales, estados simples y símbolos ASCII que organizan el flujo sin depender de componentes decorativos. En Barrocode, esos símbolos no deben convertir la app en una terminal visual; deben operar como elementos gráficos integrados a paneles, controles, flujos e indicadores.
 
 La interfaz debe comunicar:
 
@@ -19,9 +19,9 @@ La interfaz debe comunicar:
 
 ## Referentes visuales sintetizados
 
-### Panel tipo terminal
+### Lenguaje ASCII integrado
 
-Usar una estructura vertical de pasos, con estados visibles mediante signos simples:
+Usar símbolos ASCII como recursos gráficos de interfaz: nodos, conectores, focos, estados, separadores y marcas de flujo. Pueden aparecer en estructuras verticales, encabezados de panel, controles compactos y diagnósticos:
 
 ```txt
 o  Paso pendiente
@@ -31,7 +31,7 @@ o  Paso pendiente
 ✓  Completado, si el entorno lo permite
 ```
 
-La UI debe poder funcionar incluso si se reducen colores e iconos. El texto, la alineación y la jerarquía deben sostener la experiencia.
+La UI debe poder funcionar incluso si se reducen colores e iconos. El texto, la alineación y la jerarquía deben sostener la experiencia. Sin embargo, los inputs, sliders, áreas de carga y controles principales deben seguir siendo controles gráficos claros, no imitaciones de una línea de comandos.
 
 ### UI editorial de datos
 
@@ -134,6 +134,8 @@ Estructura sugerida:
 
 Evitar tarjetas grandes con mucho relleno. Usar secciones, líneas, tablas, listas y barras.
 
+La vista debe permanecer limpia por defecto. Los controles avanzados, overrides, diagnósticos y detalles secundarios deben revelarse cuando el usuario selecciona, expande, enfoca o necesita esa información.
+
 ## Componentes esperados
 
 ### Stepper técnico
@@ -150,7 +152,7 @@ o  Generar interfaz
 
 ### Panel de comando
 
-Un bloque principal con prompt, salida y acciones:
+Un bloque de salida o diagnóstico puede usar formato de prompt, siempre que sea una superficie específica y no el estilo general de todos los inputs:
 
 ```txt
 > barrocode init
@@ -178,6 +180,18 @@ parser       ready      94
 ui           active     71
 memory       pending    38
 ```
+
+### Elementos descubribles
+
+La UI debe ser navegable por cursor y teclado. Usar focos visibles, orden lógico de tabulación y controles que puedan operarse sin depender exclusivamente del drag.
+
+Los parámetros complejos deben aparecer de manera progresiva:
+
+- resumen primero
+- detalle al seleccionar
+- overrides al expandir
+- diagnósticos al necesitar acción
+- controles avanzados en contexto
 
 ## Tono de interfaz
 
@@ -208,5 +222,4 @@ Evitar:
 
 ## Resultado deseado
 
-La interfaz de barrocode debe sentirse como una consola gráfica mínima: una capa visual ligera sobre procesos técnicos. Debe ser austera, precisa y distintiva, con una estética donde ASCII, grilla, datos y estados sean parte central del lenguaje del producto.
-
+La interfaz de barrocode debe sentirse como una consola gráfica mínima y ligera: una capa visual clara sobre procesos técnicos. Debe ser austera, precisa y distintiva, con una estética donde tipografía, ASCII integrado, grilla, datos y estados sean parte central del lenguaje del producto, sin caer en una imitación literal de terminal.
