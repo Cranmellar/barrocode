@@ -215,8 +215,7 @@ When you need context, this is where to look:
 - [docs/fabrication-notes.md](docs/fabrication-notes.md) — clay-printer criteria informing the design.
 - [docs/research-notes.md](docs/research-notes.md) — **open research notes**, unpriorized ideas. Read before suggesting any new feature.
 - [pendientes.md](pendientes.md) — **actionable backlog**, prioritized in waves. Read before starting any new ticket.
-- [pendientes-wave-1.md](pendientes-wave-1.md) — self-contained execution prompt for Wave 1 (P0 bugs). Pattern for other waves.
-- [frontend.md](frontend.md) / [README.frontend.md](README.frontend.md) — **exploratory** visual direction (CLI/claude-mem aesthetic). **Not the current guideline.** Do not migrate the UI toward this document without explicit user instruction. The current visual system is described in the "CSS" section above.
+- [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 
 ---
 
