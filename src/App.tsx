@@ -13,10 +13,10 @@ import { CenterScaleParams } from './components/CenterScaleParams';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 
-const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#808"/></svg>`;
-const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#808"/></svg>`;
-const _S3 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M360 240c-66.3 0-120-53.7-120-120a120 120 0 1 0-120 120c66.3 0 120 53.7 120 120a120 120 0 1 0 120-120Z" fill="#808"/></svg>`;
-const _S4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M450 210a57 57 0 0 1-40.3-97.3 30 30 0 1 0-42.4-42.4A57 57 0 0 1 270 30a30 30 0 1 0-60 0 57 57 0 0 1-97.3 40.3 30 30 0 1 0-42.4 42.4A57 57 0 0 1 30 210a30 30 0 1 0 0 60 57 57 0 0 1 40.3 97.3 30 30 0 1 0 42.4 42.4A57 57 0 0 1 210 450a30 30 0 1 0 60 0 57 57 0 0 1 97.3-40.3 30 30 0 1 0 42.4-42.4A57 57 0 0 1 450 270a30 30 0 1 0 0-60Zm-210 90a60 60 0 1 1 0-120 60 60 0 0 1 0 120Z" fill="#808"/></svg>`;
+const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#4F46E5"/></svg>`;
+const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#4F46E5"/></svg>`;
+const _S3 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M360 240c-66.3 0-120-53.7-120-120a120 120 0 1 0-120 120c66.3 0 120 53.7 120 120a120 120 0 1 0 120-120Z" fill="#4F46E5"/></svg>`;
+const _S4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M450 210a57 57 0 0 1-40.3-97.3 30 30 0 1 0-42.4-42.4A57 57 0 0 1 270 30a30 30 0 1 0-60 0 57 57 0 0 1-97.3 40.3 30 30 0 1 0-42.4 42.4A57 57 0 0 1 30 210a30 30 0 1 0 0 60 57 57 0 0 1 40.3 97.3 30 30 0 1 0 42.4 42.4A57 57 0 0 1 210 450a30 30 0 1 0 60 0 57 57 0 0 1 97.3-40.3 30 30 0 1 0 42.4-42.4A57 57 0 0 1 450 270a30 30 0 1 0 0-60Zm-210 90a60 60 0 1 1 0-120 60 60 0 0 1 0 120Z" fill="#4F46E5"/></svg>`;
 const svgUri = (s: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
 
 const SAMPLES = [
