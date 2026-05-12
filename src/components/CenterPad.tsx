@@ -76,8 +76,6 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     const T = buildTransform(layers, params, svgH, W, H);
     tRef.current = T;
 
-    const accent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
-
     // ── Background ──────────────────────────────────────────────────────────
     ctx.fillStyle = '#EDEDF2';
     ctx.fillRect(0, 0, W, H);
@@ -90,7 +88,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     for (let li = 0; li < layers.length; li++) {
       if (li === layerIdx) continue;
       ctx.globalAlpha = 0.10;
-      ctx.strokeStyle = accent;
+      ctx.strokeStyle = '#2A200E';
       for (const path of layers[li].paths) {
         if (path.length < 2) continue;
         ctx.beginPath();
@@ -104,11 +102,11 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     }
     ctx.restore();
 
-    // ── Active layer ─────────────────────────────────────────────────────────
+    // ── Active layer — bright terracotta ─────────────────────────────────────
     if (layers[layerIdx]) {
       ctx.save();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = accent;
+      ctx.strokeStyle = '#C05830';
       ctx.lineWidth   = 1.4;
       ctx.lineJoin    = 'round';
       ctx.lineCap     = 'round';
@@ -157,7 +155,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.fillStyle = 'rgba(16,14,9,0.38)';
     ctx.fillText(`${centerX.toFixed(1)}, ${centerY.toFixed(1)}`, 3, H - 3);
     ctx.textAlign   = 'right';
-    ctx.fillStyle   = accent;
+    ctx.fillStyle   = '#C05830';
     ctx.fillText(`L${layerIdx + 1}`, W - 3, H - 3);
     ctx.restore();
 
