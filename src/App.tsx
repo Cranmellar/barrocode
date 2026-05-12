@@ -127,6 +127,7 @@ export default function App() {
   const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
+  const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
   const svgH = parsedSVG?.viewBox.height ?? 200;
@@ -197,17 +198,32 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.sampleSpacing]);
 
-  // Regenerate wave + G-code on any param/path change
+  // Regenerate wave layers on any param/path change (immediate)
   useEffect(() => {
     if (!parsedSVG) return;
     const newLayers = generateWaveLayers(parsedSVG.paths, params, keyframes, parsedSVG.viewBox.height);
     setLayers(newLayers);
-    if (newLayers.length > 0) {
-      setGcode(generateGcode(newLayers, params, parsedSVG.viewBox));
-    } else {
-      setGcode('');
-    }
   }, [parsedSVG, params, keyframes]);
+
+  // Regenerate G-code with debounce — avoids freezing UI during slider/kf edits
+  useEffect(() => {
+    if (gcodeTimerRef.current !== null) clearTimeout(gcodeTimerRef.current);
+    if (layers.length === 0 || !parsedSVG) {
+      setGcode('');
+      return;
+    }
+    const snapshot = { layers, params, viewBox: parsedSVG.viewBox };
+    gcodeTimerRef.current = setTimeout(() => {
+      gcodeTimerRef.current = null;
+      setGcode(generateGcode(snapshot.layers, snapshot.params, snapshot.viewBox));
+    }, 400);
+    return () => {
+      if (gcodeTimerRef.current !== null) {
+        clearTimeout(gcodeTimerRef.current);
+        gcodeTimerRef.current = null;
+      }
+    };
+  }, [layers, params, parsedSVG]);
 
   function togglePath(id: string) {
     setParsedSVG(prev => prev && {

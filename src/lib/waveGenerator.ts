@@ -35,12 +35,8 @@ export interface LocalParams {
 
 // ── Keyframe interpolation ──────────────────────────────────────────────────
 
-export function getParamsAtT(
-  t: number,
-  keyframes: WaveKeyframe[],
-  base: PrintParams,
-): LocalParams {
-  const baseFull: LocalParams = {
+function baseToLocal(base: PrintParams): LocalParams {
+  return {
     ampN: base.lissAmpN, ampT: base.lissAmpT, ampZ: base.lissAmpZ,
     wlN:  base.lissWlN,  wlT:  base.lissWlT,  wlZ:  base.lissWlZ,
     delta: base.lissDelta,
@@ -48,38 +44,23 @@ export function getParamsAtT(
     centerX: base.centerX, centerY: base.centerY,
     scaleX:  base.scaleX,  scaleY:  base.scaleY,
   };
+}
 
-  if (keyframes.length === 0) return baseFull;
+function kfToLocal(k: WaveKeyframe, base: PrintParams): LocalParams {
+  return {
+    ampN: k.ampN, ampT: k.ampT, ampZ: k.ampZ ?? base.lissAmpZ,
+    wlN:  k.wlN,  wlT:  k.wlT,  wlZ:  k.wlZ  ?? base.lissWlZ,
+    delta: k.delta,
+    phaseZ: k.phaseZ ?? base.lissPhaseZ,
+    centerX: k.centerX ?? base.centerX,
+    centerY: k.centerY ?? base.centerY,
+    scaleX:  k.scaleX  ?? base.scaleX,
+    scaleY:  k.scaleY  ?? base.scaleY,
+  };
+}
 
-  const sorted = [...keyframes].sort((a, b) => a.t - b.t);
-
-  function kfFull(k: WaveKeyframe): LocalParams {
-    return {
-      ampN: k.ampN, ampT: k.ampT, ampZ: k.ampZ ?? base.lissAmpZ,
-      wlN:  k.wlN,  wlT:  k.wlT,  wlZ:  k.wlZ  ?? base.lissWlZ,
-      delta: k.delta,
-      phaseZ: k.phaseZ ?? base.lissPhaseZ,
-      centerX: k.centerX ?? base.centerX,
-      centerY: k.centerY ?? base.centerY,
-      scaleX:  k.scaleX  ?? base.scaleX,
-      scaleY:  k.scaleY  ?? base.scaleY,
-    };
-  }
-
-  if (t <= sorted[0].t) return kfFull(sorted[0]);
-  if (t >= sorted[sorted.length - 1].t) return kfFull(sorted[sorted.length - 1]);
-
-  let lo = sorted[0], hi = sorted[1];
-  for (let i = 0; i < sorted.length - 1; i++) {
-    if (sorted[i].t <= t && t <= sorted[i + 1].t) {
-      lo = sorted[i]; hi = sorted[i + 1]; break;
-    }
-  }
-
-  const alpha = (hi.t - lo.t) > 0 ? (t - lo.t) / (hi.t - lo.t) : 0;
-  const lerp  = (a: number, b: number) => a + (b - a) * alpha;
-  const loF = kfFull(lo), hiF = kfFull(hi);
-
+function lerpLocal(loF: LocalParams, hiF: LocalParams, alpha: number): LocalParams {
+  const lerp = (a: number, b: number) => a + (b - a) * alpha;
   return {
     ampN:    lerp(loF.ampN,    hiF.ampN),
     ampT:    lerp(loF.ampT,    hiF.ampT),
@@ -93,6 +74,58 @@ export function getParamsAtT(
     centerY: lerp(loF.centerY, hiF.centerY),
     scaleX:  lerp(loF.scaleX,  hiF.scaleX),
     scaleY:  lerp(loF.scaleY,  hiF.scaleY),
+  };
+}
+
+// Point lookup for arbitrary t — used by Preview2D for the timeline indicator.
+export function getParamsAtT(
+  t: number,
+  keyframes: WaveKeyframe[],
+  base: PrintParams,
+): LocalParams {
+  if (keyframes.length === 0) return baseToLocal(base);
+
+  const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+  const expanded = sorted.map(k => kfToLocal(k, base));
+
+  if (t <= sorted[0].t) return expanded[0];
+  if (t >= sorted[sorted.length - 1].t) return expanded[sorted.length - 1];
+
+  for (let i = 0; i < sorted.length - 1; i++) {
+    if (sorted[i].t <= t && t <= sorted[i + 1].t) {
+      const alpha = (sorted[i + 1].t - sorted[i].t) > 0
+        ? (t - sorted[i].t) / (sorted[i + 1].t - sorted[i].t)
+        : 0;
+      return lerpLocal(expanded[i], expanded[i + 1], alpha);
+    }
+  }
+  return expanded[expanded.length - 1];
+}
+
+// Sampler for monotonically increasing t — avoids O(n log n) sort per point.
+// Call once before a layer loop, then call the returned function for each point.
+export function createKeyframeSampler(
+  keyframes: WaveKeyframe[],
+  base: PrintParams,
+): (t: number) => LocalParams {
+  const baseFull = baseToLocal(base);
+  if (keyframes.length === 0) return () => baseFull;
+
+  const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+  const expanded = sorted.map(k => kfToLocal(k, base));
+  let cursor = 0;
+
+  return (t: number): LocalParams => {
+    if (t <= sorted[0].t) return expanded[0];
+    if (t >= sorted[sorted.length - 1].t) return expanded[sorted.length - 1];
+
+    // Advance cursor forward — valid only for monotonically increasing t.
+    while (cursor < sorted.length - 2 && t > sorted[cursor + 1].t) cursor++;
+
+    const alpha = (sorted[cursor + 1].t - sorted[cursor].t) > 0
+      ? (t - sorted[cursor].t) / (sorted[cursor + 1].t - sorted[cursor].t)
+      : 0;
+    return lerpLocal(expanded[cursor], expanded[cursor + 1], alpha);
   };
 }
 
@@ -185,6 +218,7 @@ export function generateWaveLayers(
   const tDenom = Math.max(1, totalFlatPoints - 1);
 
   const useKeyframes = keyframes.length > 0;
+  const kfSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
   let flatIdx = 0;
 
   const layers: WaveLayer[] = [];
@@ -204,8 +238,8 @@ export function generateWaveLayers(
         const adjusted: SampledPoint = { ...p, arcLength: s };
 
         let lp: LocalParams;
-        if (useKeyframes) {
-          lp = getParamsAtT(flatIdx / tDenom, keyframes, params);
+        if (kfSampler) {
+          lp = kfSampler(flatIdx / tDenom);
         } else {
           lp = {
             ampN: (path.ampNOverride ?? params.lissAmpN) / sf,
