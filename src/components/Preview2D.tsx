@@ -116,6 +116,8 @@ export function Preview2D({
   const [view, setView] = useState<View3D>({
     azimuth: 215, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
+  const [isInteracting, setIsInteracting] = useState(false);
+  const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragRef = useRef<{
     button: number; startX: number; startY: number; startView: View3D;
@@ -143,6 +145,24 @@ export function Preview2D({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [layers, params.scaleFactor, params.originX, params.originY, params.flipY, params.zHopHeight, svgH],
   );
+
+  const flatPoints = useMemo(
+    () => flattenPoints(layers, layerGeo, params.zHopHeight),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layers, layerGeo, params.zHopHeight],
+  );
+
+  const modelBounds = useMemo(() => {
+    if (flatPoints.length === 0) return null;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (const p of flatPoints) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    return { minX, maxX, minY, maxY };
+  }, [flatPoints]);
 
   // ── Keyframe drag (window-level so it works outside the track) ───────────
   useEffect(() => {
@@ -182,14 +202,11 @@ export function Preview2D({
   // ── Auto-fit ────────────────────────────────────────────────────────────
   const fitView = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas || layers.length === 0) return;
+    if (!canvas || flatPoints.length === 0) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0) return;
 
-    const flat = flattenPoints(layers, layerGeo, params.zHopHeight);
-    if (flat.length === 0) return;
-
-    const projected = flat.map(p => project(p.x, p.y, p.z, view.azimuth, view.elevation));
+    const projected = flatPoints.map(p => project(p.x, p.y, p.z, view.azimuth, view.elevation));
     const xs = projected.map(p => p[0]);
     const ys = projected.map(p => p[1]);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -205,7 +222,7 @@ export function Preview2D({
       offsetX: rect.width  / 2 - ((minX + maxX) / 2) * scale,
       offsetY: rect.height / 2 - ((minY + maxY) / 2) * scale,
     }));
-  }, [layers, layerGeo, params.zHopHeight, view.azimuth, view.elevation]);
+  }, [flatPoints, view.azimuth, view.elevation]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
@@ -246,15 +263,15 @@ export function Preview2D({
       return [offsetX + px * scale, offsetY + py * scale];
     }
 
-    const flat = flattenPoints(layers, layerGeo, params.zHopHeight);
+    const flat = flatPoints;
     const numLayers = layers.length;
 
     // Ground grid
-    if (flat.length > 0 && elevation > 5) {
-      const xs = flat.map(p => p.x), ys = flat.map(p => p.y);
-      const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
-      const cy = (Math.min(...ys) + Math.max(...ys)) / 2;
-      const r  = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys)) * 0.65;
+    if (modelBounds && elevation > 5) {
+      const { minX, maxX, minY, maxY } = modelBounds;
+      const cx = (minX + maxX) / 2;
+      const cy = (minY + maxY) / 2;
+      const r  = Math.max(maxX - minX, maxY - minY) * 0.65;
       const step = r > 80 ? 20 : r > 30 ? 10 : 5;
       ctx.save();
       ctx.strokeStyle = 'rgba(100, 96, 180, 0.22)';
@@ -305,6 +322,8 @@ export function Preview2D({
     }
 
     // Layer paths — vivid strokes with z-hop applied
+    // During camera interaction: stride by 4 and skip hop math for responsiveness.
+    const lodStride = isInteracting ? 4 : 1;
     for (let li = 0; li < numLayers; li++) {
       const layer = layers[li];
       const alpha = 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
@@ -321,12 +340,14 @@ export function Preview2D({
       for (const svgPts of layer.paths) {
         if (svgPts.length < 2) { ptIdx += svgPts.length; continue; }
         ctx.beginPath();
+        let firstDrawn = true;
         for (let i = 0; i < svgPts.length; i++) {
-          const { x, y, arc } = arcPath[ptIdx];
-          const hop = hopAtArc(arc, crossings, params.zHopHeight);
-          const [sx, sy] = toScreen(x, y, layer.z + hop);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-          ptIdx++;
+          const pt = arcPath[ptIdx++];
+          const isEndpoint = i === 0 || i === svgPts.length - 1;
+          if (lodStride > 1 && !isEndpoint && i % lodStride !== 0) continue;
+          const hop = isInteracting ? 0 : hopAtArc(pt.arc, crossings, params.zHopHeight);
+          const [sx, sy] = toScreen(pt.x, pt.y, layer.z + hop);
+          if (firstDrawn) { ctx.moveTo(sx, sy); firstDrawn = false; } else ctx.lineTo(sx, sy);
         }
         ctx.stroke();
       }
@@ -335,7 +356,7 @@ export function Preview2D({
 
     // Selected-keyframe layer highlight — overdraw in accent so the user
     // knows which layer the open kf editor is targeting
-    if (selectedKfId && numLayers > 0) {
+    if (!isInteracting && selectedKfId && numLayers > 0) {
       const selKf = keyframes.find(k => k.id === selectedKfId);
       if (selKf) {
         const editLi = Math.min(numLayers - 1,
@@ -388,7 +409,7 @@ export function Preview2D({
     }
 
     // Concentric skirt travel arcs (when softJoin is OFF)
-    if (!params.softJoin && numLayers > 0) {
+    if (!isInteracting && !params.softJoin && numLayers > 0) {
       for (let li = 0; li < numLayers; li++) {
         const layer = layers[li];
         const { allMm } = layerGeo[li];
@@ -475,7 +496,7 @@ export function Preview2D({
     }
 
     // Inter-layer travel lines (dashed, visible)
-    if (params.softJoin && numLayers > 1) {
+    if (!isInteracting && params.softJoin && numLayers > 1) {
       ctx.save();
       ctx.setLineDash([3, 5]);
       ctx.lineWidth = 1.2;
@@ -501,7 +522,7 @@ export function Preview2D({
     }
 
     // Keyframe position markers on the canvas (subtle vertical tick)
-    if (flat.length > 0) {
+    if (!isInteracting && flat.length > 0) {
       for (const kf of keyframes) {
         const kfIdx = Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)));
         const kfPt  = flat[kfIdx];
@@ -749,7 +770,7 @@ export function Preview2D({
       ctx.restore();
     }
 
-  }, [sampledPaths, layers, layerGeo, params, viewBox, view, timelineProgress, svgH, keyframes, selectedKfId]);
+  }, [sampledPaths, layers, layerGeo, flatPoints, modelBounds, params, viewBox, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -764,9 +785,7 @@ export function Preview2D({
     ctx.fillRect(0, 0, W, H);
 
     const pad = 10;
-    const allPts = layers.flatMap(l =>
-      l.paths.flat().map(p => svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH)),
-    );
+    const allPts = layers.flatMap((_, li) => layerGeo[li].allMm);
     if (allPts.length === 0) return;
     const xs = allPts.map(p => p.x), ys = allPts.map(p => p.y);
     const minX = Math.min(...xs), maxX = Math.max(...xs);
@@ -785,23 +804,27 @@ export function Preview2D({
       ctx.lineWidth = 0.9;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
+      const { allMm } = layerGeo[li];
+      let mmIdx = 0;
       for (const svgPts of layers[li].paths) {
-        if (svgPts.length < 2) continue;
+        if (svgPts.length < 2) { mmIdx += svgPts.length; continue; }
         ctx.beginPath();
-        svgPts.forEach((p, i) => {
-          const mm = svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+        for (let i = 0; i < svgPts.length; i++) {
+          const mm = allMm[mmIdx++];
           const [sx, sy] = ts(mm.x, mm.y);
           if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
+        }
         ctx.stroke();
       }
     }
-  }, [centerTab, layers, params, svgH]);
+  }, [centerTab, layers, layerGeo]);
 
   // ── Mouse interaction ─────────────────────────────────────────────────────
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
     dragRef.current = { button: e.button, startX: e.clientX, startY: e.clientY, startView: { ...view } };
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    setIsInteracting(true);
   };
   const onMouseMove = (e: React.MouseEvent) => {
     const d = dragRef.current;
@@ -817,7 +840,15 @@ export function Preview2D({
       }));
     }
   };
-  const onMouseUp = () => { dragRef.current = null; };
+  const stopInteracting = () => {
+    dragRef.current = null;
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    interactTimerRef.current = setTimeout(() => {
+      interactTimerRef.current = null;
+      setIsInteracting(false);
+    }, 150);
+  };
+  const onMouseUp = stopInteracting;
   const onContextMenu = (e: React.MouseEvent) => e.preventDefault();
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
@@ -831,6 +862,12 @@ export function Preview2D({
       const r  = ns / v.scale;
       return { ...v, scale: ns, offsetX: mx - r * (mx - v.offsetX), offsetY: my - r * (my - v.offsetY) };
     });
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    setIsInteracting(true);
+    interactTimerRef.current = setTimeout(() => {
+      interactTimerRef.current = null;
+      setIsInteracting(false);
+    }, 150);
   };
 
   const numLayers = layers.length;
