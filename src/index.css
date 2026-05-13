@@ -900,7 +900,6 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   flex: 1;
   min-width: 0;
   border-right: 1px solid var(--border);
-  padding-bottom: 20px;
 }
 .kf-group:last-child { border-right: none; }
 .kf-group .kf-field {
@@ -1093,7 +1092,6 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   min-height: 0;
   background: var(--card);
   overflow: hidden;
-  padding-bottom: 20px;
 }
 .kf-empty-hint {
   font-size: 12px;
