@@ -1092,6 +1092,7 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   min-height: 0;
   background: var(--card);
   overflow: hidden;
+  padding-bottom: 24px;
 }
 .kf-empty-hint {
   font-size: 12px;
