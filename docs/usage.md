@@ -28,7 +28,7 @@ Elementos soportados:
 - `<ellipse>`
 - `<rect>`
 
-Si no tienes un archivo a mano, usa **Cargar SVG de ejemplo**. El ejemplo incluye una curva en S, una elipse y una línea diagonal.
+Si no tienes un archivo a mano, usa el navegador de muestras integrado: cuatro SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
 
 ## 2. Revisar Trayectos
 

@@ -184,6 +184,7 @@ src/
     LissajousPreview.tsx
     GcodeOutput.tsx
     CenterScaleParams.tsx
+    CenterPad.tsx
     NumInput.tsx
 public/
   sample.svg

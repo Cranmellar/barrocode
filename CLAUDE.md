@@ -58,6 +58,7 @@ SampledPath[] + PrintParams + WaveKeyframe[]
        • per point: getParamsAtT() lerps between keyframes
        • lissajousPoint(): offsetN = ampN*sin(2π·s/wlN + δ + phase)
                            offsetT = ampT*sin(2π·s/wlT + phase)
+                           offsetZ = ampZ*sin(2π·s/wlZ + phaseZ + phase)
        • applyScaleSVG: scale around pivot in SVG space
        • alternateDirection: reverse every other layer
        • closePath: append first point if not closed
@@ -74,7 +75,7 @@ WaveLayer[] + PrintParams + SVGViewBox
      → string
 ```
 
-The master regeneration is a single `useEffect([parsedSVG, params, keyframes])` in `App.tsx` — every param change re-runs the entire pipeline. Re-sampling (re-parsing the raw SVG) only happens when `params.sampleSpacing` changes.
+Regeneration in `App.tsx` is split into two effects: wave layers re-run immediately on `[parsedSVG, params, keyframes]`; G-code is debounced 400 ms (via `gcodeTimerRef`) to avoid freezing the UI during slider/keyframe edits. Re-sampling (re-parsing the raw SVG) only happens when `params.sampleSpacing` changes.
 
 ---
 
@@ -83,8 +84,8 @@ The master regeneration is a single `useEffect([parsedSVG, params, keyframes])` 
 ```
 src/
   main.tsx                  React root, StrictMode
-  App.tsx                   Master state + layout (≈325 lines)
-  index.css                 All styles (≈885 lines, design tokens in :root)
+  App.tsx                   Master state + layout (≈507 lines)
+  index.css                 All styles (≈1086 lines, design tokens in :root)
   types/index.ts            All shared types
   components/
     Preview2D.tsx           3D ortho canvas + timeline + kf editor (≈892 lines, LARGEST)
@@ -99,7 +100,7 @@ src/
   lib/
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
-    gcodeGenerator.ts       G-code assembly (≈380 lines)
+    gcodeGenerator.ts       G-code assembly (≈327 lines)
     hopUtils.ts             Z-hop crossing detection
     skirtUtils.ts           Concentric arc travel math
 ```
@@ -121,6 +122,10 @@ Keyframes (`WaveKeyframe[]`) override Lissajous fields at given `t ∈ [0,1]`. B
 - `timelineProgress: number ∈ [0,1]` — scrubber on `Preview2D`
 - `gcodeFilename: string` — derived from uploaded SVG filename
 - `lastRawRef: { raw, spacing } | null` — kept for re-parse on spacing change
+- `gcodeTimerRef` — debounce handle for G-code regeneration (400 ms)
+- `centerTab: 'preview' | 'gcode'` — which tab is active in the center panel
+- `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
+- `selectedKfId: string | null` — id of the currently selected keyframe
 
 ---
 
@@ -155,7 +160,6 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 
 - **`Preview2D.tsx` is ≈892 lines** and overdue for a split. The canvas draw code is the obvious extraction (→ `lib/draw3D.ts`). Don't refactor it preemptively; do it when adding a feature that would otherwise inflate the file further.
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
-- **`bottomSplit.size`** is computed via `useResize` in `App.tsx` but never applied to layout. The drag handle is wired; the consumer isn't.
 - **`resampleSVG` in `lib/svgParser.ts`** is dead code.
 - **Z-hop is silently skipped for layer arc paths > 600 points** (`hopUtils.ts` MAX_PTS). No user-facing warning.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the 56×56 canvas boundary on fast moves.

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(Get-Content \"c:\\\\Users\\\\cranm\\\\svg-clay-wave\\\\src\\\\App.tsx\")",
+      "Bash(Measure-Object -Line)",
+      "Bash(Select-Object -ExpandProperty Lines)",
+      "PowerShell(\\(Get-Content \"c:\\\\Users\\\\cranm\\\\svg-clay-wave\\\\src\\\\App.tsx\" | Measure-Object -Line\\).Lines; \\(Get-Content \"c:\\\\Users\\\\cranm\\\\svg-clay-wave\\\\src\\\\components\\\\Preview2D.tsx\" | Measure-Object -Line\\).Lines; \\(Get-Content \"c:\\\\Users\\\\cranm\\\\svg-clay-wave\\\\src\\\\index.css\" | Measure-Object -Line\\).Lines; \\(Get-Content \"c:\\\\Users\\\\cranm\\\\svg-clay-wave\\\\src\\\\lib\\\\gcodeGenerator.ts\" | Measure-Object -Line\\).Lines)"
     ]
   }
 }

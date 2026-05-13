@@ -22,8 +22,8 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 
 ### UX — visualización
 
-- [X] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
-- [X] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
+- [ ] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
+- [ ] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
 - [] **Optimizar rendering con capas altas o muchos keyframes** — el `useEffect([parsedSVG, params, keyframes])` actual recompila todo en cada cambio; con muchas capas o keyframes la edición se siente lenta.
 
 ### UI — layout y estilo
@@ -95,9 +95,9 @@ Cada ola está pensada para ser un commit independiente que pueda mergearse sin 
 
 ### Ola 6 — Biblioteca de samples (P3)
 
-14. **Pads de SVG samples.** Renombrar/agregar SVGs en `public/samples/` (ej. 12 archivos). Construir un componente nuevo `SampleGrid.tsx` que liste los samples (con un `import.meta.glob` o lista hardcoded), renderice cada uno como `<img src=".../sample-N.svg">` en una grilla de 4×3 mini-pads (~48×48 px), y al click haga `fetch + handleFile` con el SVG correspondiente. Reemplazar el botón "Cargar SVG de ejemplo" por el grid (o moverlo a secundario).
+14. **Ampliar navegador de samples.** Actualmente hay 4 SVGs geométricos embebidos directamente en `App.tsx` con navegación prev/next. El ticket original pedía una grilla de 12+ mini-pads. Lo que queda: agregar más samples y, opcionalmente, presentarlos como grilla (~48×48 px por pad) en vez de carrusel. Los samples adicionales pueden ser SVGs hardcodeados en `App.tsx` o cargados desde `public/samples/` vía `fetch`.
 
-**Estimación: 2–3 horas** dependiendo de cuántos samples nuevos hay que producir.
+**Estimación: 1–2 horas** (la infraestructura de navegación ya existe).
 
 ### Ola 7 — Resiliencia (P3)
 
@@ -123,7 +123,7 @@ Cada ola está pensada para ser un commit independiente que pueda mergearse sin 
 | 3 — Pivot drag viewport | drag del centro en `Preview2D` | 3–5 h | Aislado |
 | 4 — UI polish | botones, color KF menu, upload alignment, tiempo estimado | 2–3 h | Cuando hay aire |
 | 5 — Panel derecho | input fields + densidad + co-location | 3–4 h | Una PR |
-| 6 — Samples | biblioteca + grid de mini-pads | 2–3 h | Contenido |
+| 6 — Samples | ampliar navegador (infra ya lista) | 1–2 h | Contenido |
 | 7 — Cache | localStorage restore | 2 h | Tranquilo |
 | 8 — Performance | memoization / worker / RAF | 4–8 h | Cuando duela |
 
