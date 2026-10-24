@@ -302,4 +302,4 @@ The lockfile being gitignored is intentional (it broke cross-platform rollup nat
 - Conventional-commit prefixes are welcome but not enforced.
 - Keep commits scoped to one logical change.
 - Run `npm run build` before committing.
-- The GitHub repo is `Cranmellar/curvabarro` (the app itself is named BarroCode).
+- The GitHub repo is [Cranmellar/barrocode](https://github.com/Cranmellar/barrocode) (formerly `curvabarro`; the local clone and old links may still use that name).
