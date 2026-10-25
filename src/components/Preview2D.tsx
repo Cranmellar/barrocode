@@ -270,7 +270,7 @@ export function Preview2D({
     const W = rect.width, H = rect.height;
     const { azimuth, elevation, scale, offsetX, offsetY } = view;
 
-    ctx.fillStyle = '#EDEDF2';
+    ctx.fillStyle = '#EDEDED';
     ctx.fillRect(0, 0, W, H);
 
     function toScreen(x: number, y: number, z: number): [number, number] {
@@ -289,7 +289,7 @@ export function Preview2D({
       const r  = Math.max(flatMaxX - flatMinX, flatMaxY - flatMinY) * 0.65;
       const step = r > 80 ? 20 : r > 30 ? 10 : 5;
       ctx.save();
-      ctx.strokeStyle = 'rgba(100, 96, 180, 0.22)';
+      ctx.strokeStyle = 'rgba(110, 110, 110, 0.22)';
       ctx.lineWidth = 0.9;
       ctx.setLineDash([8, 6]);
       for (let gx = Math.floor((cx - r) / step) * step; gx <= cx + r; gx += step) {
@@ -380,7 +380,7 @@ export function Preview2D({
         const { allMm: editAllMm, arcPath: editArcPath, crossings: editCrossings } = layerGeo[editLi];
 
         ctx.save();
-        ctx.strokeStyle = '#4F46E5';
+        ctx.strokeStyle = '#4A4E8C';
         ctx.globalAlpha = 0.55;
         ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
         ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
@@ -407,7 +407,7 @@ export function Preview2D({
           ];
           ctx.save();
           ctx.globalAlpha = 0.38;
-          ctx.strokeStyle = '#4F46E5';
+          ctx.strokeStyle = '#4A4E8C';
           ctx.lineWidth   = 1.8;
           ctx.setLineDash([9, 5]);
           ctx.beginPath();
@@ -443,7 +443,7 @@ export function Preview2D({
         ctx.setLineDash([3, 6]);
         ctx.lineWidth = 1.1;
         ctx.globalAlpha = 0.38;
-        ctx.strokeStyle = 'rgba(70, 58, 40, 0.85)';
+        ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
 
         // Within-layer: between consecutive paths
         for (let pi = 0; pi < mmPaths.length - 1; pi++) {
@@ -543,7 +543,7 @@ export function Preview2D({
         const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
         const isSelected = kf.id === selectedKfId;
         const kfSize = isSelected ? 7 : 5;
-        const color  = isSelected ? '#6366F1' : layerColor(kfPt.layerIndex, numLayers);
+        const color  = isSelected ? '#6064A6' : layerColor(kfPt.layerIndex, numLayers);
 
         // Diamond
         ctx.save();
@@ -596,7 +596,7 @@ export function Preview2D({
       const [fx, fy] = toScreen(pt.x, pt.y, 0);
 
       ctx.save();
-      ctx.strokeStyle = 'rgba(50,40,70,0.28)';
+      ctx.strokeStyle = 'rgba(50,50,50,0.28)';
       ctx.lineWidth = 1;
       ctx.setLineDash([2, 4]);
       ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(fx, fy); ctx.stroke();
@@ -729,9 +729,9 @@ export function Preview2D({
       ctx.save();
       ctx.beginPath();
       ctx.arc(GX, GY, GR, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(241,241,246,0.90)';
+      ctx.fillStyle = 'rgba(241,241,241,0.90)';
       ctx.fill();
-      ctx.strokeStyle = 'rgba(140,135,125,0.30)';
+      ctx.strokeStyle = 'rgba(135,135,135,0.30)';
       ctx.lineWidth = 0.75;
       ctx.stroke();
 
@@ -795,7 +795,7 @@ export function Preview2D({
     if (!ctx) return;
     const W = canvas.width, H = canvas.height;
     ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#F5F5F9';
+    ctx.fillStyle = '#F5F5F5';
     ctx.fillRect(0, 0, W, H);
 
     const pad = 10;

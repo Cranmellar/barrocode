@@ -13,10 +13,10 @@ import { CenterScaleParams } from './components/CenterScaleParams';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 
-const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#4F46E5"/></svg>`;
-const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#4F46E5"/></svg>`;
-const _S3 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M360 240c-66.3 0-120-53.7-120-120a120 120 0 1 0-120 120c66.3 0 120 53.7 120 120a120 120 0 1 0 120-120Z" fill="#4F46E5"/></svg>`;
-const _S4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M450 210a57 57 0 0 1-40.3-97.3 30 30 0 1 0-42.4-42.4A57 57 0 0 1 270 30a30 30 0 1 0-60 0 57 57 0 0 1-97.3 40.3 30 30 0 1 0-42.4 42.4A57 57 0 0 1 30 210a30 30 0 1 0 0 60 57 57 0 0 1 40.3 97.3 30 30 0 1 0 42.4 42.4A57 57 0 0 1 210 450a30 30 0 1 0 60 0 57 57 0 0 1 97.3-40.3 30 30 0 1 0 42.4-42.4A57 57 0 0 1 450 270a30 30 0 1 0 0-60Zm-210 90a60 60 0 1 1 0-120 60 60 0 0 1 0 120Z" fill="#4F46E5"/></svg>`;
+const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#4A4E8C"/></svg>`;
+const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#4A4E8C"/></svg>`;
+const _S3 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M360 240c-66.3 0-120-53.7-120-120a120 120 0 1 0-120 120c66.3 0 120 53.7 120 120a120 120 0 1 0 120-120Z" fill="#4A4E8C"/></svg>`;
+const _S4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M450 210a57 57 0 0 1-40.3-97.3 30 30 0 1 0-42.4-42.4A57 57 0 0 1 270 30a30 30 0 1 0-60 0 57 57 0 0 1-97.3 40.3 30 30 0 1 0-42.4 42.4A57 57 0 0 1 30 210a30 30 0 1 0 0 60 57 57 0 0 1 40.3 97.3 30 30 0 1 0 42.4 42.4A57 57 0 0 1 210 450a30 30 0 1 0 60 0 57 57 0 0 1 97.3-40.3 30 30 0 1 0 42.4-42.4A57 57 0 0 1 450 270a30 30 0 1 0 0-60Zm-210 90a60 60 0 1 1 0-120 60 60 0 0 1 0 120Z" fill="#4A4E8C"/></svg>`;
 const svgUri = (s: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
 
 const SAMPLES = [
@@ -299,9 +299,9 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ display:'flex', flexDirection:'row', flexShrink:0, margin:'8px 12px 0', border:'2px solid #4F46E5', borderRadius:6, overflow:'hidden', background:'#fff', minHeight:76 }}>
+        <div style={{ display:'flex', flexDirection:'row', flexShrink:0, margin:'8px 12px 0', border:'2px solid #4A4E8C', borderRadius:6, overflow:'hidden', background:'#fff', minHeight:76 }}>
           <button
-            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderRight:'1px solid #D0D0D9', fontSize:22, cursor:'pointer', color:'#1A1640', padding:0 }}
+            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderRight:'1px solid #D2D2D2', fontSize:22, cursor:'pointer', color:'#1C1C1C', padding:0 }}
             onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
           >‹</button>
           <button
@@ -311,12 +311,12 @@ export default function App() {
           >
             <img src={SAMPLES[sampleIndex].uri} width={48} height={48} style={{ display:'block', flexShrink:0 }} alt="" />
             <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:3 }}>
-              <span style={{ fontSize:11, color:'#1A1640', fontWeight:700, letterSpacing:'0.04em' }}>Muestra {sampleIndex + 1}</span>
-              <span style={{ fontSize:10, color:'#696975', letterSpacing:'0.06em' }}>de {SAMPLES.length} · clic para cargar</span>
+              <span style={{ fontSize:11, color:'#1C1C1C', fontWeight:700, letterSpacing:'0.04em' }}>Muestra {sampleIndex + 1}</span>
+              <span style={{ fontSize:10, color:'#6A6A6A', letterSpacing:'0.06em' }}>de {SAMPLES.length} · clic para cargar</span>
             </div>
           </button>
           <button
-            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderLeft:'1px solid #D0D0D9', fontSize:22, cursor:'pointer', color:'#1A1640', padding:0 }}
+            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderLeft:'1px solid #D2D2D2', fontSize:22, cursor:'pointer', color:'#1C1C1C', padding:0 }}
             onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
           >›</button>
         </div>

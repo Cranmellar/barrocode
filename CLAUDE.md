@@ -192,7 +192,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
 - Design tokens in `:root` at the top of `src/index.css`. Use them; don't hardcode colours.
 - Smallest text size is **9px**. Don't go below.
-- `--muted` is `#6A6762`. `--accent` is `#4F46E5` (indigo). The art direction is "Swiss warm-paper" — restrained, off-white background, single accent.
+- `--muted` is `#6A6A6A`. `--accent` is `#4A4E8C` (desaturated indigo). The art direction is Swiss neutral — restrained, untinted grey surfaces, single accent.
 - Sliders apply a dynamic `linear-gradient` fill inline (see `LissajousParams.Slider`). Keep this pattern when adding new sliders.
 - `body.dragging-h` / `body.dragging-v` are added during resize drags to override the cursor globally.
 
