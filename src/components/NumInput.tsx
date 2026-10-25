@@ -42,6 +42,8 @@ export function NumInput({ value, min, max, step, className, placeholder, disabl
     if (!el) return;
 
     function onWheel(e: WheelEvent) {
+      // :disabled also covers a disabled ancestor <fieldset>.
+      if (el!.matches(':disabled')) return;
       e.preventDefault();
       e.stopPropagation();
       const s    = step ?? 1;

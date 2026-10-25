@@ -1,5 +1,6 @@
 import React from 'react';
 import type { PrintParams } from '../types';
+import { NumInput } from './NumInput';
 
 interface Props {
   params: PrintParams;
@@ -10,25 +11,24 @@ interface Props {
   waveLocked: boolean;
 }
 
-function Slider({ label, value, min, max, step, unit, hint, cls, valCls, onChange }: {
+function Slider({ label, value, min, max, step, unit, hint, onChange }: {
   label: string; value: number; min: number; max: number;
-  step: number; unit?: string; hint?: string; cls?: string; valCls?: string;
+  step: number; unit?: string; hint?: string;
   onChange: (v: number) => void;
 }) {
-  const display  = Math.abs(value) < 10 ? value.toFixed(2) : value.toFixed(1);
+  const decimals = String(step).split('.')[1]?.length ?? 0;
   const fillPct  = ((value - min) / (max - min)) * 100;
   const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fillPct}%,var(--border) ${fillPct}%,var(--border) 100%)`;
   return (
     <div className="slider-row" title={hint}>
       <div className="slider-header">
         <span className="slider-label">{label}</span>
-        <span className={`slider-value ${valCls ?? ''}`}>
-          {display}
+        <span className="slider-num">
+          <NumInput value={parseFloat(value.toFixed(decimals))} step={step} onChange={onChange} />
           {unit && <span className="slider-value-unit">{unit}</span>}
         </span>
       </div>
       <input type="range" min={min} max={max} step={step} value={value}
-        className={cls ?? ''}
         style={{ background: trackBg }}
         onChange={e => onChange(parseFloat(e.target.value))} />
     </div>
@@ -177,7 +177,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         </Sec>
 
         {/* ── Eje N ── */}
-        <Sec title="Eje N — Normal  (izq. / der.)">
+        <Sec title="N · Normal (lateral)">
           <Slider label="Amplitud N" value={params.lissAmpN}
             min={0} max={30} step={0.1} unit="mm"
             hint="Desplazamiento máximo a izquierda/derecha de la línea central"
@@ -189,7 +189,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         </Sec>
 
         {/* ── Eje T ── */}
-        <Sec title="Eje T — Tangente  (adelante / atrás)">
+        <Sec title="T · Tangente (avance)">
           <Slider label="Amplitud T" value={params.lissAmpT}
             min={0} max={30} step={0.1} unit="mm"
             hint="Desplazamiento máximo en la dirección de avance del trayecto"
@@ -201,7 +201,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         </Sec>
 
         {/* ── Eje Z ── */}
-        <Sec title="Eje Z — Vertical  (arriba / abajo)">
+        <Sec title="Z · Vertical">
           {params.lissAmpZ > params.layerHeight && (
             <div style={{ fontSize: 9, color: '#c0392b', marginBottom: 4, lineHeight: 1.3 }}>
               ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
