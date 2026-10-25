@@ -182,6 +182,17 @@ export function sanitizedSvg(svgString: string): SVGSVGElement | null {
   return document.importNode(svg, true);
 }
 
+// Geometry inside these is only referenced (clip-paths, symbols…), never drawn.
+const NON_RENDERED = 'defs, clipPath, mask, symbol, marker, pattern';
+
+function isRendered(el: Element, svgRoot: Element): boolean {
+  if (el.closest(NON_RENDERED)) return false;
+  for (let n: Element | null = el; n && n !== svgRoot.parentElement; n = n.parentElement) {
+    if (getComputedStyle(n).display === 'none') return false;
+  }
+  return true;
+}
+
 export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const parser = new DOMParser();
   const doc = parser.parseFromString(sanitizeXmlEntities(svgString), 'image/svg+xml');
@@ -221,7 +232,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const paths: SampledPath[] = [];
 
   elements.forEach((el, idx) => {
-    if (!(el instanceof SVGGeometryElement)) return;
+    if (!(el instanceof SVGGeometryElement) || !isRendered(el, liveSvgEl)) return;
 
     let totalLen = 0;
     try {

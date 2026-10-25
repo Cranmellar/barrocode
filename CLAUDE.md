@@ -48,7 +48,9 @@ SVG string
        • sanitizedSvg(): parse into an inert HTML document, strip scripting
          (script, foreignObject, SMIL, on* attributes, javascript: links),
          then import into a hidden 1000×1000 DOM div — never innerHTML
-       • queries path / polyline / polygon / line / circle / ellipse / rect
+       • queries path / polyline / polygon / line / circle / ellipse / rect,
+         skipping non-rendered ones (inside defs / clipPath / mask / symbol /
+         marker / pattern, or under display:none)
        • arc-length sampling via getTotalLength + getPointAtLength
        • finite-difference tangent/normal per sample
        • getScreenCTM() for transforms

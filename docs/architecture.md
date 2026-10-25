@@ -53,6 +53,8 @@ flowchart TB
 
 El SVG viene del usuario y puede venir de internet, así que nunca se inserta con `innerHTML`: `sanitizedSvg()` lo parsea en un documento inerte, elimina scripts, `foreignObject`, animaciones SMIL, atributos `on*` y enlaces `javascript:`, y recién entonces lo importa a la página.
 
+Solo se muestrea geometría visible: se ignoran los elementos dentro de `defs`, `clipPath`, `mask`, `symbol`, `marker` y `pattern` (por ejemplo el rectángulo de recorte que agrega Figma) y los que están bajo `display: none` (capas ocultas de Inkscape).
+
 El muestreo produce `SampledPoint`:
 
 ```text

@@ -23,7 +23,7 @@ El build queda en `dist/` y puede servirse desde cualquier servidor estático o 
 
 ## Qué Genera
 
-- **Entrada:** un SVG con `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` o `<rect>`.
+- **Entrada:** un SVG con `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` o `<rect>`. Se ignora la geometría que no se dibuja (recortes, máscaras, símbolos, capas ocultas).
 - **Proceso:** muestreo por longitud de arco, marco local tangente/normal, onda de Lissajous, apilado por capas y optimización de viajes.
 - **Salida:** G-code absoluto en milímetros, con opción de extrusión `E`.
 - **Uso previsto:** impresión continua de arcilla, sin retracción, con trayectorias orgánicas controladas desde una curva central.
