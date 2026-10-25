@@ -281,6 +281,8 @@ export function generateGcode(
   }
 
   let curX = params.originX, curY = params.originY;
+  // Set by a soft join so the next layer prints in the order the transition targeted.
+  let nextOrdered: WavePoint[][] | null = null;
 
   for (let li = 0; li < layers.length; li++) {
     const layer = layers[li];
@@ -288,7 +290,8 @@ export function generateGcode(
 
     blocks.push(`\n; ===== Layer ${li + 1} / ${layers.length}   Z = ${fmt(layer.z)} mm =====`);
 
-    const orderedPaths = reorderPaths(layer.paths, curX, curY, params, svgH);
+    const orderedPaths = nextOrdered ?? reorderPaths(layer.paths, curX, curY, params, svgH);
+    nextOrdered = null;
 
     // ── Layer centroid for concentric skirt travel ─────────────────────────
     const allLayerMm: MMPoint[] = orderedPaths.flatMap(
@@ -351,7 +354,8 @@ export function generateGcode(
       curX = lastPt.x; curY = lastPt.y;
 
       if (params.softJoin && nextLayer !== null && pi === orderedPaths.length - 1) {
-        const firstNextSvgPt = nextLayer.paths[0]?.[0];
+        nextOrdered = reorderPaths(nextLayer.paths, curX, curY, params, svgH);
+        const firstNextSvgPt = nextOrdered[0]?.[0];
         if (firstNextSvgPt) {
           const fromMM = toMM(svgPts[svgPts.length - 1], params, svgH);
           const toMM2 = toMM(firstNextSvgPt, params, svgH);
