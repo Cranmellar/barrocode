@@ -114,15 +114,17 @@ flowchart TB
   Params["PrintParams + keyframes"] --> Toolpath
   Params --> Export
   Toolpath --> Layers["WaveLayer[]"]
-  Layers --> Preview["Preview2D / LissajousPreview"]
-  Layers --> Export
-  Export --> Travel["hopUtils.ts + skirtUtils.ts"]
+  Layers --> Final["Trayectoria final en mm<br/>toolpath.ts + hopUtils.ts"]
+  Final --> Preview["Preview2D"]
+  Final --> Export
+  Export --> Travel["skirtUtils.ts"]
   Export --> File["archivo .gcode"]
 ```
 
 - `src/lib/svgParser.ts` inserta el SVG en un contenedor oculto y usa la API SVG del navegador para medir longitudes y puntos.
 - `src/lib/waveGenerator.ts` calcula offsets de Lissajous, keyframes, escala alrededor de centro y capas.
-- `src/lib/gcodeGenerator.ts` convierte capas a G-code, ordena trayectos por nearest-neighbor, aplica soft join, Z-hop y viajes concéntricos.
+- `src/lib/toolpath.ts` arma la trayectoria final en mm: ordena trayectos por nearest-neighbor y calcula la Z de cada punto (oscilación + Z-hop). La usan tanto el G-code como la vista previa, así que ambos muestran lo mismo.
+- `src/lib/gcodeGenerator.ts` emite esa trayectoria como G-code, con soft join y viajes concéntricos.
 - `src/components/Preview2D.tsx` dibuja la previsualización ortográfica en Canvas.
 
 Más detalle técnico en [docs/architecture.md](docs/architecture.md).
@@ -173,6 +175,7 @@ src/
   lib/
     svgParser.ts
     waveGenerator.ts
+    toolpath.ts
     gcodeGenerator.ts
     hopUtils.ts
     skirtUtils.ts

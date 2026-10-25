@@ -18,10 +18,9 @@
  *   crossing provides clearance without stopping extrusion.
  */
 
-import type { WaveLayer, WavePoint, PrintParams, SVGViewBox } from '../types';
-import { svgToMM } from './waveGenerator';
-import { buildArcPath, findCrossings, hopAtArc } from './hopUtils';
-import { computeCentroid, skirtArcPoints, type MM2 } from './skirtUtils';
+import type { WaveLayer, PrintParams, SVGViewBox } from '../types';
+import { buildToolpath, type ToolpathPoint } from './toolpath';
+import { skirtArcPoints, type MM2 } from './skirtUtils';
 
 function fmt(n: number, d = 3) { return n.toFixed(d); }
 
@@ -67,18 +66,6 @@ function buildHeader(params: PrintParams, numLayers: number): string {
   ].join('\n');
 }
 
-// ── Coordinate helpers ───────────────────────────────────────────────────────
-
-interface MMPoint { x: number; y: number }
-
-function toMM(
-  pt: WavePoint,
-  params: PrintParams,
-  svgH: number,
-): MMPoint {
-  return svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
-}
-
 // ── Soft transition between layers ──────────────────────────────────────────
 
 /**
@@ -87,8 +74,8 @@ function toMM(
  * Z rises linearly; XY follows a smoothstep interpolation.
  */
 function buildTransition(
-  from: MMPoint,
-  to: MMPoint,
+  from: MM2,
+  to: MM2,
   zFrom: number,
   zTo: number,
   transitionLength: number,
@@ -162,84 +149,31 @@ function buildSkirtTravel(
 /**
  * Emit G-code for one continuous print path.
  * Travel to the path start must be handled by the caller BEFORE this call.
- * Returns the Z coordinate of the last emitted point (for soft-join callers).
  */
 function pathToGcode(
-  svgPts: WavePoint[],
-  layerZ: number,
+  pts: ToolpathPoint[],
   params: PrintParams,
-  svgH: number,
   eRef: { value: number },
   zRef: { value: number },  // tracks current nozzle Z across calls
-  crossings: number[],
-  arcOffset: number,
 ): string[] {
-  if (svgPts.length < 2) return [];
-
-  const mmPts = svgPts.map(p => toMM(p, params, svgH));
   const lines: string[] = [];
 
-  let localArc = arcOffset;
-
-  for (let i = 1; i < mmPts.length; i++) {
-    const prev = mmPts[i - 1];
-    const curr = mmPts[i];
+  for (let i = 1; i < pts.length; i++) {
+    const prev = pts[i - 1];
+    const curr = pts[i];
     const d = dist(prev.x, prev.y, curr.x, curr.y);
     if (d < 1e-6) continue;
 
-    localArc += d;
-    const hop    = hopAtArc(localArc, crossings, params.zHopHeight, params.hopRadius);
-    const zOscil = svgPts[i].zOffset;
-    const zOut   = layerZ + zOscil + hop;
-
     eRef.value += d * params.extrusionMultiplier;
     const eStr = params.generateE ? ` E${fmt(eRef.value)}` : '';
-    const zChanged = Math.abs(zOut - zRef.value) > 0.001;
-    const zStr = zChanged ? ` Z${fmt(zOut)}` : '';
-    if (zChanged) zRef.value = zOut;
+    const zChanged = Math.abs(curr.z - zRef.value) > 0.001;
+    const zStr = zChanged ? ` Z${fmt(curr.z)}` : '';
+    if (zChanged) zRef.value = curr.z;
 
     lines.push(`G1 X${fmt(curr.x)} Y${fmt(curr.y)}${zStr}${eStr} F${params.printSpeed}`);
   }
 
   return lines;
-}
-
-// ── Nearest-neighbour path reordering ───────────────────────────────────────
-
-function reorderPaths(
-  paths: WavePoint[][],
-  startX: number,
-  startY: number,
-  params: PrintParams,
-  svgH: number,
-): WavePoint[][] {
-  if (paths.length <= 1) return paths;
-
-  const remaining = paths.map((_, i) => i);
-  const ordered: WavePoint[][] = [];
-  let cx = startX, cy = startY;
-
-  while (remaining.length > 0) {
-    let bestDist = Infinity;
-    let bestSlot = 0;
-
-    for (let s = 0; s < remaining.length; s++) {
-      const idx = remaining[s];
-      const p = paths[idx];
-      if (!p.length) continue;
-      const mm = toMM(p[0], params, svgH);
-      const d  = dist(cx, cy, mm.x, mm.y);
-      if (d < bestDist) { bestDist = d; bestSlot = s; }
-    }
-
-    const chosen = paths[remaining[bestSlot]];
-    ordered.push(chosen);
-    remaining.splice(bestSlot, 1);
-    const last = toMM(chosen[chosen.length - 1], params, svgH);
-    cx = last.x; cy = last.y;
-  }
-
-  return ordered;
 }
 
 // ── Main entry point ─────────────────────────────────────────────────────────
@@ -251,7 +185,7 @@ export function generateGcode(
 ): string {
   if (layers.length === 0) return '; No layers to generate.\n';
 
-  const svgH = viewBox.height;
+  const toolpath = buildToolpath(layers, params, viewBox.height);
   const blocks: string[] = [];
   blocks.push(buildHeader(params, layers.length));
 
@@ -277,49 +211,27 @@ export function generateGcode(
       `G1 X${fmt(px + params.primingLength)} Y${fmt(py)}${eStr} F${params.printSpeed}\n` +
       `G1 Z${fmt(params.safeZ)} F${params.travelSpeed}\n; --- End priming ---\n`,
     );
-    isFirstMove = false;
   }
 
-  let curX = params.originX, curY = params.originY;
+  let cur: MM2 = { x: params.originX, y: params.originY };
 
-  for (let li = 0; li < layers.length; li++) {
-    const layer = layers[li];
-    const nextLayer = layers[li + 1] ?? null;
+  for (let li = 0; li < toolpath.length; li++) {
+    const layer = toolpath[li];
+    const nextLayer = toolpath[li + 1] ?? null;
 
-    blocks.push(`\n; ===== Layer ${li + 1} / ${layers.length}   Z = ${fmt(layer.z)} mm =====`);
-
-    const orderedPaths = reorderPaths(layer.paths, curX, curY, params, svgH);
-
-    // ── Layer centroid for concentric skirt travel ─────────────────────────
-    const allLayerMm: MMPoint[] = orderedPaths.flatMap(
-      path => path.map(p => toMM(p, params, svgH)),
-    );
-    const layerCentroid = computeCentroid(allLayerMm);
-
-    // ── Z-hop pre-processing: build full layer arc path & find crossings ──
-    let layerCrossings: number[] = [];
-    if (params.zHopHeight > 0) {
-      const arcPath = buildArcPath(allLayerMm);
-      layerCrossings = findCrossings(arcPath, Math.max(params.hopRadius * 3, 2));
-      if (layerCrossings.length > 0) {
-        blocks.push(`; Z-hop: ${layerCrossings.length} crossing(s) detected`);
-      }
+    blocks.push(`\n; ===== Layer ${li + 1} / ${toolpath.length}   Z = ${fmt(layer.z)} mm =====`);
+    if (layer.crossings > 0) {
+      blocks.push(`; Z-hop: ${layer.crossings} crossing(s) detected`);
     }
 
-    // Track running arc offset so each path knows its global arc position
-    let arcOffset = 0;
-
-    for (let pi = 0; pi < orderedPaths.length; pi++) {
-      const svgPts = orderedPaths[pi];
-      if (svgPts.length < 2) continue;
+    for (let pi = 0; pi < layer.paths.length; pi++) {
+      const pts = layer.paths[pi];
+      const start = pts[0];
 
       blocks.push(`; --- Layer ${li + 1}, Path ${pi + 1} ---`);
 
-      const destMM = toMM(svgPts[0], params, svgH);
-
       if (isFirstMove) {
-        // Very first move: direct travel to start position
-        blocks.push(`G1 X${fmt(destMM.x)} Y${fmt(destMM.y)} F${params.travelSpeed}  ; travel to start`);
+        blocks.push(`G1 X${fmt(start.x)} Y${fmt(start.y)} F${params.travelSpeed}  ; travel to start`);
         blocks.push(`G1 Z${fmt(layer.z)} F${params.travelSpeed}  ; descend`);
         zRef.value = layer.z;
         if (params.dwellAtStart > 0) {
@@ -329,39 +241,23 @@ export function generateGcode(
         // Inter-path travel: skirt arc (or short hop).
         // Always needed for pi > 0 even with softJoin; only the layer→layer
         // transition (pi === 0, softJoin) arrives via continuous extrusion.
-        const skirtLines = buildSkirtTravel(
-          { x: curX, y: curY }, destMM, layerCentroid, layer.z, params,
-        );
+        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, layer.z, params);
         blocks.push(skirtLines.join('\n'));
-        // skirt travel lands at layer.z; first point's zOffset applied on first G1
+        // skirt travel lands at layer.z; first point's Z applied on first G1
         zRef.value = layer.z;
       }
 
-      const lines = pathToGcode(svgPts, layer.z, params, svgH, eRef, zRef, layerCrossings, arcOffset);
-      blocks.push(lines.join('\n'));
+      blocks.push(pathToGcode(pts, params, eRef, zRef).join('\n'));
       isFirstMove = false;
+      cur = pts[pts.length - 1];
 
-      // Update arc offset for next path
-      const mmPts = svgPts.map(p => toMM(p, params, svgH));
-      for (let i = 1; i < mmPts.length; i++) {
-        arcOffset += dist(mmPts[i - 1].x, mmPts[i - 1].y, mmPts[i].x, mmPts[i].y);
-      }
-
-      const lastPt = toMM(svgPts[svgPts.length - 1], params, svgH);
-      curX = lastPt.x; curY = lastPt.y;
-
-      if (params.softJoin && nextLayer !== null && pi === orderedPaths.length - 1) {
-        const firstNextSvgPt = nextLayer.paths[0]?.[0];
-        if (firstNextSvgPt) {
-          const fromMM = toMM(svgPts[svgPts.length - 1], params, svgH);
-          const toMM2 = toMM(firstNextSvgPt, params, svgH);
+      if (params.softJoin && nextLayer !== null && pi === layer.paths.length - 1) {
+        const next = nextLayer.paths[0]?.[0];
+        if (next) {
           const tLines = buildTransition(
-            fromMM, toMM2,
-            zRef.value, nextLayer.z + firstNextSvgPt.zOffset,
-            params.transitionLength,
-            params, eRef,
+            cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
           );
-          zRef.value = nextLayer.z + firstNextSvgPt.zOffset;
+          zRef.value = next.z;
           blocks.push(tLines.join('\n'));
         }
       }

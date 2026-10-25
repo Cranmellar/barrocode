@@ -15,9 +15,9 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { svgToMM } from '../lib/waveGenerator';
-import { buildArcPath, findCrossings, hopAtArc } from '../lib/hopUtils';
 import { getParamsAtT } from '../lib/waveGenerator';
-import { computeCentroid, skirtArcPoints } from '../lib/skirtUtils';
+import { buildToolpath, type ToolpathLayer } from '../lib/toolpath';
+import { skirtArcPoints, type MM2 } from '../lib/skirtUtils';
 import { GcodeOutput } from './GcodeOutput';
 
 interface Props {
@@ -83,43 +83,11 @@ function boundsOf<T>(
 
 interface FlatPoint { x: number; y: number; z: number; layerIndex: number }
 
-interface LayerGeo {
-  allMm: { x: number; y: number }[];
-  arcPath: ReturnType<typeof buildArcPath>;
-  crossings: ReturnType<typeof findCrossings>;
-}
-
-function toMM(p: { x: number; y: number }, params: PrintParams, svgH: number) {
-  return svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
-}
-
-function buildLayerGeo(layer: WaveLayer, params: PrintParams, svgH: number): LayerGeo {
-  const allMm = layer.paths.flatMap(path => path.map(p => toMM(p, params, svgH)));
-  const arcPath = buildArcPath(allMm);
-  const crossings = params.zHopHeight > 0
-    ? findCrossings(arcPath, Math.max(params.hopRadius * 3, 2))
-    : [];
-  return { allMm, arcPath, crossings };
-}
-
-function flattenPoints(
-  layers: WaveLayer[],
-  geo: LayerGeo[],
-  zHopHeight: number,
-  hopRadius: number,
-): FlatPoint[] {
+function flattenPoints(toolpath: ToolpathLayer[]): FlatPoint[] {
   const pts: FlatPoint[] = [];
-  for (let li = 0; li < layers.length; li++) {
-    const layer = layers[li];
-    const { arcPath, crossings } = geo[li];
-    let idx = 0;
+  for (const layer of toolpath) {
     for (const path of layer.paths) {
-      for (let i = 0; i < path.length; i++) {
-        const { x, y, arc } = arcPath[idx];
-        const hop = hopAtArc(arc, crossings, zHopHeight, hopRadius);
-        pts.push({ x, y, z: layer.z + hop, layerIndex: layer.index });
-        idx++;
-      }
+      for (const p of path) pts.push({ ...p, layerIndex: layer.index });
     }
   }
   return pts;
@@ -163,19 +131,14 @@ export function Preview2D({
 
   const svgH = viewBox?.height ?? 200;
 
-  // Per-layer geometry cache — recomputed only when layers/projection params change,
-  // not on every camera move.
-  const layerGeo = useMemo<LayerGeo[]>(
-    () => layers.map(layer => buildLayerGeo(layer, params, svgH)),
+  // Recomputed only when layers/projection params change, not on every camera move.
+  const toolpath = useMemo(
+    () => buildToolpath(layers, params, svgH),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [layers, params.scaleFactor, params.originX, params.originY, params.flipY, params.zHopHeight, params.hopRadius, svgH],
   );
 
-  const flatPoints = useMemo(
-    () => flattenPoints(layers, layerGeo, params.zHopHeight, params.hopRadius),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layers, layerGeo, params.zHopHeight, params.hopRadius],
-  );
+  const flatPoints = useMemo(() => flattenPoints(toolpath), [toolpath]);
 
   const modelBounds = useMemo(() => {
     if (flatPoints.length === 0) return null;
@@ -336,13 +299,11 @@ export function Preview2D({
       ctx.restore();
     }
 
-    // Layer paths — vivid strokes with z-hop applied.
-    // During camera interaction: stride by 4 and skip z-hop math for responsiveness.
+    // Layer paths — vivid strokes, drawn in print order with final Z.
+    // During camera interaction: stride by 4 for responsiveness.
     const lodStride = isInteracting ? 4 : 1;
     for (let li = 0; li < numLayers; li++) {
-      const layer = layers[li];
       const alpha = 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
-      const { arcPath, crossings } = layerGeo[li];
 
       ctx.save();
       ctx.strokeStyle = layerColor(li, numLayers);
@@ -351,18 +312,13 @@ export function Preview2D({
       ctx.lineJoin    = 'round';
       ctx.lineCap     = 'round';
 
-      let ptIdx = 0;
-      for (const svgPts of layer.paths) {
-        if (svgPts.length < 2) { ptIdx += svgPts.length; continue; }
+      for (const pts of toolpath[li].paths) {
         ctx.beginPath();
-        let firstDrawn = true;
-        for (let i = 0; i < svgPts.length; i++) {
-          const pt = arcPath[ptIdx++];
-          const isEndpoint = i === 0 || i === svgPts.length - 1;
+        for (let i = 0; i < pts.length; i++) {
+          const isEndpoint = i === 0 || i === pts.length - 1;
           if (lodStride > 1 && !isEndpoint && i % lodStride !== 0) continue;
-          const hop = isInteracting ? 0 : hopAtArc(pt.arc, crossings, params.zHopHeight, params.hopRadius);
-          const [sx, sy] = toScreen(pt.x, pt.y, layer.z + hop);
-          if (firstDrawn) { ctx.moveTo(sx, sy); firstDrawn = false; } else ctx.lineTo(sx, sy);
+          const [sx, sy] = toScreen(pts[i].x, pts[i].y, pts[i].z);
+          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
         }
         ctx.stroke();
       }
@@ -376,25 +332,20 @@ export function Preview2D({
       if (selKf) {
         const editLi = Math.min(numLayers - 1,
           Math.round(selKf.t * Math.max(0, numLayers - 1)));
-        const editLayer = layers[editLi];
-        const { allMm: editAllMm, arcPath: editArcPath, crossings: editCrossings } = layerGeo[editLi];
+        const editLayer = toolpath[editLi];
+        const editAllMm = editLayer.paths.flat();
 
         ctx.save();
         ctx.strokeStyle = '#4A4E8C';
         ctx.globalAlpha = 0.55;
         ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
         ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
-        let editPtIdx = 0;
-        for (const svgPts of editLayer.paths) {
-          if (svgPts.length < 2) { editPtIdx += svgPts.length; continue; }
+        for (const pts of editLayer.paths) {
           ctx.beginPath();
-          for (let i = 0; i < svgPts.length; i++) {
-            const { x, y, arc } = editArcPath[editPtIdx];
-            const hop = hopAtArc(arc, editCrossings, params.zHopHeight, params.hopRadius);
-            const [sx, sy] = toScreen(x, y, editLayer.z + hop);
+          pts.forEach(({ x, y, z }, i) => {
+            const [sx, sy] = toScreen(x, y, z);
             if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-            editPtIdx++;
-          }
+          });
           ctx.stroke();
         }
         // Horizontal band: bounding-box rectangle at the edited layer's Z
@@ -422,113 +373,55 @@ export function Preview2D({
       }
     }
 
-    // Concentric skirt travel arcs (when softJoin is OFF)
-    if (!isInteracting && !params.softJoin && numLayers > 0) {
+    // Concentric skirt travel arcs — same moves buildSkirtTravel emits
+    if (!isInteracting && numLayers > 0) {
+      const drawTravel = (from: MM2, to: MM2, centroid: MM2, zFrom: number, zTo: number) => {
+        const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
+        ctx.beginPath();
+        const [fx, fy] = toScreen(from.x, from.y, zFrom);
+        ctx.moveTo(fx, fy);
+        for (const pt of arcPts ?? [to]) {
+          const [sx, sy] = toScreen(pt.x, pt.y, zTo);
+          ctx.lineTo(sx, sy);
+        }
+        ctx.stroke();
+      };
+
+      ctx.save();
+      ctx.setLineDash([3, 6]);
+      ctx.lineWidth = 1.1;
+      ctx.globalAlpha = 0.38;
+      ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
       for (let li = 0; li < numLayers; li++) {
-        const layer = layers[li];
-        const { allMm } = layerGeo[li];
-
-        // Reconstruct per-path slices from the flat allMm array
-        const mmPaths: { x: number; y: number }[][] = [];
-        let mmIdx = 0;
-        for (const path of layer.paths) {
-          mmPaths.push(allMm.slice(mmIdx, mmIdx + path.length));
-          mmIdx += path.length;
+        const layer = toolpath[li];
+        for (let pi = 0; pi < layer.paths.length - 1; pi++) {
+          const fromPath = layer.paths[pi];
+          drawTravel(fromPath[fromPath.length - 1], layer.paths[pi + 1][0], layer.centroid, layer.z, layer.z);
         }
-        const flatMm = allMm;
-        if (flatMm.length === 0) continue;
-        const centroid = computeCentroid(flatMm);
-
-        ctx.save();
-        ctx.setLineDash([3, 6]);
-        ctx.lineWidth = 1.1;
-        ctx.globalAlpha = 0.38;
-        ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
-
-        // Within-layer: between consecutive paths
-        for (let pi = 0; pi < mmPaths.length - 1; pi++) {
-          const fromPath = mmPaths[pi];
-          const toPath   = mmPaths[pi + 1];
-          if (!fromPath.length || !toPath.length) continue;
-
-          const from = fromPath[fromPath.length - 1];
-          const to   = toPath[0];
-          const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
-
-          ctx.beginPath();
-          const [fx, fy] = toScreen(from.x, from.y, layer.z);
-          ctx.moveTo(fx, fy);
-
-          if (arcPts) {
-            for (const pt of arcPts) {
-              const [sx, sy] = toScreen(pt.x, pt.y, layer.z);
-              ctx.lineTo(sx, sy);
-            }
-          } else {
-            const [tx, ty] = toScreen(to.x, to.y, layer.z);
-            ctx.lineTo(tx, ty);
-          }
-          ctx.stroke();
+        const next = toolpath[li + 1];
+        const lastPath = layer.paths[layer.paths.length - 1];
+        if (!params.softJoin && next?.paths.length && lastPath) {
+          drawTravel(lastPath[lastPath.length - 1], next.paths[0][0], next.centroid, layer.z, next.z);
         }
-
-        // Between-layer: from last path end of layer li → first path start of layer li+1
-        if (li < numLayers - 1) {
-          const nextLayer = layers[li + 1];
-          const { allMm: nextAllMm } = layerGeo[li + 1];
-          const nextMmPaths: { x: number; y: number }[][] = [];
-          let nIdx = 0;
-          for (const path of nextLayer.paths) {
-            nextMmPaths.push(nextAllMm.slice(nIdx, nIdx + path.length));
-            nIdx += path.length;
-          }
-          const lastCurPath = mmPaths[mmPaths.length - 1];
-          const firstNextPath = nextMmPaths[0];
-          if (lastCurPath?.length && firstNextPath?.length) {
-            const from = lastCurPath[lastCurPath.length - 1];
-            const to   = firstNextPath[0];
-            const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
-
-            ctx.beginPath();
-            const [fx, fy] = toScreen(from.x, from.y, layer.z);
-            ctx.moveTo(fx, fy);
-
-            if (arcPts) {
-              for (const pt of arcPts) {
-                const [sx, sy] = toScreen(pt.x, pt.y, nextLayer.z);
-                ctx.lineTo(sx, sy);
-              }
-            } else {
-              const [tx, ty] = toScreen(to.x, to.y, nextLayer.z);
-              ctx.lineTo(tx, ty);
-            }
-            ctx.stroke();
-          }
-        }
-
-        ctx.restore();
       }
+      ctx.restore();
     }
 
-    // Inter-layer travel lines (dashed, visible)
+    // Soft-join transitions between layers (dashed, visible)
     if (!isInteracting && params.softJoin && numLayers > 1) {
       ctx.save();
       ctx.setLineDash([3, 5]);
       ctx.lineWidth = 1.2;
       ctx.globalAlpha = 0.55;
       for (let li = 0; li < numLayers - 1; li++) {
-        const layer = layers[li];
-        const next  = layers[li + 1];
-        const a = layer.paths[0];
-        const b = next.paths[0];
-        if (!a?.length || !b?.length) continue;
-        const lastA  = a[a.length - 1];
-        const firstB = b[0];
-        const mmA = svgToMM(lastA,  params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
-        const mmB = svgToMM(firstB, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+        const a = toolpath[li].paths[toolpath[li].paths.length - 1];
+        const b = toolpath[li + 1].paths[0];
+        if (!a || !b) continue;
+        const from = a[a.length - 1], to = b[0];
         ctx.strokeStyle = layerColor(li, numLayers, 0.7);
         ctx.beginPath();
-        const [ax, ay] = toScreen(mmA.x, mmA.y, layer.z);
-        const [bx, by] = toScreen(mmB.x, mmB.y, next.z);
+        const [ax, ay] = toScreen(from.x, from.y, from.z);
+        const [bx, by] = toScreen(to.x, to.y, to.z);
         ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
         ctx.stroke();
       }
@@ -784,7 +677,7 @@ export function Preview2D({
       ctx.restore();
     }
 
-  }, [sampledPaths, layers, layerGeo, flatPoints, modelBounds, params, viewBox, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting]);
+  }, [sampledPaths, layers, toolpath, flatPoints, modelBounds, params, viewBox, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -799,7 +692,7 @@ export function Preview2D({
     ctx.fillRect(0, 0, W, H);
 
     const pad = 10;
-    const allPts = layers.flatMap((_, li) => layerGeo[li].allMm);
+    const allPts = flatPoints;
     if (allPts.length === 0) return;
     const { minX, maxX, minY, maxY } = boundsOf(allPts, p => p.x, p => p.y);
     const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
@@ -816,20 +709,16 @@ export function Preview2D({
       ctx.lineWidth = 0.9;
       ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      const { allMm } = layerGeo[li];
-      let mmIdx = 0;
-      for (const svgPts of layers[li].paths) {
-        if (svgPts.length < 2) { mmIdx += svgPts.length; continue; }
+      for (const pts of toolpath[li].paths) {
         ctx.beginPath();
-        for (let i = 0; i < svgPts.length; i++) {
-          const mm = allMm[mmIdx++];
-          const [sx, sy] = ts(mm.x, mm.y);
+        pts.forEach(({ x, y }, i) => {
+          const [sx, sy] = ts(x, y);
           if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        }
+        });
         ctx.stroke();
       }
     }
-  }, [centerTab, layers, layerGeo]);
+  }, [centerTab, layers, toolpath, flatPoints]);
 
   // ── Mouse interaction ─────────────────────────────────────────────────────
   const stopInteracting = () => {

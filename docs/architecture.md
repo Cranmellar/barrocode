@@ -18,8 +18,10 @@ flowchart TD
   Params --> Wave
   Kf --> Wave
   Wave --> Layers["WaveLayer[]"]
-  Layers --> Preview["Preview2D"]
-  Layers --> Gcode["generateGcode"]
+  Layers --> Toolpath["buildToolpath"]
+  Params --> Toolpath
+  Toolpath --> Preview["Preview2D"]
+  Toolpath --> Gcode["generateGcode"]
   Params --> Gcode
   Gcode --> Out["texto .gcode"]
 ```
@@ -39,8 +41,9 @@ flowchart TB
 
   Lib --> Parser["svgParser.ts<br/>parseo y muestreo"]
   Lib --> Wave["waveGenerator.ts<br/>Lissajous y capas"]
+  Lib --> Toolpath["toolpath.ts<br/>orden, Z final y Z-hop"]
+  Toolpath --> Hop["hopUtils.ts<br/>cruces y Z-hop"]
   Lib --> Gcode["gcodeGenerator.ts<br/>salida CNC"]
-  Gcode --> Hop["hopUtils.ts<br/>cruces y Z-hop"]
   Gcode --> Skirt["skirtUtils.ts<br/>viajes concéntricos"]
 ```
 
@@ -81,16 +84,22 @@ También aplica:
 - centro y escala por keyframe;
 - conversión de SVG a mm mediante `svgToMM`.
 
+## Trayectoria Final
+
+`toolpath.ts` convierte `WaveLayer[]` (unidades SVG) en la trayectoria que realmente se imprime, en mm. Es la única fuente para el G-code y para `Preview2D`, de modo que la vista previa siempre muestra lo que se exporta.
+
+- ordena los trayectos de cada capa por nearest-neighbor, partiendo de donde terminó la capa anterior;
+- detecta cruces sobre el cordón impreso (los viajes entre trayectos no cuentan) y aplica el Z-hop en la segunda pasada;
+- cada punto lleva su Z final: altura de capa + oscilación Z + Z-hop.
+
 ## Generador De G-code
 
-`gcodeGenerator.ts` recibe `WaveLayer[]` y produce G-code textual.
+`gcodeGenerator.ts` recibe `WaveLayer[]`, construye la trayectoria final y produce G-code textual.
 
 ```mermaid
 flowchart TD
-  A["WaveLayer[]"] --> B["Ordenar paths por nearest-neighbor"]
-  B --> C["Calcular centroides por capa"]
-  C --> D["Detectar cruces si zHopHeight > 0"]
-  D --> E["Emitir movimientos G1"]
+  A["WaveLayer[]"] --> B["buildToolpath<br/>orden, cruces, Z final"]
+  B --> E["Emitir movimientos G1"]
   E --> F{"softJoin"}
   F -- "sí" --> G["Interpolar XY/Z entre capas"]
   F -- "no" --> H["Viaje con skirt arc o salto corto"]
@@ -108,7 +117,7 @@ Si `generateE` está desactivado, la salida conserva movimientos pero omite la c
 
 ## Vista Canvas
 
-`Preview2D.tsx` dibuja una proyección ortográfica 3D en Canvas. La escala, rotación, pan y keyframes viven en estado local del componente, mientras las capas generadas llegan desde `App.tsx`.
+`Preview2D.tsx` dibuja una proyección ortográfica 3D en Canvas. La escala, rotación, pan y keyframes viven en estado local del componente, mientras las capas generadas llegan desde `App.tsx` y se dibujan a través de `buildToolpath`, igual que el G-code.
 
 La vista muestra:
 

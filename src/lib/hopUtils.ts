@@ -1,8 +1,6 @@
 /**
- * Shared z-hop geometry utilities.
- * Used by both gcodeGenerator (for G-code output) and Preview2D (for 3D
- * visualisation).  Keeping them in one place ensures the visual preview
- * and the exported G-code always agree.
+ * Z-hop geometry utilities, applied once in lib/toolpath.ts so the preview
+ * and the exported G-code share the same hops.
  */
 
 export interface ArcPt { x: number; y: number; arc: number }
@@ -24,7 +22,7 @@ export function buildArcPath(pts: { x: number; y: number }[]): ArcPt[] {
 
 /**
  * Segment AB × CD intersection test.
- * Returns t ∈ (0,1) on AB if they properly cross, null otherwise.
+ * Returns s ∈ (0,1) on CD if they properly cross, null otherwise.
  */
 function segSegIntersect(
   ax: number, ay: number, bx: number, by: number,
@@ -36,7 +34,7 @@ function segSegIntersect(
   if (Math.abs(denom) < 1e-10) return null;
   const t = ((cx - ax) * dyCD - (cy - ay) * dxCD) / denom;
   const s = ((cx - ax) * dyAB - (cy - ay) * dxAB) / denom;
-  if (t > 0.01 && t < 0.99 && s > 0.01 && s < 0.99) return t;
+  if (t > 0.01 && t < 0.99 && s > 0.01 && s < 0.99) return s;
   return null;
 }
 
@@ -47,10 +45,16 @@ function segSegIntersect(
  *
  * cellSize — grid cell side length in mm; coarser = faster but more
  * false-positive pairs to test.  Caller should pass max(hopRadius*3, 2).
+ * gaps — start indices of segments that are travel between paths, not
+ * deposited bead; they never cross anything.
  */
 const WARN_PTS = 3000;
 
-export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
+export function findCrossings(
+  arcPath: ArcPt[],
+  cellSize = 3,
+  gaps: ReadonlySet<number> = new Set(),
+): number[] {
   const n = arcPath.length;
   if (n < 3) return [];
 
@@ -81,6 +85,7 @@ export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
   }
 
   for (let i = 0; i < n - 1; i++) {
+    if (gaps.has(i)) continue;
     for (const [gx, gy] of cellsForSegment(i)) {
       const key = cellKey(gx, gy);
       const bucket = grid.get(key);
@@ -94,6 +99,7 @@ export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
   const crossings: number[] = [];
 
   for (let i = 0; i < n - 1; i++) {
+    if (gaps.has(i)) continue;
     for (const [gx, gy] of cellsForSegment(i)) {
       const bucket = grid.get(cellKey(gx, gy));
       if (!bucket) continue;
@@ -104,12 +110,14 @@ export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
         if (tested.has(pairKey)) continue;
         tested.add(pairKey);
 
-        const t = segSegIntersect(
+        const s = segSegIntersect(
           arcPath[i].x,     arcPath[i].y,     arcPath[i + 1].x, arcPath[i + 1].y,
           arcPath[j].x,     arcPath[j].y,     arcPath[j + 1].x, arcPath[j + 1].y,
         );
-        if (t !== null) {
-          const crossArc = arcPath[i].arc + t * (arcPath[i + 1].arc - arcPath[i].arc);
+        if (s !== null) {
+          // Hop on the later pass (j > i): that is where the nozzle meets
+          // the bead already deposited by segment i.
+          const crossArc = arcPath[j].arc + s * (arcPath[j + 1].arc - arcPath[j].arc);
           crossings.push(crossArc);
         }
       }
@@ -138,4 +146,29 @@ export function hopAtArc(
     }
   }
   return hop;
+}
+
+const HOP_STEPS = 8;  // samples across each hop window of width 2·hopRadius
+
+/**
+ * Arc positions strictly inside (arcFrom, arcTo) where extra points are
+ * needed to resolve the hop parabola. Path samples are usually coarser
+ * than the hop window, so without these a hop can fall between samples.
+ */
+export function hopSampleArcs(
+  arcFrom: number,
+  arcTo: number,
+  crossings: number[],
+  hopRadius: number,
+): number[] {
+  if (hopRadius <= 0) return [];
+  const out: number[] = [];
+  for (const c of crossings) {
+    if (c + hopRadius <= arcFrom || c - hopRadius >= arcTo) continue;
+    for (let j = 0; j <= HOP_STEPS; j++) {
+      const a = c - hopRadius + (2 * hopRadius * j) / HOP_STEPS;
+      if (a > arcFrom + 1e-6 && a < arcTo - 1e-6) out.push(a);
+    }
+  }
+  return out.sort((a, b) => a - b).filter((a, i, all) => i === 0 || a - all[i - 1] > 1e-6);
 }
