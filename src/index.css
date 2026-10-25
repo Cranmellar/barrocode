@@ -514,6 +514,22 @@ html, body, #root { height: 100%; overflow: hidden; }
 }
 .sample-nav-sub { font-size: 10px; color: var(--muted); letter-spacing: 0.06em; }
 
+/* ── Session restore banner ──────────────────────────────────────────────── */
+.session-banner {
+  margin: 10px 12px 0;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-left: 3px solid var(--accent);
+  background: var(--accent-bg);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.session-banner-text { overflow-wrap: anywhere; }
+.session-banner-actions { display: flex; gap: 6px; }
+.session-banner-actions .btn-primary { padding: 4px 10px; }
+
 .error-msg {
   margin: 10px 12px 0;
   padding: 9px 12px;

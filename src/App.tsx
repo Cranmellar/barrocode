@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import logoUrl from './assets/logo.png';
-import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe } from './types';
+import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt } from './lib/waveGenerator';
 import { generateGcode } from './lib/gcodeGenerator';
@@ -113,6 +113,26 @@ function useResize(
 }
 
 const HELP_SEEN_KEY = 'barrocode.helpSeen';
+const SESSION_KEY = 'barrocode.session';
+
+type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'ampTOverride' | 'wlNOverride' | 'wlTOverride'>;
+
+interface SavedSession {
+  raw: string;
+  filename: string;
+  params: PrintParams;
+  keyframes: WaveKeyframe[];
+  paths: PathState[];
+}
+
+function loadSession(): SavedSession | null {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null');
+    return s && typeof s.raw === 'string' ? s : null;
+  } catch {
+    return null;
+  }
+}
 
 function hasSeenHelp() {
   try { return localStorage.getItem(HELP_SEEN_KEY) === '1'; } catch { return true; }
@@ -146,6 +166,7 @@ export default function App() {
   const [sampleIndex, setSampleIndex] = useState(0);
   const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(() => !hasSeenHelp());
+  const [savedSession, setSavedSession] = useState(loadSession);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -290,9 +311,10 @@ export default function App() {
   const bottomRow         = useResize(200, 120, 480, 'y', true);
   const lissPreviewHeight = useResize(200, 120, 400, 'y');
 
-  const doParse = useCallback((raw: string, spacing: number) => {
+  const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = []) => {
     try {
       const result = parseSVG(raw, spacing);
+      result.paths = result.paths.map(p => ({ ...p, ...pathState.find(s => s.id === p.id) }));
       setParsedSVG(result);
       setError(null);
       lastRawRef.current = { raw, spacing };
@@ -305,6 +327,7 @@ export default function App() {
   }, []);
 
   function handleFile(file: File) {
+    setSavedSession(null);
     setGcodeFilename(file.name.replace(/\.svg$/i, '.gcode'));
     const reader = new FileReader();
     reader.onload = ev => doParse(ev.target?.result as string, params.sampleSpacing);
@@ -365,7 +388,39 @@ export default function App() {
     });
   }
 
+  // Autosave so an accidental tab close doesn't lose the work.
+  useEffect(() => {
+    const raw = lastRawRef.current?.raw;
+    if (!parsedSVG || !raw) return;
+    const t = setTimeout(() => {
+      const session: SavedSession = {
+        raw, filename: gcodeFilename, params, keyframes,
+        paths: parsedSVG.paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
+          ({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride })),
+      };
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* full or unavailable */ }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [parsedSVG, params, keyframes, gcodeFilename]);
+
+  function restoreSession() {
+    if (!savedSession) return;
+    const p = { ...DEFAULT_PARAMS, ...savedSession.params };
+    setParams(p);
+    setKeyframes(savedSession.keyframes);
+    setSelectedKfId(null);
+    setGcodeFilename(savedSession.filename);
+    doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
+    setSavedSession(null);
+  }
+
+  function discardSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    setSavedSession(null);
+  }
+
   function clearSVG() {
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
     setParsedSVG(null);
     setLayers([]);
     setGcode('');
@@ -375,6 +430,7 @@ export default function App() {
   }
 
   function loadSample() {
+    setSavedSession(null);
     const s = SAMPLES[sampleIndex];
     setGcodeFilename(s.name);
     doParse(s.raw, params.sampleSpacing);
@@ -397,6 +453,19 @@ export default function App() {
           <img src={logoUrl} alt="BarroCode" />
           <div className="banner-sub">SVG → Lissajous → G-code</div>
         </div>
+
+        {savedSession && !parsedSVG && (
+          <div className="session-banner" role="status">
+            <span className="session-banner-text">
+              Sesión anterior: <strong>{savedSession.filename.replace(/\.gcode$/i, '')}</strong>
+              {savedSession.keyframes.length > 0 && ` · ${savedSession.keyframes.length} keyframe${savedSession.keyframes.length !== 1 ? 's' : ''}`}
+            </span>
+            <div className="session-banner-actions">
+              <button className="btn-small btn-primary" onClick={restoreSession}>Restaurar</button>
+              <button className="btn-small" onClick={discardSession}>Descartar</button>
+            </div>
+          </div>
+        )}
 
         <div className="upload-area-row">
           <div

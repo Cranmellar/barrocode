@@ -23,7 +23,7 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 ### UX — visualización
 
 - [x] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
-- [ ] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
+- [x] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
 - [] **Optimizar rendering con capas altas o muchos keyframes** — el `useEffect([parsedSVG, params, keyframes])` actual recompila todo en cada cambio; con muchas capas o keyframes la edición se siente lenta.
 
 ### UI — layout y estilo
@@ -47,7 +47,7 @@ Orden de ejecución acordado: UI-1 → UI-2 → UI-3 → UI-4 → UI-5. Absorben
 - [x] **UI-2 — Reorganizar el panel izquierdo por intención.** Secciones *Pieza* (escala, origen, flip, centro/escala, capas), *Trayecto* (dirección, unión de capas, z-hop, umbral de arco — corrige `skirtThreshold` bajo "Velocidades") y *Máquina* (velocidades, extrusión — hoy en el panel Lissajous —, arcilla, Z de seguridad). Secciones colapsables con estado recordado en `localStorage`.
 - [x] **UI-3 — Consecuencias visibles en el visor.** Encabezado con tiempo estimado (absorbe el ticket de "Estimación de tiempo"), caja en mm, altura total, E total y avisos. Vistas predefinidas (Planta / Frente / Iso) y slider de rango de capas (ver solo la capa N o hasta N). Extraer el dibujo de `Preview2D.tsx` a `lib/draw3D.ts` en este paso. Es prerequisito de la validación visual de la no planaridad. Hecho; el detalle al pasar el cursor incluye los cruces con z-hop. Queda pendiente avisar de piezas fuera de la cama, que requiere un parámetro de tamaño de cama. De paso se corrigió la proyección, que dibujaba la pieza espejada.
 - [x] **UI-4 — Panel derecho: slider + campo numérico y más densidad.** Ejecuta los tickets "Input fields en panel derecho" y "Panel derecho más denso".
-- [ ] **UI-5 — Atajos y persistencia.** `K` añadir keyframe, `←/→` mover el extrusor, `G` alternar Trayectoria/G-code, listados en la ayuda. Restaurar la sesión anterior (Ola 7). Reemplazar los estilos inline con colores fijos del carrusel de muestras por tokens CSS.
+- [x] **UI-5 — Atajos y persistencia.** `K` añadir keyframe, `←/→` mover el extrusor, `G` alternar Trayectoria/G-code, listados en la ayuda. Restaurar la sesión anterior (Ola 7). Reemplazar los estilos inline con colores fijos del carrusel de muestras por tokens CSS.
 
 ### Trayectoria — no planaridad
 

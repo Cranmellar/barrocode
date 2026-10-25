@@ -124,6 +124,10 @@ El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin
 | `G` | Alterna Trayectoria / G-code |
 | `?` | Abre la ayuda |
 
+### Sesión
+
+BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estado de cada trayecto) un segundo después de cada cambio. Al volver a abrir la app aparece **Sesión anterior** con *Restaurar* o *Descartar*. Descartar el SVG con la ✕ también borra la sesión guardada.
+
 ## 7. Exportar
 
 Haz clic en **Descargar .gcode**. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.
