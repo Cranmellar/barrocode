@@ -277,7 +277,6 @@ export function generateGcode(
       `G1 X${fmt(px + params.primingLength)} Y${fmt(py)}${eStr} F${params.printSpeed}\n` +
       `G1 Z${fmt(params.safeZ)} F${params.travelSpeed}\n; --- End priming ---\n`,
     );
-    isFirstMove = false;
   }
 
   let curX = params.originX, curY = params.originY;
