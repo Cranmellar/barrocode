@@ -24,7 +24,7 @@ export function buildArcPath(pts: { x: number; y: number }[]): ArcPt[] {
 
 /**
  * Segment AB × CD intersection test.
- * Returns t ∈ (0,1) on AB if they properly cross, null otherwise.
+ * Returns s ∈ (0,1) on CD if they properly cross, null otherwise.
  */
 function segSegIntersect(
   ax: number, ay: number, bx: number, by: number,
@@ -36,7 +36,7 @@ function segSegIntersect(
   if (Math.abs(denom) < 1e-10) return null;
   const t = ((cx - ax) * dyCD - (cy - ay) * dxCD) / denom;
   const s = ((cx - ax) * dyAB - (cy - ay) * dxAB) / denom;
-  if (t > 0.01 && t < 0.99 && s > 0.01 && s < 0.99) return t;
+  if (t > 0.01 && t < 0.99 && s > 0.01 && s < 0.99) return s;
   return null;
 }
 
@@ -104,12 +104,14 @@ export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
         if (tested.has(pairKey)) continue;
         tested.add(pairKey);
 
-        const t = segSegIntersect(
+        const s = segSegIntersect(
           arcPath[i].x,     arcPath[i].y,     arcPath[i + 1].x, arcPath[i + 1].y,
           arcPath[j].x,     arcPath[j].y,     arcPath[j + 1].x, arcPath[j + 1].y,
         );
-        if (t !== null) {
-          const crossArc = arcPath[i].arc + t * (arcPath[i + 1].arc - arcPath[i].arc);
+        if (s !== null) {
+          // Hop on the later pass (j > i): that is where the nozzle meets
+          // the bead already deposited by segment i.
+          const crossArc = arcPath[j].arc + s * (arcPath[j + 1].arc - arcPath[j].arc);
           crossings.push(crossArc);
         }
       }
