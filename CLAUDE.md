@@ -99,12 +99,12 @@ src/
   index.css                 All styles (≈1086 lines, design tokens in :root)
   types/index.ts            All shared types
   components/
-    Preview2D.tsx           3D ortho canvas + timeline + kf editor (≈892 lines, LARGEST)
-    LissajousParams.tsx     Right panel: wave sliders + presets
+    Preview2D.tsx           3D preview state, interaction, toolbar + timeline
+    LissajousParams.tsx     Right panel: wave sliders + presets; edits the selected keyframe
     LissajousPreview.tsx    Bottom center: animated Lissajous canvas
-    PathParams.tsx          Left panel: layers, speeds, options
+    PathParams.tsx          Left panel: collapsible Pieza / Trayecto / Máquina groups
     PathList.tsx            Per-path overrides + collapse
-    CenterScaleParams.tsx   Bottom left: pivot + scale + z-hop
+    CenterScaleParams.tsx   Pivot + scale sections, rendered inside PathParams' Pieza group
     CenterPad.tsx           56×56 canvas pivot picker
     GcodeOutput.tsx         G-code textarea + copy + download
     HelpDialog.tsx          "?" quick-start modal (native <dialog>)
@@ -114,6 +114,7 @@ src/
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
     toolpath.ts             Final mm trajectory shared by G-code + preview
+    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down)
     gcodeGenerator.ts       G-code assembly (≈282 lines)
     hopUtils.ts             Z-hop crossing detection
     skirtUtils.ts           Concentric arc travel math
@@ -139,8 +140,13 @@ Keyframes (`WaveKeyframe[]`) override Lissajous fields at given `t ∈ [0,1]`. B
 - `gcodeTimerRef` — debounce handle for G-code regeneration (400 ms)
 - `centerTab: 'preview' | 'gcode'` — which tab is active in the center panel
 - `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
-- `selectedKfId: string | null` — id of the currently selected keyframe
+- `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
+- `savedSession: SavedSession | null` — last autosaved session (`localStorage` key `barrocode.session`, written 1 s after changes), offered for restore while no SVG is loaded
+
+Other `localStorage` keys: `barrocode.leftGroups` (open state of the left-panel groups in `PathParams`). Every access is wrapped in try/catch; the app must work without storage.
+
+Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. They are ignored while typing in text/number fields.
 
 ---
 
@@ -173,11 +179,9 @@ Keyframes (`WaveKeyframe[]`) override Lissajous fields at given `t ∈ [0,1]`. B
 
 These are documented hazards. Fix them when you touch the area, but don't go on cleanup sweeps without being asked.
 
-- **`Preview2D.tsx` is ≈892 lines** and overdue for a split. The canvas draw code is the obvious extraction (→ `lib/draw3D.ts`). Don't refactor it preemptively; do it when adding a feature that would otherwise inflate the file further.
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
 - **`resampleSVG` in `lib/svgParser.ts`** is dead code.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the 56×56 canvas boundary on fast moves.
-- **`skirtThreshold` lives under the "Velocidades" UI section** in `PathParams.tsx` but conceptually belongs with travel options.
 
 ---
 
@@ -198,7 +202,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 ## When working on the canvas previews
 
 - `Preview2D` draws `buildToolpath` output, never `WaveLayer.paths` directly, for anything that represents printed motion.
-- `Preview2D` uses orthographic projection: `project(x, y, z, azimuth, elevation)`. Screen coords are `[offsetX + px*scale, offsetY + py*scale]`.
+- `Preview2D` keeps state and interaction; all canvas drawing lives in `lib/draw3D.ts` (`drawScene`, `drawTopDown`). Orthographic projection: `project(x, y, z, azimuth, elevation)`. Screen coords are `[offsetX + px*scale, offsetY + py*scale]`.
 - Layer colors are an HSL gradient from cobalt to terracotta: `hsl(218→20, 72%→88%, 50%→62%)`.
 - `LissajousPreview` cancels its `requestAnimationFrame` when both `ampN` and `ampT` are ≈0. Don't remove this — it's a battery and CPU optimization.
 - Auto-fit triggers in `LissajousPreview` are explicit and key off specific param changes (currently `lissAmpN`, `lissAmpT`). Pan/zoom are user-only.

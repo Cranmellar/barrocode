@@ -44,13 +44,15 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
+El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (capas, escala y posición, centro y escala), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). Un bloque plegado muestra un resumen de sus valores clave, y el estado de cada bloque se recuerda entre sesiones.
+
 | Parámetro | Efecto |
 |---|---|
 | **Espaciado de muestras** | Densidad de muestreo del camino en unidades SVG. Menor valor produce una onda más suave y más puntos. |
 | **Altura de capa** | Incremento Z entre capas apiladas. |
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
-| **Z seguro** | Altura de desplazamiento cuando no se usa transición suave. |
+| **Z de seguridad** | Altura de desplazamiento al inicio, tras el cebado y al terminar. |
 | **Factor de escala** | Convierte unidades SVG a mm. Usa `1` si el SVG está en mm; usa `0.2645` para píxeles a 96 dpi. |
 | **Origen X / Y** | Desplaza toda la impresión sobre la cama. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
@@ -81,10 +83,12 @@ Los preajustes aplican combinaciones de amplitud, longitud de onda y fase con un
 
 La línea de tiempo permite anclar parámetros de Lissajous en posiciones específicas de la trayectoria.
 
-1. Mueve el slider al punto deseado.
-2. Ajusta los parámetros.
-3. Haz clic en **⊕ KF**.
-4. Edita el keyframe seleccionado si necesitas ajustar amplitudes, longitudes de onda, delta, centro o escala.
+1. Mueve el extrusor de la línea de tiempo al punto deseado.
+2. Haz clic en **⊕ Añadir** (o en el **+** sobre el extrusor). El keyframe toma la onda que se ve en ese punto y queda seleccionado.
+3. Con un keyframe seleccionado, el panel derecho edita **su** onda (amplitudes, longitudes de onda, delta, Z); el encabezado *Editando Keyframe N %* lo indica. La franja inferior edita su posición, escala y centro.
+4. Pulsa **OK** o `Esc` para terminar; `Supr` elimina el keyframe seleccionado. Cambia de keyframe con **‹ ›** o haciendo clic en su rombo; arrástralo para moverlo.
+
+Con keyframes y ninguno seleccionado, los campos de onda del panel derecho quedan bloqueados: la onda la definen los keyframes. *Fase* sigue siendo global.
 
 Entre keyframes, BarroCode interpola linealmente.
 
@@ -99,12 +103,30 @@ La vista global muestra:
 - posición virtual del extrusor;
 - cubo de orientación X/Y/Z.
 
+El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin aceleraciones, incluyendo desplazamientos, cebado y pausas) y tamaño de la pieza en mm. Al pasar el cursor muestra longitudes de impresión y desplazamiento, E total y número de puntos.
+
 | Control | Acción |
 |---|---|
 | Arrastrar con botón izquierdo | Pan |
 | Arrastrar con botón derecho | Rotar azimut/elevación |
 | Rueda del mouse | Zoom |
 | **Ajustar** | Encuadre automático |
+| **Iso / Planta / Frente** | Vistas predefinidas, con encuadre |
+| Slider de capas (borde derecho) | Muestra hasta la capa elegida; **Sola** deja solo esa capa en color y las inferiores en gris |
+
+### Atajos de teclado
+
+| Tecla | Acción |
+|---|---|
+| `←` / `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %) |
+| `K` | Añade un keyframe en el extrusor, o selecciona el que ya está ahí |
+| `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
+| `G` | Alterna Trayectoria / G-code |
+| `?` | Abre la ayuda |
+
+### Sesión
+
+BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estado de cada trayecto) un segundo después de cada cambio. Al volver a abrir la app aparece **Sesión anterior** con *Restaurar* o *Descartar*. Descartar el SVG con la ✕ también borra la sesión guardada.
 
 ## 7. Exportar
 

@@ -1,15 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import logoUrl from './assets/logo.png';
-import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe } from './types';
+import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt } from './lib/waveGenerator';
 import { generateGcode } from './lib/gcodeGenerator';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
 import { Preview2D } from './components/Preview2D';
 import { PathList } from './components/PathList';
-import { CenterScaleParams } from './components/CenterScaleParams';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
@@ -114,12 +113,36 @@ function useResize(
 }
 
 const HELP_SEEN_KEY = 'barrocode.helpSeen';
+const SESSION_KEY = 'barrocode.session';
+
+type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'ampTOverride' | 'wlNOverride' | 'wlTOverride'>;
+
+interface SavedSession {
+  raw: string;
+  filename: string;
+  params: PrintParams;
+  keyframes: WaveKeyframe[];
+  paths: PathState[];
+}
+
+function loadSession(): SavedSession | null {
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null');
+    return s && typeof s.raw === 'string' ? s : null;
+  } catch {
+    return null;
+  }
+}
 
 function hasSeenHelp() {
   try { return localStorage.getItem(HELP_SEEN_KEY) === '1'; } catch { return true; }
 }
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
+
+function kfColor(t: number) {
+  return `hsl(${Math.round(218 - 198 * t)},${Math.round(72 + t * 16)}%,${Math.round(50 + t * 12)}%)`;
+}
 
 type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ';
 type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ';
@@ -143,6 +166,7 @@ export default function App() {
   const [sampleIndex, setSampleIndex] = useState(0);
   const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(() => !hasSeenHelp());
+  const [savedSession, setSavedSession] = useState(loadSession);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -171,7 +195,29 @@ export default function App() {
     setKeyframes(keyframes.map(k => k.id === selectedKf.id ? { ...k, ...kfPatch } : k));
   }
 
+  const sortedKfs = [...keyframes].sort((a, b) => a.t - b.t);
+  const kfAtCursor = findKeyframeAt(keyframes, timelineProgress);
+  const selectedIdx = selectedKf ? sortedKfs.findIndex(k => k.id === selectedKf.id) : -1;
+  const prevKf = selectedKf
+    ? sortedKfs[selectedIdx - 1] ?? null
+    : [...sortedKfs].reverse().find(k => k.t < timelineProgress) ?? null;
+  const nextKf = selectedKf
+    ? sortedKfs[selectedIdx + 1] ?? null
+    : sortedKfs.find(k => k.t > timelineProgress) ?? null;
+
+  // Selecting a keyframe moves the extruder onto it, so the preview shows
+  // the wave being edited.
+  function selectKf(id: string | null) {
+    setSelectedKfId(id);
+    const kf = keyframes.find(k => k.id === id);
+    if (kf) setTimelineProgress(kf.t);
+  }
+
   function addKeyframe() {
+    if (kfAtCursor) {
+      selectKf(kfAtCursor.id === selectedKfId ? null : kfAtCursor.id);
+      return;
+    }
     // Snapshot the wave currently shown at this t, so adding a keyframe
     // between existing ones doesn't change the shape.
     const lp = getParamsAtT(timelineProgress, keyframes, params);
@@ -204,18 +250,56 @@ export default function App() {
     setKeyframes(keyframes.map(k => k.id === selectedKfId ? { ...k, [key]: val } : k));
   }
 
+  function moveSelectedKf(t: number) {
+    if (!selectedKfId) return;
+    setKeyframes(keyframes
+      .map(k => k.id === selectedKfId ? { ...k, t } : k)
+      .sort((a, b) => a.t - b.t));
+    setTimelineProgress(t);
+  }
+
   function closeHelp() {
     setHelpOpen(false);
     try { localStorage.setItem(HELP_SEEN_KEY, '1'); } catch { /* storage unavailable */ }
   }
 
+  const selectedKfIdRef = useRef(selectedKfId);
+  const helpOpenRef = useRef(helpOpen);
+  const addKeyframeRef = useRef(addKeyframe);
+  useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
+  useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
+  useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       const el = e.target as HTMLElement;
-      if (el.closest('input, textarea, select, [contenteditable="true"]')) return;
+      // Sliders and checkboxes keep focus after use; they don't consume these keys.
+      if (el.closest('input:not([type="range"]):not([type="checkbox"]), textarea, select, [contenteditable="true"]')) return;
+      if (e.key === '?') {
+        e.preventDefault();
+        setHelpOpen(true);
+        return;
+      }
+      if (helpOpenRef.current) return;
+      const id = selectedKfIdRef.current;
+      const key = e.key.toLowerCase();
+      if (key === 'k') {
+        addKeyframeRef.current();
+      } else if (key === 'g') {
+        setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
+      } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]')) {
+        const step = (e.shiftKey ? 0.001 : 0.01) * (key === 'arrowleft' ? -1 : 1);
+        setTimelineProgress(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
+      } else if (key === 'escape' && id) {
+        setSelectedKfId(null);
+      } else if ((key === 'delete' || key === 'backspace') && id) {
+        setKeyframes(prev => prev.filter(k => k.id !== id));
+        setSelectedKfId(null);
+      } else {
+        return;
+      }
       e.preventDefault();
-      setHelpOpen(true);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -227,9 +311,10 @@ export default function App() {
   const bottomRow         = useResize(200, 120, 480, 'y', true);
   const lissPreviewHeight = useResize(200, 120, 400, 'y');
 
-  const doParse = useCallback((raw: string, spacing: number) => {
+  const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = []) => {
     try {
       const result = parseSVG(raw, spacing);
+      result.paths = result.paths.map(p => ({ ...p, ...pathState.find(s => s.id === p.id) }));
       setParsedSVG(result);
       setError(null);
       lastRawRef.current = { raw, spacing };
@@ -242,6 +327,7 @@ export default function App() {
   }, []);
 
   function handleFile(file: File) {
+    setSavedSession(null);
     setGcodeFilename(file.name.replace(/\.svg$/i, '.gcode'));
     const reader = new FileReader();
     reader.onload = ev => doParse(ev.target?.result as string, params.sampleSpacing);
@@ -302,7 +388,39 @@ export default function App() {
     });
   }
 
+  // Autosave so an accidental tab close doesn't lose the work.
+  useEffect(() => {
+    const raw = lastRawRef.current?.raw;
+    if (!parsedSVG || !raw) return;
+    const t = setTimeout(() => {
+      const session: SavedSession = {
+        raw, filename: gcodeFilename, params, keyframes,
+        paths: parsedSVG.paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
+          ({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride })),
+      };
+      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* full or unavailable */ }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [parsedSVG, params, keyframes, gcodeFilename]);
+
+  function restoreSession() {
+    if (!savedSession) return;
+    const p = { ...DEFAULT_PARAMS, ...savedSession.params };
+    setParams(p);
+    setKeyframes(savedSession.keyframes);
+    setSelectedKfId(null);
+    setGcodeFilename(savedSession.filename);
+    doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
+    setSavedSession(null);
+  }
+
+  function discardSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    setSavedSession(null);
+  }
+
   function clearSVG() {
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
     setParsedSVG(null);
     setLayers([]);
     setGcode('');
@@ -312,6 +430,7 @@ export default function App() {
   }
 
   function loadSample() {
+    setSavedSession(null);
     const s = SAMPLES[sampleIndex];
     setGcodeFilename(s.name);
     doParse(s.raw, params.sampleSpacing);
@@ -334,6 +453,19 @@ export default function App() {
           <img src={logoUrl} alt="BarroCode" />
           <div className="banner-sub">SVG → Lissajous → G-code</div>
         </div>
+
+        {savedSession && !parsedSVG && (
+          <div className="session-banner" role="status">
+            <span className="session-banner-text">
+              Sesión anterior: <strong>{savedSession.filename.replace(/\.gcode$/i, '')}</strong>
+              {savedSession.keyframes.length > 0 && ` · ${savedSession.keyframes.length} keyframe${savedSession.keyframes.length !== 1 ? 's' : ''}`}
+            </span>
+            <div className="session-banner-actions">
+              <button className="btn-small btn-primary" onClick={restoreSession}>Restaurar</button>
+              <button className="btn-small" onClick={discardSession}>Descartar</button>
+            </div>
+          </div>
+        )}
 
         <div className="upload-area-row">
           <div
@@ -365,25 +497,27 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ display:'flex', flexDirection:'row', flexShrink:0, margin:'8px 12px 0', border:'2px solid #4A4E8C', borderRadius:6, overflow:'hidden', background:'#fff', minHeight:76 }}>
+        <div className="sample-nav">
           <button
-            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderRight:'1px solid #D2D2D2', fontSize:22, cursor:'pointer', color:'#1C1C1C', padding:0 }}
+            className="sample-nav-arrow"
             onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
+            aria-label="Muestra anterior"
           >‹</button>
           <button
-            style={{ flex:1, minWidth:0, display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'center', gap:12, padding:'10px 14px', background:'transparent', border:'none', cursor:'pointer' }}
+            className="sample-nav-load"
             onClick={loadSample}
             title={`Cargar muestra ${sampleIndex + 1}`}
           >
-            <img src={SAMPLES[sampleIndex].uri} width={48} height={48} style={{ display:'block', flexShrink:0 }} alt="" />
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:3 }}>
-              <span style={{ fontSize:11, color:'#1C1C1C', fontWeight:700, letterSpacing:'0.04em' }}>Muestra {sampleIndex + 1}</span>
-              <span style={{ fontSize:10, color:'#6A6A6A', letterSpacing:'0.06em' }}>de {SAMPLES.length} · clic para cargar</span>
-            </div>
+            <img src={SAMPLES[sampleIndex].uri} width={48} height={48} alt="" />
+            <span className="sample-nav-text">
+              <span className="sample-nav-title">Muestra {sampleIndex + 1}</span>
+              <span className="sample-nav-sub">de {SAMPLES.length} · clic para cargar</span>
+            </span>
           </button>
           <button
-            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderLeft:'1px solid #D2D2D2', fontSize:22, cursor:'pointer', color:'#1C1C1C', padding:0 }}
+            className="sample-nav-arrow"
             onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
+            aria-label="Muestra siguiente"
           >›</button>
         </div>
 
@@ -400,7 +534,6 @@ export default function App() {
         )}
 
         <PathParams params={params} onChange={setParams} />
-        <CenterScaleParams params={params} onChange={setParams} />
       </div>
 
       {/* Divisor izquierdo */}
@@ -427,132 +560,86 @@ export default function App() {
           gcode={gcode}
           gcodeFilename={gcodeFilename}
           selectedKfId={selectedKfId}
-          onKfSelect={setSelectedKfId}
+          onKfSelect={selectKf}
           onAddKeyframe={addKeyframe}
         />
 
         {/* Divisor horizontal redimensionable */}
         <div className="drag-handle-h" onMouseDown={bottomRow.onMouseDown} />
 
-        {/* Fila inferior — Keyframes */}
+        {/* Fila inferior — Keyframe seleccionado */}
         <div className="bottom-row" style={{ height: bottomRow.size }}>
           <div className="kf-panel">
             <div className="toolbar">
               <span className="toolbar-title">Keyframes</span>
 
-              <div className="kf-tag-row">
-                {keyframes.map(kf => {
-                  const t = kf.t;
-                  const hue = Math.round(218 - 198 * t);
-                  const sat = Math.round(72 + t * 16);
-                  const lit  = Math.round(50 + t * 12);
-                  const color = kf.id === selectedKfId
-                    ? 'var(--accent)'
-                    : `hsl(${hue},${sat}%,${lit}%)`;
-                  return (
-                    <div
-                      key={kf.id}
-                      className={`kf-tag${kf.id === selectedKfId ? ' kf-tag--selected' : ''}`}
-                      style={{ '--kf-color': color } as React.CSSProperties}
-                      onClick={() => setSelectedKfId(kf.id === selectedKfId ? null : kf.id)}
-                      title={`KF ${Math.round(t * 100)}%`}
-                    >
-                      <span className="kf-tag-notch" />
-                      <span className="kf-tag-body">
-                        {Math.round(t * 100)}%
-                        <button
-                          className="kf-tag-del"
-                          onClick={e => {
-                            e.stopPropagation();
-                            setKeyframes(keyframes.filter(k => k.id !== kf.id));
-                            if (selectedKfId === kf.id) setSelectedKfId(null);
-                          }}
-                        >×</button>
-                      </span>
-                    </div>
-                  );
-                })}
-                {keyframes.length === 0 && (
-                  <span className="kf-empty-hint">
-                    Añade un keyframe para animar la onda por capas
+              {keyframes.length > 0 && (
+                <div className="kf-nav">
+                  <button className="btn-small kf-nav-btn" disabled={!prevKf}
+                    onClick={() => prevKf && selectKf(prevKf.id)}
+                    title="Keyframe anterior" aria-label="Keyframe anterior">‹</button>
+                  <span className="kf-nav-label">
+                    {selectedKf
+                      ? <><span className="kf-chip" style={{ background: kfColor(selectedKf.t) }} />
+                          KF {selectedIdx + 1} / {keyframes.length}</>
+                      : `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`}
                   </span>
+                  <button className="btn-small kf-nav-btn" disabled={!nextKf}
+                    onClick={() => nextKf && selectKf(nextKf.id)}
+                    title="Keyframe siguiente" aria-label="Keyframe siguiente">›</button>
+                </div>
+              )}
+
+              <div className="kf-actions">
+                <button
+                  className={`btn-small kf-add-btn${kfAtCursor ? ' kf-add-btn--on' : ''}`}
+                  onClick={addKeyframe}
+                  title={kfAtCursor
+                    ? kfAtCursor.id === selectedKfId
+                      ? 'Terminar de editar este keyframe (Esc)'
+                      : 'Ya hay un keyframe aquí: seleccionarlo'
+                    : 'Fijar la onda en la posición del extrusor'}
+                >
+                  {kfAtCursor
+                    ? kfAtCursor.id === selectedKfId ? '✓ OK' : `Editar KF ${Math.round(kfAtCursor.t * 100)}%`
+                    : `⊕ Añadir en ${Math.round(timelineProgress * 100)}%`}
+                </button>
+                {selectedKf && (
+                  <button className="btn-small kf-del-btn kf-trash-btn" onClick={deleteKeyframe}
+                    title="Eliminar este keyframe (Supr)" aria-label="Eliminar keyframe seleccionado">
+                    <svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor"
+                      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M1 3h9M3.5 3V2h4v1M2 3l.8 7h5.4l.8-7"/>
+                      <line x1="4.2" y1="5.5" x2="4" y2="8.5"/>
+                      <line x1="6.8" y1="5.5" x2="7" y2="8.5"/>
+                    </svg>
+                  </button>
+                )}
+                {!selectedKf && keyframes.length > 0 && (
+                  <button className="btn-small kf-del-btn" onClick={clearAllKeyframes}
+                    title="Eliminar todos los keyframes">
+                    Eliminar todos
+                  </button>
                 )}
               </div>
-
-              <button className="btn-small kf-add-btn" onClick={addKeyframe}>
-                ⊕ Añadir en {Math.round(timelineProgress * 100)}%
-              </button>
-              {keyframes.length > 0 && (
-                <button className="btn-small kf-del-btn kf-trash-btn" onClick={clearAllKeyframes}
-                  title="Eliminar todos los keyframes">
-                  <svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 3h9M3.5 3V2h4v1M2 3l.8 7h5.4l.8-7"/>
-                    <line x1="4.2" y1="5.5" x2="4" y2="8.5"/>
-                    <line x1="6.8" y1="5.5" x2="7" y2="8.5"/>
-                  </svg>
-                </button>
-              )}
             </div>
 
-            {selectedKf && (
+            {selectedKf ? (
               <div className="kf-editor">
-
-                {/* Group 1 — Amplitudes y longitudes de onda */}
                 <div className="kf-group">
                   <div className="kf-field">
-                    <label>Amp N</label>
+                    <label>Posición</label>
                     <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.ampN} min={0} max={30} step={0.1}
-                        onChange={v => updateKf('ampN', v)} />
-                      <span className="kf-unit">mm</span>
+                      <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
+                        onChange={v => moveSelectedKf(v / 100)} />
+                      <span className="kf-unit">%</span>
                     </div>
                   </div>
-                  <div className="kf-field">
-                    <label>λ N</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.wlN} min={1} max={200} step={1}
-                        onChange={v => updateKf('wlN', v)} />
-                      <span className="kf-unit">mm</span>
-                    </div>
-                  </div>
-                  <div className="kf-field">
-                    <label>Amp T</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.ampT} min={0} max={30} step={0.1}
-                        onChange={v => updateKf('ampT', v)} />
-                      <span className="kf-unit">mm</span>
-                    </div>
-                  </div>
-                  <div className="kf-field">
-                    <label>λ T</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.wlT} min={1} max={200} step={1}
-                        onChange={v => updateKf('wlT', v)} />
-                      <span className="kf-unit">mm</span>
-                    </div>
+                  <div className="kf-field kf-field-note">
+                    Onda: panel derecho
                   </div>
                 </div>
 
-                {/* Group 2 — Posición KF + Delta */}
-                <div className="kf-group">
-                  <span className="kf-editor-title">
-                    KF {(selectedKf.t * 100).toFixed(1)}%
-                  </span>
-                  <div className="kf-field">
-                    <label>Delta</label>
-                    <div className="kf-field-input-row">
-                      <NumInput
-                        value={parseFloat((selectedKf.delta * 180 / Math.PI).toFixed(1))}
-                        min={-180} max={180} step={1}
-                        onChange={v => updateKf('delta', v * Math.PI / 180)}
-                      />
-                      <span className="kf-unit">°</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Group 3 — Escala */}
                 <div className="kf-group">
                   <div className="kf-field">
                     <label>Escala X</label>
@@ -570,7 +657,6 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Group 4 — Visualizador 2D de centro */}
                 <div className="kf-group kf-group-center">
                   <div className="kf-pad-wrap">
                     <span className="kf-pad-label">Centro</span>
@@ -590,7 +676,12 @@ export default function App() {
                     />
                   </div>
                 </div>
-
+              </div>
+            ) : (
+              <div className="kf-empty">
+                {keyframes.length === 0
+                  ? 'Mueve el extrusor en la línea de tiempo y pulsa «Añadir» para fijar la onda en ese punto. Entre keyframes los valores se interpolan.'
+                  : 'Selecciona un keyframe en la línea de tiempo o con ‹ › para editarlo: su onda en el panel derecho, su posición, escala y centro aquí.'}
               </div>
             )}
           </div>
@@ -611,11 +702,12 @@ export default function App() {
             params={lissParams}
             onChange={setLissParams}
             onReset={() => setParams(DEFAULT_PARAMS)}
-            notice={selectedKf
-              ? `Editando keyframe ${Math.round(selectedKf.t * 100)}%`
-              : keyframes.length > 0
-                ? 'Los keyframes definen la onda: selecciona uno para editarlo'
-                : null}
+            editingKf={selectedKf && {
+              label: `Keyframe ${Math.round(selectedKf.t * 100)}%`,
+              color: kfColor(selectedKf.t),
+              onDone: () => setSelectedKfId(null),
+            }}
+            waveLocked={keyframes.length > 0 && !selectedKf}
           />
         </div>
       </div>

@@ -22,8 +22,8 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 
 ### UX — visualización
 
-- [ ] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
-- [ ] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
+- [x] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
+- [x] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
 - [] **Optimizar rendering con capas altas o muchos keyframes** — el `useEffect([parsedSVG, params, keyframes])` actual recompila todo en cada cambio; con muchas capas o keyframes la edición se siente lenta.
 
 ### UI — layout y estilo
@@ -31,9 +31,42 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 - [ ] **Botón "Descargar .gcode" del mismo tamaño que "Copiar"** — manteniendo el resto de sus propiedades visuales.
 - [ ] **Color del menú desplegable de keyframe** — igualar al resto del tema y luego oscurecerlo levemente para diferenciarlo del color general.
 - [ ] **Alinear ancho de "Carga un SVG" con "Cargar SVG de ejemplo"** — el `upload-area` debiese tener el mismo ancho de bounding box que el botón de sample debajo.
-- [ ] **Panel derecho más denso** — valores más pequeños, espaciado más ajustado sin sentirse atestado, permitiendo que se vean más presets sin scroll.
-- [ ] **Input fields en panel derecho (Lissajous)** — los parámetros de Lissajous solo tienen slider; agregar también el campo numérico editable como en el panel izquierdo.
-- [ ] **Acoplar la previsualización Lissajous con su panel modificador** — actualmente el panel derecho modifica los parámetros y la previsualización está abajo al centro; juntarlos visualmente.
+- [x] **Panel derecho más denso** — valores más pequeños, espaciado más ajustado sin sentirse atestado, permitiendo que se vean más presets sin scroll.
+- [x] **Input fields en panel derecho (Lissajous)** — los parámetros de Lissajous solo tienen slider; agregar también el campo numérico editable como en el panel izquierdo.
+- [x] **Acoplar la previsualización Lissajous con su panel modificador** — actualmente el panel derecho modifica los parámetros y la previsualización está abajo al centro; juntarlos visualmente.
+
+### UX — flujo de trabajo (propuesta oct. 2026)
+
+Orden de ejecución acordado: UI-1 → UI-2 → UI-3 → UI-4 → UI-5. Absorben varios tickets de las secciones anteriores (indicados en cada uno).
+
+- [x] **UI-1 — Unificar la edición de keyframes.** Hoy un keyframe se edita en tres lugares (timeline del visor, etiquetas + editor de la fila inferior, panel derecho), y el editor inferior no tiene los campos Z. Propuesta:
+  - El panel derecho es el único editor de la onda, con un encabezado de contexto claro (*Onda global* / *Keyframe 40 %* con su color). Con keyframes y ninguno seleccionado, los campos que definen los keyframes se bloquean en vez de editar valores globales que no tienen efecto.
+  - La fila inferior queda solo con lo propio del keyframe: posición, escala y centro, más navegación anterior/siguiente.
+  - Seleccionar un keyframe lleva el extrusor a su posición; el botón *Añadir* pasa a *OK* sobre un keyframe existente (absorbe el ticket "Añadir → OK").
+  - `Esc` deselecciona, `Supr` borra el keyframe seleccionado.
+- [x] **UI-2 — Reorganizar el panel izquierdo por intención.** Secciones *Pieza* (escala, origen, flip, centro/escala, capas), *Trayecto* (dirección, unión de capas, z-hop, umbral de arco — corrige `skirtThreshold` bajo "Velocidades") y *Máquina* (velocidades, extrusión — hoy en el panel Lissajous —, arcilla, Z de seguridad). Secciones colapsables con estado recordado en `localStorage`.
+- [x] **UI-3 — Consecuencias visibles en el visor.** Encabezado con tiempo estimado (absorbe el ticket de "Estimación de tiempo"), caja en mm, altura total, E total y avisos. Vistas predefinidas (Planta / Frente / Iso) y slider de rango de capas (ver solo la capa N o hasta N). Extraer el dibujo de `Preview2D.tsx` a `lib/draw3D.ts` en este paso. Es prerequisito de la validación visual de la no planaridad. Hecho; el detalle al pasar el cursor incluye los cruces con z-hop. Queda pendiente avisar de piezas fuera de la cama, que requiere un parámetro de tamaño de cama. De paso se corrigió la proyección, que dibujaba la pieza espejada.
+- [x] **UI-4 — Panel derecho: slider + campo numérico y más densidad.** Ejecuta los tickets "Input fields en panel derecho" y "Panel derecho más denso".
+- [x] **UI-5 — Atajos y persistencia.** `K` añadir keyframe, `←/→` mover el extrusor, `G` alternar Trayectoria/G-code, listados en la ayuda. Restaurar la sesión anterior (Ola 7). Reemplazar los estilos inline con colores fijos del carrusel de muestras por tokens CSS.
+
+### Trayectoria — no planaridad
+
+Ya existe no planaridad parcial: oscilación Z por punto (`lissAmpZ`), z-hop parabólico y la rampa del soft join. Estos tickets la extienden. Restricciones transversales que todo ticket de esta sección debe respetar:
+
+- **Altura local de capa:** en cada XY, Δz entre la capa n y n−1 debe quedar en `[hMin, hMax]`. Si una superficie f(x,y) entra gradualmente en K capas, Δz = h + f/K ⇒ K ≥ max|f| / (h − hMin).
+- **Pendiente máxima** limitada por la geometría de la boquilla y por el descuelgue de la arcilla fresca.
+- **Velocidad en Z:** en cartesianas con husillo, Z es lento; limitar `F` según dz/ds.
+- **Muestreo:** el detalle en Z necesita densidad de puntos; remuestrear como `hopSampleArcs` si la superficie tiene más frecuencia que `sampleSpacing`.
+- **Ubicación:** el cálculo va en `lib/toolpath.ts` (mm). El escalar interpolado por keyframes se pasa desde `waveGenerator` vía `WavePoint`, como `zOffset`.
+
+- [ ] **NP-0a — E en distancia 3D.** `pathToGcode` y `buildTransition` acumulan E con la distancia XY; un movimiento solo en Z se descarta (`d < 1e-6`). Usar distancia 3D y, opcionalmente, compensar caudal por altura local de capa (`E ∝ largo × h_local / h`). Afecta ya a `lissAmpZ`.
+- [ ] **NP-0b — Travel con Z real.** `buildSkirtTravel` levanta a `layer.z + 2` y baja a `layer.z`; con Z no planar la pieza puede estar más alta y la boquilla la atraviesa. Levantar a `max(z de la capa) + margen` y descender a `start.z`.
+- [ ] **NP-0c — Header y tests.** Añadir `lissAmpZ` / `lissWlZ` / `lissPhaseZ` al header del G-code. Redefinir el invariante "no plunging" del test (`maxDz`) como "nunca por debajo de la capa anterior + hMin" para admitir descensos legítimos.
+- [ ] **NP-1 — Espiral continua (vase mode).** Z sube de forma continua con la longitud de arco dentro de cada capa; sin costura, el soft join deja de ser necesario. Decidir el comportamiento con varias rutas por capa y con `alternateDirection`; primera capa con rampa de entrada y última con rampa de salida.
+- [ ] **NP-2 — Superficie Z(x,y).** Domo, rampa, onda radial o heightmap, con entrada gradual desde la capa 0 hasta la K y amplitud keyframeable. Incluye validación de altura local/pendiente con avisos y un modo de color del visor por altura local de capa (requiere UI-3).
+- [ ] **NP-3 — Lissajous en el plano normal 3D.** La "versión 2" de [docs/research-notes.md](docs/research-notes.md): evaluar la onda en el plano normal a la tangente 3D para trayectorias helicoidales.
+
+Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 → NP-3.
 
 ### Contenido / assets
 

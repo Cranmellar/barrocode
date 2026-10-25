@@ -26,10 +26,10 @@ interface Props {
 interface T2 { cx: number; cy: number; s: number }
 
 function w2s(x: number, y: number, t: T2): [number, number] {
-  return [t.cx + x * t.s, t.cy + y * t.s];
+  return [t.cx + x * t.s, t.cy - y * t.s];
 }
 function s2w(sx: number, sy: number, t: T2): [number, number] {
-  return [(sx - t.cx) / t.s, (sy - t.cy) / t.s];
+  return [(sx - t.cx) / t.s, (t.cy - sy) / t.s];
 }
 
 function buildTransform(layers: WaveLayer[], params: PrintParams, svgH: number, W: number, H: number): T2 {
@@ -47,7 +47,7 @@ function buildTransform(layers: WaveLayer[], params: PrintParams, svgH: number, 
   const m = 10;
   const gW = mxX - mnX || 1, gH = mxY - mnY || 1;
   const s = Math.min((W - m * 2) / gW, (H - m * 2) / gH);
-  return { cx: W / 2 - ((mnX + mxX) / 2) * s, cy: H / 2 - ((mnY + mxY) / 2) * s, s };
+  return { cx: W / 2 - ((mnX + mxX) / 2) * s, cy: H / 2 + ((mnY + mxY) / 2) * s, s };
 }
 
 export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChange }: Props) {

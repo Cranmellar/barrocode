@@ -216,9 +216,11 @@ export function HelpDialog({ open, onClose }: Props) {
             <KeyframeDiagram />
             <p>
               Mueve el <em>Extrusor</em> en la línea de tiempo bajo la vista 3D y pulsa{' '}
-              <kbd>+</kbd> para fijar la onda en ese punto. Selecciona un keyframe para
-              editarlo; arrastra su rombo para moverlo. Entre keyframes los valores se
-              interpolan. Con keyframes activos, los ajustes por trayecto se ignoran.
+              <kbd>+</kbd> para fijar la onda en ese punto. Selecciona un keyframe (clic en
+              su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
+              derecho; su posición, escala y centro en la franja inferior. Arrastra su rombo
+              para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
+              los ajustes por trayecto se ignoran.
             </p>
           </section>
 
@@ -229,9 +231,15 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Arrastrar</th><td>desplazar la vista 3D</td></tr>
                 <tr><th scope="row">Clic derecho + arrastrar</th><td>rotar la vista 3D</td></tr>
                 <tr><th scope="row">Rueda sobre la vista</th><td>zoom</td></tr>
+                <tr><th scope="row">Iso · Planta · Frente</th><td>vistas predefinidas</td></tr>
+                <tr><th scope="row">Slider de capas</th><td>ver hasta una capa · <em>Sola</em>: solo esa capa</td></tr>
                 <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor</td></tr>
                 <tr><th scope="row">Arrastrar divisores</th><td>redimensionar paneles</td></tr>
                 <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>
+                <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd></th><td>mover el extrusor 1 % (con <kbd>Shift</kbd>, 0,1 %)</td></tr>
+                <tr><th scope="row"><kbd>K</kbd></th><td>añadir keyframe en el extrusor (o seleccionar el que ya está ahí)</td></tr>
+                <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
+                <tr><th scope="row"><kbd>G</kbd></th><td>alternar Trayectoria / G-code</td></tr>
               </tbody>
             </table>
           </section>
@@ -242,7 +250,7 @@ export function HelpDialog({ open, onClose }: Props) {
               <li>No hay retracción: <em>Transición Z suave</em> une capas sin cortar el flujo.</li>
               <li><em>Pausa al inicio</em> y <em>Cebado de boquilla</em> estabilizan la primera extrusión.</li>
               <li>Calibra la primera capa con <em>Desplazamiento Z</em>.</li>
-              <li>Ajusta el <em>Multiplicador</em> (panel derecho, Extrusión) según tu bomba o tornillo.</li>
+              <li>Ajusta el <em>Multiplicador</em> (panel izquierdo, Máquina › Extrusión) según tu bomba o tornillo.</li>
             </ul>
           </section>
         </div>

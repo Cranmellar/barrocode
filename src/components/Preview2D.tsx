@@ -14,10 +14,12 @@
 
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
-import { svgToMM } from '../lib/waveGenerator';
-import { getParamsAtT } from '../lib/waveGenerator';
-import { buildToolpath, type ToolpathLayer } from '../lib/toolpath';
-import { skirtArcPoints, type MM2 } from '../lib/skirtUtils';
+import { findKeyframeAt } from '../lib/waveGenerator';
+import { buildToolpath } from '../lib/toolpath';
+import { summarizeGcode } from '../lib/gcodeStats';
+import {
+  type View3D, layerColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+} from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
 interface Props {
@@ -38,59 +40,23 @@ interface Props {
   onAddKeyframe: () => void;
 }
 
-interface View3D {
-  azimuth: number;
-  elevation: number;
-  scale: number;
-  offsetX: number;
-  offsetY: number;
+const LAYER_SLIDER_W = 56;
+
+const VIEW_PRESETS = [
+  { label: 'Iso',    azimuth: 325, elevation: 28, title: 'Vista isométrica' },
+  { label: 'Planta', azimuth: 0,   elevation: 90, title: 'Vista superior (X → derecha, Y ↑)' },
+  { label: 'Frente', azimuth: 0,   elevation: 0,  title: 'Vista frontal (X → derecha, Z ↑)' },
+];
+
+function formatDuration(sec: number): string {
+  if (sec < 60) return `${Math.round(sec)} s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
 }
 
-// Vivid palette: cobalt-blue (bottom) → warm terracotta (top)
-function layerColor(index: number, total: number, alpha = 1): string {
-  const t = total <= 1 ? 0 : index / (total - 1);
-  const hue = Math.round(218 - 198 * t);   // 218 (cobalt) → 20 (terracotta)
-  const sat = 72 + t * 16;                  // 72 % → 88 %
-  const lit = 50 + t * 12;                  // 50 % → 62 %
-  return `hsla(${hue},${sat.toFixed(0)}%,${lit.toFixed(0)}%,${alpha})`;
-}
-
-function project(x: number, y: number, z: number, az: number, el: number): [number, number] {
-  const A = az * Math.PI / 180;
-  const E = el * Math.PI / 180;
-  const rx =  x * Math.cos(A) + y * Math.sin(A);
-  const ry = -x * Math.sin(A) + y * Math.cos(A);
-  return [rx, ry * Math.sin(E) - z * Math.cos(E)];
-}
-
-// Safe min/max over an array of any size — avoids the V8 spread-argument
-// stack-overflow that kills Math.min(...largeArray) above ~65 K elements.
-function boundsOf<T>(
-  arr: T[],
-  x: (v: T) => number,
-  y: (v: T) => number,
-): { minX: number; maxX: number; minY: number; maxY: number } {
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const v of arr) {
-    const vx = x(v), vy = y(v);
-    if (vx < minX) minX = vx;
-    if (vx > maxX) maxX = vx;
-    if (vy < minY) minY = vy;
-    if (vy > maxY) maxY = vy;
-  }
-  return { minX, maxX, minY, maxY };
-}
-
-interface FlatPoint { x: number; y: number; z: number; layerIndex: number }
-
-function flattenPoints(toolpath: ToolpathLayer[]): FlatPoint[] {
-  const pts: FlatPoint[] = [];
-  for (const layer of toolpath) {
-    for (const path of layer.paths) {
-      for (const p of path) pts.push({ ...p, layerIndex: layer.index });
-    }
-  }
-  return pts;
+function fmtMM(v: number): string {
+  return v >= 100 ? v.toFixed(0) : v.toFixed(1);
 }
 
 function uid() {
@@ -107,9 +73,12 @@ export function Preview2D({
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const topdownRef  = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState<View3D>({
-    azimuth: 215, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
+    azimuth: 325, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
   const [isInteracting, setIsInteracting] = useState(false);
+  // null = all layers; otherwise the 1-based top layer shown.
+  const [layerCap, setLayerCap] = useState<number | null>(null);
+  const [layerSolo, setLayerSolo] = useState(false);
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragRef = useRef<{
@@ -124,10 +93,12 @@ export function Preview2D({
   const onKfsRef        = useRef(onKeyframesChange);
   const selectedKfIdRef = useRef(selectedKfId);
   const onKfSelectRef   = useRef(onKfSelect);
+  const onTimelineRef   = useRef(onTimelineChange);
   useEffect(() => { kfsRef.current          = keyframes;         }, [keyframes]);
   useEffect(() => { onKfsRef.current        = onKeyframesChange; }, [onKeyframesChange]);
   useEffect(() => { selectedKfIdRef.current = selectedKfId;      }, [selectedKfId]);
   useEffect(() => { onKfSelectRef.current   = onKfSelect;        }, [onKfSelect]);
+  useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
   const svgH = viewBox?.height ?? 200;
 
@@ -160,6 +131,8 @@ export function Preview2D({
           .map(k => k.id === d.id ? { ...k, t: newT } : k)
           .sort((a, b) => a.t - b.t),
       );
+      // The extruder rides along with the keyframe being edited.
+      if (d.id === selectedKfIdRef.current) onTimelineRef.current(newT);
     }
     function onUp() {
       const d = kfDragRef.current;
@@ -181,32 +154,34 @@ export function Preview2D({
   }, []); // stable — all state accessed through refs
 
   // ── Auto-fit ────────────────────────────────────────────────────────────
-  const fitView = useCallback(() => {
+  const fitView = useCallback((azimuth = view.azimuth, elevation = view.elevation) => {
     const canvas = canvasRef.current;
     if (!canvas || flatPoints.length === 0) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0) return;
 
-    const projected = flatPoints.map(p => project(p.x, p.y, p.z, view.azimuth, view.elevation));
+    const projected = flatPoints.map(p => project(p.x, p.y, p.z, azimuth, elevation));
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
     const margin = 48;
+    // Keep the model clear of the layer slider on the right edge.
+    const width = rect.width - (layers.length > 1 ? LAYER_SLIDER_W : 0);
     const scale = Math.min(
-      (rect.width  - margin * 2) / (maxX - minX || 1),
+      (width       - margin * 2) / (maxX - minX || 1),
       (rect.height - margin * 2) / (maxY - minY || 1),
       20,
     );
     setView(v => ({
-      ...v, scale,
-      offsetX: rect.width  / 2 - ((minX + maxX) / 2) * scale,
+      ...v, azimuth, elevation, scale,
+      offsetX: width       / 2 - ((minX + maxX) / 2) * scale,
       offsetY: rect.height / 2 - ((minY + maxY) / 2) * scale,
     }));
-  }, [flatPoints, view.azimuth, view.elevation]);
+  }, [flatPoints, layers.length, view.azimuth, view.elevation]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
     if (layers.length > 0 && layers.length !== prevLayerCount.current) {
       prevLayerCount.current = layers.length;
-      const t = setTimeout(fitView, 60);
+      const t = setTimeout(() => fitView(), 60);
       return () => clearTimeout(t);
     }
   }, [layers, fitView]);
@@ -230,454 +205,13 @@ export function Preview2D({
     canvas.height = rect.height * dpr;
     ctx.scale(dpr, dpr);
 
-    const W = rect.width, H = rect.height;
-    const { azimuth, elevation, scale, offsetX, offsetY } = view;
-
-    ctx.fillStyle = '#EDEDED';
-    ctx.fillRect(0, 0, W, H);
-
-    function toScreen(x: number, y: number, z: number): [number, number] {
-      const [px, py] = project(x, y, z, azimuth, elevation);
-      return [offsetX + px * scale, offsetY + py * scale];
-    }
-
-    const flat = flatPoints;
-    const numLayers = layers.length;
-
-    // Ground grid
-    if (modelBounds && elevation > 5) {
-      const { minX: flatMinX, maxX: flatMaxX, minY: flatMinY, maxY: flatMaxY } = modelBounds;
-      const cx = (flatMinX + flatMaxX) / 2;
-      const cy = (flatMinY + flatMaxY) / 2;
-      const r  = Math.max(flatMaxX - flatMinX, flatMaxY - flatMinY) * 0.65;
-      const step = r > 80 ? 20 : r > 30 ? 10 : 5;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(110, 110, 110, 0.22)';
-      ctx.lineWidth = 0.9;
-      ctx.setLineDash([8, 6]);
-      for (let gx = Math.floor((cx - r) / step) * step; gx <= cx + r; gx += step) {
-        ctx.beginPath();
-        const [x0, y0] = toScreen(gx, cy - r, 0);
-        const [x1, y1] = toScreen(gx, cy + r, 0);
-        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      }
-      for (let gy = Math.floor((cy - r) / step) * step; gy <= cy + r; gy += step) {
-        ctx.beginPath();
-        const [x0, y0] = toScreen(cx - r, gy, 0);
-        const [x1, y1] = toScreen(cx + r, gy, 0);
-        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
-      }
-      ctx.setLineDash([]);
-      ctx.restore();
-    }
-
-    // Center axis — dashed vertical line through the scale pivot
-    if (numLayers > 0) {
-      // Use the interpolated center at the current timeline position
-      const lp = getParamsAtT(timelineProgress, keyframes, params);
-      const cxMM = lp.centerX, cyMM = lp.centerY;
-      const maxZ = layers[numLayers - 1].z + params.layerHeight;
-      const [cx0, cy0] = toScreen(cxMM, cyMM, 0);
-      const [cx1, cy1] = toScreen(cxMM, cyMM, maxZ);
-      ctx.save();
-      ctx.strokeStyle = 'rgba(16,14,9,0.55)';
-      ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath(); ctx.moveTo(cx0, cy0); ctx.lineTo(cx1, cy1); ctx.stroke();
-      // Base crosshair
-      ctx.setLineDash([]);
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(cx0 - 6, cy0); ctx.lineTo(cx0 + 6, cy0);
-      ctx.moveTo(cx0, cy0 - 6); ctx.lineTo(cx0, cy0 + 6);
-      ctx.stroke();
-      // Label
-      ctx.font = '700 8px GSCode, monospace';
-      ctx.fillStyle = 'rgba(16,14,9,0.45)';
-      ctx.textAlign = 'left';
-      ctx.fillText(`C (${cxMM.toFixed(1)}, ${cyMM.toFixed(1)})`, cx0 + 8, cy0 - 4);
-      ctx.restore();
-    }
-
-    // Layer paths — vivid strokes, drawn in print order with final Z.
-    // During camera interaction: stride by 4 for responsiveness.
-    const lodStride = isInteracting ? 4 : 1;
-    for (let li = 0; li < numLayers; li++) {
-      const alpha = 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
-
-      ctx.save();
-      ctx.strokeStyle = layerColor(li, numLayers);
-      ctx.globalAlpha = alpha;
-      ctx.lineWidth   = Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
-      ctx.lineJoin    = 'round';
-      ctx.lineCap     = 'round';
-
-      for (const pts of toolpath[li].paths) {
-        ctx.beginPath();
-        for (let i = 0; i < pts.length; i++) {
-          const isEndpoint = i === 0 || i === pts.length - 1;
-          if (lodStride > 1 && !isEndpoint && i % lodStride !== 0) continue;
-          const [sx, sy] = toScreen(pts[i].x, pts[i].y, pts[i].z);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        }
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    // Selected-keyframe layer highlight — overdraw in accent so the user
-    // knows which layer the open kf editor is targeting
-    if (!isInteracting && selectedKfId && numLayers > 0) {
-      const selKf = keyframes.find(k => k.id === selectedKfId);
-      if (selKf) {
-        const editLi = Math.min(numLayers - 1,
-          Math.round(selKf.t * Math.max(0, numLayers - 1)));
-        const editLayer = toolpath[editLi];
-        const editAllMm = editLayer.paths.flat();
-
-        ctx.save();
-        ctx.strokeStyle = '#4A4E8C';
-        ctx.globalAlpha = 0.55;
-        ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
-        ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
-        for (const pts of editLayer.paths) {
-          ctx.beginPath();
-          pts.forEach(({ x, y, z }, i) => {
-            const [sx, sy] = toScreen(x, y, z);
-            if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-          });
-          ctx.stroke();
-        }
-        // Horizontal band: bounding-box rectangle at the edited layer's Z
-        if (editAllMm.length > 0) {
-          const { minX: mnX, maxX: mxX, minY: mnY, maxY: mxY } =
-            boundsOf(editAllMm, p => p.x, p => p.y);
-          const corners: [number,number,number][] = [
-            [mnX, mnY, editLayer.z], [mxX, mnY, editLayer.z],
-            [mxX, mxY, editLayer.z], [mnX, mxY, editLayer.z],
-          ];
-          ctx.save();
-          ctx.globalAlpha = 0.38;
-          ctx.strokeStyle = '#4A4E8C';
-          ctx.lineWidth   = 1.8;
-          ctx.setLineDash([9, 5]);
-          ctx.beginPath();
-          corners.forEach(([x, y, z], i) => {
-            const [sx, sy] = toScreen(x, y, z);
-            if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-          });
-          ctx.closePath(); ctx.stroke();
-          ctx.restore();
-        }
-        ctx.restore();
-      }
-    }
-
-    // Concentric skirt travel arcs — same moves buildSkirtTravel emits
-    if (!isInteracting && numLayers > 0) {
-      const drawTravel = (from: MM2, to: MM2, centroid: MM2, zFrom: number, zTo: number) => {
-        const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
-        ctx.beginPath();
-        const [fx, fy] = toScreen(from.x, from.y, zFrom);
-        ctx.moveTo(fx, fy);
-        for (const pt of arcPts ?? [to]) {
-          const [sx, sy] = toScreen(pt.x, pt.y, zTo);
-          ctx.lineTo(sx, sy);
-        }
-        ctx.stroke();
-      };
-
-      ctx.save();
-      ctx.setLineDash([3, 6]);
-      ctx.lineWidth = 1.1;
-      ctx.globalAlpha = 0.38;
-      ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
-      for (let li = 0; li < numLayers; li++) {
-        const layer = toolpath[li];
-        for (let pi = 0; pi < layer.paths.length - 1; pi++) {
-          const fromPath = layer.paths[pi];
-          drawTravel(fromPath[fromPath.length - 1], layer.paths[pi + 1][0], layer.centroid, layer.z, layer.z);
-        }
-        const next = toolpath[li + 1];
-        const lastPath = layer.paths[layer.paths.length - 1];
-        if (!params.softJoin && next?.paths.length && lastPath) {
-          drawTravel(lastPath[lastPath.length - 1], next.paths[0][0], next.centroid, layer.z, next.z);
-        }
-      }
-      ctx.restore();
-    }
-
-    // Soft-join transitions between layers (dashed, visible)
-    if (!isInteracting && params.softJoin && numLayers > 1) {
-      ctx.save();
-      ctx.setLineDash([3, 5]);
-      ctx.lineWidth = 1.2;
-      ctx.globalAlpha = 0.55;
-      for (let li = 0; li < numLayers - 1; li++) {
-        const a = toolpath[li].paths[toolpath[li].paths.length - 1];
-        const b = toolpath[li + 1].paths[0];
-        if (!a || !b) continue;
-        const from = a[a.length - 1], to = b[0];
-        ctx.strokeStyle = layerColor(li, numLayers, 0.7);
-        ctx.beginPath();
-        const [ax, ay] = toScreen(from.x, from.y, from.z);
-        const [bx, by] = toScreen(to.x, to.y, to.z);
-        ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    // Keyframe position markers on the canvas (subtle vertical tick)
-    if (!isInteracting && flat.length > 0) {
-      for (const kf of keyframes) {
-        const kfIdx = Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)));
-        const kfPt  = flat[kfIdx];
-        const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
-        const isSelected = kf.id === selectedKfId;
-        const kfSize = isSelected ? 7 : 5;
-        const color  = isSelected ? '#6064A6' : layerColor(kfPt.layerIndex, numLayers);
-
-        // Diamond
-        ctx.save();
-        ctx.beginPath();
-        ctx.moveTo(kx,          ky - kfSize);
-        ctx.lineTo(kx + kfSize, ky);
-        ctx.lineTo(kx,          ky + kfSize);
-        ctx.lineTo(kx - kfSize, ky);
-        ctx.closePath();
-        ctx.fillStyle   = color;
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth   = 2;
-        ctx.fill(); ctx.stroke();
-        ctx.restore();
-
-        // Tag — pentagon pointing left, attached to diamond right tip
-        const TAG_H = 13, TAG_W = 28, TAG_R = 3, NOTCH = 5;
-        const tx = kx + kfSize + 2;
-        const ty = ky - TAG_H / 2;
-        ctx.save();
-        ctx.globalAlpha = isSelected ? 0.72 : 0.52;
-        ctx.fillStyle   = color;
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth   = 1.2;
-        ctx.beginPath();
-        ctx.moveTo(tx,                ky);
-        ctx.lineTo(tx + NOTCH,        ty);
-        ctx.lineTo(tx + TAG_W - TAG_R, ty);
-        ctx.arcTo(tx + TAG_W, ty,          tx + TAG_W, ty + TAG_R,          TAG_R);
-        ctx.arcTo(tx + TAG_W, ty + TAG_H,  tx + TAG_W - TAG_R, ty + TAG_H,  TAG_R);
-        ctx.lineTo(tx + NOTCH,        ty + TAG_H);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        ctx.font      = `${isSelected ? 700 : 600} 8px GSCode, monospace`;
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(`${Math.round(kf.t * 100)}%`, tx + NOTCH + (TAG_W - NOTCH) / 2, ky);
-        ctx.restore();
-      }
-    }
-
-    // Virtual extruder
-    if (flat.length > 0 && numLayers > 0) {
-      const idx = Math.min(flat.length - 1, Math.floor(timelineProgress * (flat.length - 1)));
-      const pt  = flat[idx];
-      const [ex, ey] = toScreen(pt.x, pt.y, pt.z);
-      const [fx, fy] = toScreen(pt.x, pt.y, 0);
-
-      ctx.save();
-      ctx.strokeStyle = 'rgba(50,50,50,0.28)';
-      ctx.lineWidth = 1;
-      ctx.setLineDash([2, 4]);
-      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(fx, fy); ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(ex,     ey - 8);
-      ctx.lineTo(ex + 8, ey);
-      ctx.lineTo(ex,     ey + 8);
-      ctx.lineTo(ex - 8, ey);
-      ctx.closePath();
-      ctx.fillStyle   = layerColor(pt.layerIndex, numLayers);
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth   = 2.5;
-      ctx.fill(); ctx.stroke();
-      ctx.restore();
-
-      ctx.save();
-      ctx.font = '700 8px GSCode, monospace';
-      ctx.fillStyle = 'rgba(16,14,9,0.5)';
-      ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 9, ey + 14);
-      ctx.restore();
-
-      // Add-keyframe hint tag — pentagon pointing left, upper-right of extruder
-      {
-        const TAG_H = 16, TAG_W = 34, TAG_R = 4, NOTCH = 6;
-        const tx = ex + 8;
-        const ty = ey - TAG_H - 6;
-        const tcy = ty + TAG_H / 2;
-        ctx.save();
-        ctx.globalAlpha = 0.82;
-        ctx.fillStyle   = 'rgba(16,14,9,0.78)';
-        ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-        ctx.lineWidth   = 1;
-        ctx.beginPath();
-        ctx.moveTo(tx,                 tcy);
-        ctx.lineTo(tx + NOTCH,         ty);
-        ctx.lineTo(tx + TAG_W - TAG_R, ty);
-        ctx.arcTo(tx + TAG_W, ty,          tx + TAG_W, ty + TAG_R,         TAG_R);
-        ctx.arcTo(tx + TAG_W, ty + TAG_H,  tx + TAG_W - TAG_R, ty + TAG_H, TAG_R);
-        ctx.lineTo(tx + NOTCH,         ty + TAG_H);
-        ctx.closePath();
-        ctx.fill();
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        // Diamond glyph
-        const mx = tx + NOTCH + 7;
-        const ds = 4;
-        ctx.fillStyle = layerColor(pt.layerIndex, numLayers);
-        ctx.beginPath();
-        ctx.moveTo(mx,      tcy - ds);
-        ctx.lineTo(mx + ds, tcy);
-        ctx.lineTo(mx,      tcy + ds);
-        ctx.lineTo(mx - ds, tcy);
-        ctx.closePath();
-        ctx.fill();
-        // Plus glyph
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth   = 1.6;
-        ctx.lineCap     = 'round';
-        const px2 = tx + NOTCH + 20;
-        ctx.beginPath();
-        ctx.moveTo(px2 - 3.5, tcy); ctx.lineTo(px2 + 3.5, tcy);
-        ctx.moveTo(px2, tcy - 3.5); ctx.lineTo(px2, tcy + 3.5);
-        ctx.stroke();
-        ctx.restore();
-      }
-    }
-
-    // SVG centerlines (no wave layers yet)
-    if (numLayers === 0 && sampledPaths.length > 0) {
-      ctx.save();
-      ctx.strokeStyle = 'rgba(16,14,9,0.22)';
-      ctx.setLineDash([4, 5]);
-      ctx.lineWidth = 1.2;
-      for (const path of sampledPaths) {
-        if (!path.enabled || path.points.length < 2) continue;
-        ctx.beginPath();
-        path.points.forEach((p, i) => {
-          const mm = svgToMM({ x: p.x, y: p.y }, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
-          const [sx, sy] = toScreen(mm.x, mm.y, 0);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
-        ctx.stroke();
-      }
-      ctx.restore();
-    }
-
-    // Empty state
-    if (sampledPaths.length === 0 && numLayers === 0) {
-      ctx.fillStyle = 'rgba(16,14,9,0.2)';
-      ctx.font = '700 10px GSCode, monospace';
-      ctx.textAlign = 'center';
-      ctx.fillText('CARGA UN SVG PARA COMENZAR', W / 2, H / 2);
-    }
-
-    // Layer legend (compact, top-left — freed from gizmo corner)
-    if (numLayers > 1) {
-      ctx.save();
-      ctx.font = '700 8px GSCode, monospace';
-      const step = numLayers <= 8 ? 1 : Math.ceil(numLayers / 8);
-      let ly = 12;
-      for (let li = 0; li < numLayers; li += step) {
-        ctx.fillStyle = layerColor(li, numLayers);
-        ctx.fillRect(10, ly, 6, 6);
-        ctx.fillStyle = 'rgba(16,14,9,0.45)';
-        ctx.textAlign = 'left';
-        ctx.fillText(`${li + 1}`, 20, ly + 5.5);
-        ly += 11;
-      }
-      ctx.restore();
-    }
-
-    // Rotation info — Swiss caption
-    ctx.save();
-    ctx.font = '700 8px GSCode, monospace';
-    ctx.fillStyle = 'rgba(16,14,9,0.3)';
-    ctx.textAlign = 'left';
-    ctx.fillText(`AZ ${view.azimuth.toFixed(0)}°  EL ${view.elevation.toFixed(0)}°`, 10, H - 8);
-    ctx.restore();
-
-    // ── Orientation gizmo (bottom-right) ───────────────────────────────────
-    {
-      // GR = circle radius; GL = axis arm length (must be < GR so labels stay inside)
-      const GR = 20, GL = 11;
-      const GX = W - GR - 8, GY = H - GR - 8;
-
-      // Frosted circle background
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(GX, GY, GR, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(241,241,241,0.90)';
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(135,135,135,0.30)';
-      ctx.lineWidth = 0.75;
-      ctx.stroke();
-
-      // Axis definitions: world direction, stroke color, label
-      const axes: [number, number, number, string, string][] = [
-        [1, 0, 0, '#C83838', 'X'],
-        [0, 1, 0, '#2E9B2E', 'Y'],
-        [0, 0, 1, '#2E60C8', 'Z'],
-      ];
-
-      // Sort back-to-front so nearer axes paint over farther ones
-      const depths = axes.map(([wx, wy, wz]) => {
-        const [, py2] = project(wx, wy, wz, azimuth, elevation);
-        return py2;
-      });
-      const order = [0, 1, 2].sort((a, b) => depths[b] - depths[a]);
-
-      for (const i of order) {
-        const [wx, wy, wz, color, label] = axes[i];
-        const [px2, py2] = project(wx * GL, wy * GL, wz * GL, azimuth, elevation);
-        const ex = GX + px2, ey = GY + py2;
-
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.8;
-        ctx.lineCap = 'round';
-        ctx.globalAlpha = 0.88;
-        ctx.beginPath();
-        ctx.moveTo(GX, GY);
-        ctx.lineTo(ex, ey);
-        ctx.stroke();
-
-        // Arrowhead dot
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(ex, ey, 2, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Label — placed at GL * 1.45 so it stays within GR
-        const [lx2, ly2] = project(wx * GL * 1.45, wy * GL * 1.45, wz * GL * 1.45, azimuth, elevation);
-        ctx.globalAlpha = 0.92;
-        ctx.font = 'bold 7px GSCode, monospace';
-        ctx.fillStyle = color;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(label, GX + lx2, GY + ly2);
-      }
-
-      ctx.globalAlpha = 1;
-      ctx.textBaseline = 'alphabetic';
-      ctx.restore();
-    }
-
-  }, [sampledPaths, layers, toolpath, flatPoints, modelBounds, params, viewBox, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting]);
+    drawScene(ctx, rect.width, rect.height, {
+      view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
+      keyframes, selectedKfId, timelineProgress, isInteracting,
+      layerCap: Math.min(layerCap ?? toolpath.length, toolpath.length) - 1,
+      layerSolo,
+    });
+  }, [sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, layerCap, layerSolo]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -686,38 +220,7 @@ export function Preview2D({
     if (!canvas || layers.length === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const W = canvas.width, H = canvas.height;
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#F5F5F5';
-    ctx.fillRect(0, 0, W, H);
-
-    const pad = 10;
-    const allPts = flatPoints;
-    if (allPts.length === 0) return;
-    const { minX, maxX, minY, maxY } = boundsOf(allPts, p => p.x, p => p.y);
-    const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
-    const sc = Math.min((W - pad * 2) / rangeX, (H - pad * 2) / rangeY);
-    const ox = pad + ((W - pad * 2) - rangeX * sc) / 2;
-    const oy = pad + ((H - pad * 2) - rangeY * sc) / 2;
-    const ts = (x: number, y: number): [number, number] => [
-      ox + (x - minX) * sc,
-      H - oy - (y - minY) * sc,
-    ];
-
-    for (let li = 0; li < layers.length; li++) {
-      ctx.strokeStyle = layerColor(li, layers.length, 0.75);
-      ctx.lineWidth = 0.9;
-      ctx.lineJoin = 'round';
-      ctx.lineCap = 'round';
-      for (const pts of toolpath[li].paths) {
-        ctx.beginPath();
-        pts.forEach(({ x, y }, i) => {
-          const [sx, sy] = ts(x, y);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
-        ctx.stroke();
-      }
-    }
+    drawTopDown(ctx, canvas.width, canvas.height, toolpath, flatPoints);
   }, [centerTab, layers, toolpath, flatPoints]);
 
   // ── Mouse interaction ─────────────────────────────────────────────────────
@@ -772,7 +275,11 @@ export function Preview2D({
   };
 
   const numLayers = layers.length;
-  const totalPts = layers.reduce((s, l) => s + l.paths.reduce((a, p) => a + p.length, 0), 0);
+  const totalPts = flatPoints.length;
+  const shownCap = Math.min(layerCap ?? numLayers, numLayers);
+
+  const stats = useMemo(() => (gcode ? summarizeGcode(gcode) : null), [gcode]);
+  const crossings = toolpath.reduce((n, l) => n + l.crossings, 0);
 
   return (
     <div className="preview-container">
@@ -780,11 +287,27 @@ export function Preview2D({
         {centerTab === 'preview' && (
           <>
             <span className="toolbar-title">Trayectoria</span>
-            <button className="btn-small" onClick={fitView}>Ajustar</button>
-            <span className="toolbar-hint">Arrastrar = pan · Clic der. = rotar · Rueda = zoom</span>
-            {layers.length > 0 && (
-              <span className="toolbar-info">
-                {layers.length} capa{layers.length !== 1 ? 's' : ''} · {totalPts.toLocaleString()} pts
+            <button className="btn-small" onClick={() => fitView()} title="Encuadrar la pieza">Ajustar</button>
+            <div className="view-presets" role="group" aria-label="Vistas">
+              {VIEW_PRESETS.map(v => (
+                <button key={v.label}
+                  className={`view-preset${view.azimuth === v.azimuth && view.elevation === v.elevation ? ' view-preset--on' : ''}`}
+                  onClick={() => fitView(v.azimuth, v.elevation)}
+                  title={v.title}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            {layers.length > 0 && modelBounds && (
+              <span className="toolbar-info" title={[
+                stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
+                stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
+                `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
+                crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
+                'Tiempo a velocidad programada, sin aceleraciones',
+              ].filter(Boolean).join('\n')}>
+                {stats && <>≈ {formatDuration(stats.timeSec)} · </>}
+                {fmtMM(modelBounds.maxX - modelBounds.minX)} × {fmtMM(modelBounds.maxY - modelBounds.minY)} × {fmtMM(numLayers * params.layerHeight)} mm
               </span>
             )}
           </>
@@ -809,17 +332,44 @@ export function Preview2D({
       </div>
 
       {centerTab === 'preview' && (
-        <canvas
-          ref={canvasRef}
-          className="preview-canvas"
-          style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
-          onContextMenu={onContextMenu}
-          onWheel={onWheel}
-        />
+        <div className="preview-stage">
+          <canvas
+            ref={canvasRef}
+            className="preview-canvas"
+            title="Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom"
+            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
+            onMouseLeave={onMouseUp}
+            onContextMenu={onContextMenu}
+            onWheel={onWheel}
+          />
+          {numLayers > 1 && (
+            <div className="layer-slider">
+              <span className="layer-slider-value" title="Capa superior visible">
+                {shownCap}<span className="layer-slider-total">/{numLayers}</span>
+              </span>
+              <input
+                type="range" min={1} max={numLayers} step={1}
+                value={shownCap}
+                aria-label="Capas visibles"
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10);
+                  setLayerCap(v >= numLayers ? null : v);
+                }}
+              />
+              <button
+                className={`layer-solo${layerSolo ? ' layer-solo--on' : ''}`}
+                aria-pressed={layerSolo}
+                onClick={() => setLayerSolo(!layerSolo)}
+                title="Mostrar solo esta capa (las inferiores quedan en gris)"
+              >
+                Sola
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {centerTab === 'gcode' && (
@@ -848,15 +398,19 @@ export function Preview2D({
             {(() => {
               const li = Math.min(numLayers - 1, Math.floor(timelineProgress * numLayers));
               const dColor = layerColor(li, numLayers);
+              const atKf = findKeyframeAt(keyframes, timelineProgress);
+              const confirm = atKf !== null && atKf.id === selectedKfId;
               return (
                 <button
                   className="timeline-thumb-tag"
                   style={{ left: `calc(${timelineProgress * 100}% + ${((0.5 - timelineProgress) * 14).toFixed(2)}px)` }}
                   onClick={onAddKeyframe}
-                  title="Añadir keyframe aquí"
+                  title={confirm ? 'Terminar de editar este keyframe'
+                    : atKf ? 'Seleccionar el keyframe de aquí'
+                    : 'Añadir keyframe aquí'}
                 >
                   <span className="ttt-diamond" style={{ background: dColor }} />
-                  <span className="ttt-plus">+</span>
+                  <span className="ttt-plus">{confirm ? '✓' : atKf ? '›' : '+'}</span>
                 </button>
               );
             })()}

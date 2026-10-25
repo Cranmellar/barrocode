@@ -171,7 +171,8 @@ export function LissajousPreview({ params }: Props) {
     }
     let last = performance.now();
     function tick(now: number) {
-      timeRef.current += now - last;
+      // The first rAF timestamp can predate the performance.now() taken above.
+      timeRef.current += Math.max(0, now - last);
       last = now;
       draw();
       rafRef.current = requestAnimationFrame(tick);

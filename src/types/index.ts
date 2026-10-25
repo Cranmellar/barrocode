@@ -114,7 +114,7 @@ export interface PrintParams {
   useNumLayers: boolean;         // true = use numLayers; false = derive from totalHeight
   totalHeight: number;           // mm
   nozzleHeightOffset: number;    // mm — added to every layer Z
-  safeZ: number;                 // mm — safe travel Z (used only if no soft join)
+  safeZ: number;                 // mm — travel Z at start, after priming and for the final lift
 
   // ── Soft layer join ──
   softJoin: boolean;             // interpolate Z smoothly from layer N→N+1
