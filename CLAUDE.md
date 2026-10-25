@@ -24,14 +24,15 @@ The whole app runs in the browser. There is no backend, no native shell.
 | `npm run dev` | Vite dev server (typically `http://localhost:5173`) |
 | `npm run build` | `tsc` type-check then `vite build` → `dist/` |
 | `npm run preview` | Local static preview of `dist/` |
+| `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-There is **no** test runner, no linter config, no formatter config wired into npm scripts. Don't add one without being asked.
+Tests cover `lib/` only (no DOM, so `svgParser` is untested) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked.
 
 ---
 
 ## Deployment
 
-GitHub Pages, one workflow only: [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm run build`, upload `dist/` artifact, deploy.
+GitHub Pages, one workflow only: [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm test`, `npm run build`, upload `dist/` artifact, deploy. A failing test blocks the deploy; pull requests are not built.
 
 `vite.config.ts` uses `base: './'` so the build also works opened directly from `file://` or a USB sub-path.
 
@@ -107,6 +108,7 @@ src/
     HelpDialog.tsx          "?" quick-start modal (native <dialog>)
     NumInput.tsx            Controlled number input with wheel-to-change
   lib/
+    __tests__/              Vitest specs, fixtures, reference .gcode snapshots
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
     toolpath.ts             Final mm trajectory shared by G-code + preview
@@ -182,6 +184,7 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 
 This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
+- Run `npm test`. `src/lib/__tests__/gcodeGenerator.test.ts` checks motion invariants (no long or plunging extrusion, G-code matches the preview toolpath) across soft join / priming / alternate-direction combinations, plus reference `.gcode` files in `__snapshots__/`. When output changes on purpose, read the snapshot diff before accepting it with `npm test -- -u`.
 - Generate a sample with a 2- or 3-path SVG and read the output. The header comment block lists every parameter — use it to sanity-check.
 - Inter-path travel logic depends on three conditions: `isFirstMove`, `params.softJoin`, and `pi > 0` (path index within the layer). Layer→layer transitions only happen on the **last** path of a layer when `softJoin` is true.
 - Coordinate conversion via `svgToMM()` happens in `buildToolpath`. Never pre-convert `WaveLayer.paths` to mm; downstream code expects SVG units there.
