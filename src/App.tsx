@@ -12,6 +12,7 @@ import { PathList } from './components/PathList';
 import { CenterScaleParams } from './components/CenterScaleParams';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
+import { HelpDialog } from './components/HelpDialog';
 
 const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#4A4E8C"/></svg>`;
 const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#4A4E8C"/></svg>`;
@@ -112,6 +113,12 @@ function useResize(
   return { size, onMouseDown };
 }
 
+const HELP_SEEN_KEY = 'barrocode.helpSeen';
+
+function hasSeenHelp() {
+  try { return localStorage.getItem(HELP_SEEN_KEY) === '1'; } catch { return true; }
+}
+
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
 type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ';
@@ -135,6 +142,7 @@ export default function App() {
   const [centerTab, setCenterTab] = useState<'preview' | 'gcode'>('preview');
   const [sampleIndex, setSampleIndex] = useState(0);
   const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(() => !hasSeenHelp());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -195,6 +203,23 @@ export default function App() {
     if (!selectedKfId) return;
     setKeyframes(keyframes.map(k => k.id === selectedKfId ? { ...k, [key]: val } : k));
   }
+
+  function closeHelp() {
+    setHelpOpen(false);
+    try { localStorage.setItem(HELP_SEEN_KEY, '1'); } catch { /* storage unavailable */ }
+  }
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== '?' || e.ctrlKey || e.metaKey || e.altKey) return;
+      const el = e.target as HTMLElement;
+      if (el.closest('input, textarea, select, [contenteditable="true"]')) return;
+      e.preventDefault();
+      setHelpOpen(true);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   // Resizable panels
   const leftPanel         = useResize(272, 200, 480, 'x');
@@ -298,6 +323,14 @@ export default function App() {
       {/* ── Panel izquierdo ── */}
       <div className="sidebar left-sidebar" style={{ width: leftPanel.size }}>
         <div className="app-banner">
+          <button
+            className="help-btn"
+            onClick={() => setHelpOpen(true)}
+            aria-label="Ayuda: cómo usar BarroCode"
+            aria-haspopup="dialog"
+            aria-expanded={helpOpen}
+            title="Ayuda (?)"
+          >?</button>
           <img src={logoUrl} alt="BarroCode" />
           <div className="banner-sub">SVG → Lissajous → G-code</div>
         </div>
@@ -587,6 +620,7 @@ export default function App() {
         </div>
       </div>
 
+      <HelpDialog open={helpOpen} onClose={closeHelp} />
     </div>
   );
 }

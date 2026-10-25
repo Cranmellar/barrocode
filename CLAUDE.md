@@ -97,6 +97,7 @@ src/
     CenterScaleParams.tsx   Bottom left: pivot + scale + z-hop
     CenterPad.tsx           56×56 canvas pivot picker
     GcodeOutput.tsx         G-code textarea + copy + download
+    HelpDialog.tsx          "?" quick-start modal (native <dialog>)
     NumInput.tsx            Controlled number input with wheel-to-change
   lib/
     svgParser.ts            DOM-based SVG sampling
@@ -127,6 +128,7 @@ Keyframes (`WaveKeyframe[]`) override Lissajous fields at given `t ∈ [0,1]`. B
 - `centerTab: 'preview' | 'gcode'` — which tab is active in the center panel
 - `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
 - `selectedKfId: string | null` — id of the currently selected keyframe
+- `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 
 ---
 
