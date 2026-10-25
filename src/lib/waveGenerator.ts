@@ -7,13 +7,18 @@
  * Combined toolpath point at arc length s, layer li:
  *
  *   phase_base = lissPhaseOffset + li * phaseShiftPerLayer
- *   offset_N   = ampN * sin( 2π·s / wlN  +  lissDelta  +  phase_base )
- *   offset_T   = ampT * sin( 2π·s / wlT              +  phase_base )
+ *   cyc_X(s)   = ∫₀ˢ 2π / wlX(u) du        (= 2π·s / wlX when wlX is constant)
+ *   offset_N   = ampN * sin( cyc_N(s)  +  lissDelta  +  phase_base )
+ *   offset_T   = ampT * sin( cyc_T(s)              +  phase_base )
  *   point      = centerline(s) + N(s)·offset_N + T(s)·offset_T
  *
  * If keyframes are provided, ampN/ampT/wlN/wlT/delta/centerX/Y/scaleX/Y are
  * interpolated along the flattened trajectory (t ∈ [0,1] across all layers).
  * Scale is applied per-point in SVG space around the interpolated center.
+ *
+ * The phase is integrated rather than computed as 2π·s/wl: with a wavelength
+ * that varies along the path, 2π·s/wl(s) has derivative 2π(1/wl − s·wl'/wl²),
+ * so the local frequency overshoots badly far from s = 0.
  */
 
 import type {
@@ -136,19 +141,16 @@ function lissajousPoint(
   ampN: number,
   ampT: number,
   ampZ: number,
-  wlN: number,
-  wlT: number,
-  wlZ: number,
+  cycN: number,
+  cycT: number,
+  cycZ: number,
   delta: number,
   phaseZ: number,
   phaseBase: number,
 ): WavePoint {
-  const s = p.arcLength;
-  const phaseN = TWO_PI * (s / wlN) + delta + phaseBase;
-  const phaseT = TWO_PI * (s / wlT)         + phaseBase;
-  const oN = ampN * Math.sin(phaseN);
-  const oT = ampT * Math.sin(phaseT);
-  const zOffset = ampZ * Math.sin(TWO_PI * (s / wlZ) + phaseZ + phaseBase);
+  const oN = ampN * Math.sin(cycN + delta + phaseBase);
+  const oT = ampT * Math.sin(cycT         + phaseBase);
+  const zOffset = ampZ * Math.sin(cycZ + phaseZ + phaseBase);
   return {
     x: p.x + p.normalX * oN + p.tangentX * oT,
     y: p.y + p.normalY * oN + p.tangentY * oT,
@@ -232,10 +234,12 @@ export function generateWaveLayers(
 
     const pathPoints: WavePoint[][] = enabled.map(path => {
       const pts = reverse ? [...path.points].reverse() : path.points;
+      let prevS = 0, cycN = 0, cycT = 0, cycZ = 0;
 
       const result: WavePoint[] = pts.map(p => {
         const s = reverse ? path.totalLength - p.arcLength : p.arcLength;
-        const adjusted: SampledPoint = { ...p, arcLength: s };
+        const ds = s - prevS;
+        prevS = s;
 
         let lp: LocalParams;
         if (kfSampler) {
@@ -263,8 +267,12 @@ export function generateWaveLayers(
         const wT = useKeyframes ? lp.wlT  / sf : lp.wlT;
         const wZ = useKeyframes ? lp.wlZ  / sf : lp.wlZ;
 
+        cycN += TWO_PI * ds / wN;
+        cycT += TWO_PI * ds / wT;
+        cycZ += TWO_PI * ds / wZ;
+
         const wavePt = lissajousPoint(
-          adjusted, aN, aT, aZ, wN, wT, wZ, lp.delta, lp.phaseZ, phaseBase,
+          p, aN, aT, aZ, cycN, cycT, cycZ, lp.delta, lp.phaseZ, phaseBase,
         );
 
         // Apply per-point scale around center (in SVG space)

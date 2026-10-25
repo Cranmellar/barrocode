@@ -56,9 +56,10 @@ SampledPath[] + PrintParams + WaveKeyframe[]
        • filters enabled paths
        • per layer: phaseBase = lissPhaseOffset + li * phaseShiftPerLayer
        • per point: getParamsAtT() lerps between keyframes
-       • lissajousPoint(): offsetN = ampN*sin(2π·s/wlN + δ + phase)
-                           offsetT = ampT*sin(2π·s/wlT + phase)
-                           offsetZ = ampZ*sin(2π·s/wlZ + phaseZ + phase)
+       • phase integrated per path: cycX += 2π·ds/wlX (no chirp when wl varies)
+       • lissajousPoint(): offsetN = ampN*sin(cycN + δ + phase)
+                           offsetT = ampT*sin(cycT + phase)
+                           offsetZ = ampZ*sin(cycZ + phaseZ + phase)
        • applyScaleSVG: scale around pivot in SVG space
        • alternateDirection: reverse every other layer
        • closePath: append first point if not closed
