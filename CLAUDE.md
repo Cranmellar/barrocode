@@ -65,15 +65,22 @@ SampledPath[] + PrintParams + WaveKeyframe[]
        • closePath: append first point if not closed
      → WaveLayer[] { index, z (mm), paths: WavePoint[][] (SVG units) }
 
-WaveLayer[] + PrintParams + SVGViewBox
-  └─ generateGcode()       [lib/gcodeGenerator.ts]
-       • svgToMM() at emit time (NOT before)
-       • reorderPaths(): nearest-neighbour O(n²) per layer
-       • computeCentroid + skirtArcPoints for inter-path travel
-       • buildArcPath + findCrossings + hopAtArc for z-hop
-       • buildTransition for softJoin: smoothstep XY + linear Z, no retract
-       • E accumulates: E += dist * extrusionMultiplier
-     → string
+WaveLayer[] + PrintParams + svgH
+  └─ buildToolpath()       [lib/toolpath.ts]
+       • svgToMM() here (NOT before)
+       • nearest-neighbour path order O(n²) per layer, each layer starting
+         where the previous one ended
+       • buildArcPath + findCrossings (inter-path gaps excluded) + hopAtArc
+       • z = layer.z + zOffset + hop per point; centroid per layer
+     → ToolpathLayer[] { index, z, paths: {x,y,z}[][] (mm), centroid, crossings }
+
+ToolpathLayer[] consumed by BOTH:
+  ├─ generateGcode()       [lib/gcodeGenerator.ts]  (calls buildToolpath itself)
+  │    • skirtArcPoints for inter-path travel
+  │    • buildTransition for softJoin: smoothstep XY + linear Z, no retract
+  │    • E accumulates: E += dist * extrusionMultiplier
+  │  → string
+  └─ Preview2D (useMemo)   — so the preview always draws what gets printed
 ```
 
 Regeneration in `App.tsx` is split into two effects: wave layers re-run immediately on `[parsedSVG, params, keyframes]`; G-code is debounced 400 ms (via `gcodeTimerRef`) to avoid freezing the UI during slider/keyframe edits. Re-sampling (re-parsing the raw SVG) only happens when `params.sampleSpacing` changes.
@@ -102,7 +109,8 @@ src/
   lib/
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
-    gcodeGenerator.ts       G-code assembly (≈327 lines)
+    toolpath.ts             Final mm trajectory shared by G-code + preview
+    gcodeGenerator.ts       G-code assembly (≈282 lines)
     hopUtils.ts             Z-hop crossing detection
     skirtUtils.ts           Concentric arc travel math
 ```
@@ -164,7 +172,7 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 - **`Preview2D.tsx` is ≈892 lines** and overdue for a split. The canvas draw code is the obvious extraction (→ `lib/draw3D.ts`). Don't refactor it preemptively; do it when adding a feature that would otherwise inflate the file further.
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
 - **`resampleSVG` in `lib/svgParser.ts`** is dead code.
-- **Z-hop is silently skipped for layer arc paths > 600 points** (`hopUtils.ts` MAX_PTS). No user-facing warning.
+- **Z-hop is only evaluated at sample points.** With `hopRadius` smaller than the sample spacing (defaults: 1 mm vs 2 SVG units), a hop can fall between samples and come out partial or missing.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the 56×56 canvas boundary on fast moves.
 - **`skirtThreshold` lives under the "Velocidades" UI section** in `PathParams.tsx` but conceptually belongs with travel options.
 
@@ -176,7 +184,8 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
 - Generate a sample with a 2- or 3-path SVG and read the output. The header comment block lists every parameter — use it to sanity-check.
 - Inter-path travel logic depends on three conditions: `isFirstMove`, `params.softJoin`, and `pi > 0` (path index within the layer). Layer→layer transitions only happen on the **last** path of a layer when `softJoin` is true.
-- Coordinate conversion via `svgToMM()` happens at emit time. Never pre-convert `WaveLayer.paths` to mm; downstream code expects SVG units there.
+- Coordinate conversion via `svgToMM()` happens in `buildToolpath`. Never pre-convert `WaveLayer.paths` to mm; downstream code expects SVG units there.
+- Path order, Z oscillation and z-hop belong in `lib/toolpath.ts`, not in the emitter: the preview draws the same toolpath, so anything computed only in `gcodeGenerator.ts` makes the two disagree.
 - E accumulates monotonically (`E += dist * extrusionMultiplier`). If you add new motion, account for E unless `params.generateE` is false.
 - Clay printers don't retract. Don't introduce retraction moves.
 
@@ -184,6 +193,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
 ## When working on the canvas previews
 
+- `Preview2D` draws `buildToolpath` output, never `WaveLayer.paths` directly, for anything that represents printed motion.
 - `Preview2D` uses orthographic projection: `project(x, y, z, azimuth, elevation)`. Screen coords are `[offsetX + px*scale, offsetY + py*scale]`.
 - Layer colors are an HSL gradient from cobalt to terracotta: `hsl(218→20, 72%→88%, 50%→62%)`.
 - `LissajousPreview` cancels its `requestAnimationFrame` when both `ampN` and `ampT` are ≈0. Don't remove this — it's a battery and CPU optimization.

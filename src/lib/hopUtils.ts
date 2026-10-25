@@ -1,8 +1,6 @@
 /**
- * Shared z-hop geometry utilities.
- * Used by both gcodeGenerator (for G-code output) and Preview2D (for 3D
- * visualisation).  Keeping them in one place ensures the visual preview
- * and the exported G-code always agree.
+ * Z-hop geometry utilities, applied once in lib/toolpath.ts so the preview
+ * and the exported G-code share the same hops.
  */
 
 export interface ArcPt { x: number; y: number; arc: number }
@@ -47,10 +45,16 @@ function segSegIntersect(
  *
  * cellSize — grid cell side length in mm; coarser = faster but more
  * false-positive pairs to test.  Caller should pass max(hopRadius*3, 2).
+ * gaps — start indices of segments that are travel between paths, not
+ * deposited bead; they never cross anything.
  */
 const WARN_PTS = 3000;
 
-export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
+export function findCrossings(
+  arcPath: ArcPt[],
+  cellSize = 3,
+  gaps: ReadonlySet<number> = new Set(),
+): number[] {
   const n = arcPath.length;
   if (n < 3) return [];
 
@@ -81,6 +85,7 @@ export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
   }
 
   for (let i = 0; i < n - 1; i++) {
+    if (gaps.has(i)) continue;
     for (const [gx, gy] of cellsForSegment(i)) {
       const key = cellKey(gx, gy);
       const bucket = grid.get(key);
@@ -94,6 +99,7 @@ export function findCrossings(arcPath: ArcPt[], cellSize = 3): number[] {
   const crossings: number[] = [];
 
   for (let i = 0; i < n - 1; i++) {
+    if (gaps.has(i)) continue;
     for (const [gx, gy] of cellsForSegment(i)) {
       const bucket = grid.get(cellKey(gx, gy));
       if (!bucket) continue;
