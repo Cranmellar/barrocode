@@ -6,6 +6,7 @@ interface Props {
   params: PrintParams;
   onChange: (p: PrintParams) => void;
   onReset: () => void;
+  notice: string | null;
 }
 
 function Slider({ label, value, min, max, step, unit, hint, cls, valCls, onChange }: {
@@ -144,7 +145,7 @@ const PRESETS = [
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function LissajousParams({ params, onChange, onReset }: Props) {
+export function LissajousParams({ params, onChange, onReset, notice }: Props) {
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
@@ -158,6 +159,7 @@ export function LissajousParams({ params, onChange, onReset }: Props) {
         <span>Lissajous</span>
         <button className="btn-reset" onClick={onReset}>Reiniciar</button>
       </div>
+      {notice && <div className="liss-kf-notice">{notice}</div>}
 
       {/* ── Preajustes ── */}
       <Sec title="Preajustes">

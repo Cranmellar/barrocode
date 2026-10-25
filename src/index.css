@@ -380,6 +380,15 @@ html, body, #root { height: 100%; overflow: hidden; }
 }
 .btn-reset:hover { border-color: var(--err); color: var(--err); background: rgba(170,42,42,0.05); }
 
+.liss-kf-notice {
+  margin: 0 16px 6px;
+  padding: 5px 8px;
+  border-left: 3px solid var(--accent);
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+}
+
 .btn-small {
   background: transparent;
   border: 1px solid var(--border-rule);

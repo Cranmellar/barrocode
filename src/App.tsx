@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import logoUrl from './assets/logo.png';
 import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT } from './lib/waveGenerator';
 import { generateGcode } from './lib/gcodeGenerator';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
@@ -114,6 +114,15 @@ function useResize(
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
+type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ';
+type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ';
+
+const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
+  ['lissAmpN', 'ampN'], ['lissAmpT', 'ampT'], ['lissAmpZ', 'ampZ'],
+  ['lissWlN', 'wlN'],   ['lissWlT', 'wlT'],   ['lissWlZ', 'wlZ'],
+  ['lissDelta', 'delta'], ['lissPhaseZ', 'phaseZ'],
+];
+
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
@@ -133,14 +142,38 @@ export default function App() {
   const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
   const svgH = parsedSVG?.viewBox.height ?? 200;
 
+  // While a keyframe is selected the Lissajous panel shows and edits that
+  // keyframe's wave; global values are overridden whenever keyframes exist.
+  const lissParams: PrintParams = selectedKf
+    ? KF_LISS_FIELDS.reduce<PrintParams>(
+        (acc, [pk, kk]) => ({ ...acc, [pk]: selectedKf[kk] ?? params[pk] }),
+        params,
+      )
+    : params;
+
+  function setLissParams(next: PrintParams) {
+    if (!selectedKf) { setParams(next); return; }
+    const kfPatch: Partial<Record<KfLissKey, number>> = {};
+    const globalNext = { ...next };
+    for (const [pk, kk] of KF_LISS_FIELDS) {
+      if (next[pk] !== lissParams[pk]) kfPatch[kk] = next[pk];
+      globalNext[pk] = params[pk];
+    }
+    setParams(globalNext);
+    setKeyframes(keyframes.map(k => k.id === selectedKf.id ? { ...k, ...kfPatch } : k));
+  }
+
   function addKeyframe() {
+    // Snapshot the wave currently shown at this t, so adding a keyframe
+    // between existing ones doesn't change the shape.
+    const lp = getParamsAtT(timelineProgress, keyframes, params);
     const newKf: WaveKeyframe = {
       id: uid(), t: timelineProgress,
-      ampN: params.lissAmpN, ampT: params.lissAmpT,
-      wlN: params.lissWlN, wlT: params.lissWlT,
-      delta: params.lissDelta,
-      centerX: params.centerX, centerY: params.centerY,
-      scaleX: params.scaleX, scaleY: params.scaleY,
+      ampN: lp.ampN, ampT: lp.ampT, ampZ: lp.ampZ,
+      wlN: lp.wlN, wlT: lp.wlT, wlZ: lp.wlZ,
+      delta: lp.delta, phaseZ: lp.phaseZ,
+      centerX: lp.centerX, centerY: lp.centerY,
+      scaleX: lp.scaleX, scaleY: lp.scaleY,
     };
     const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
     setKeyframes(updated);
@@ -537,14 +570,19 @@ export default function App() {
       {/* ── Panel derecho ── */}
       <div className="sidebar right-sidebar" style={{ width: rightPanel.size }}>
         <div className="liss-preview-panel" style={{ height: lissPreviewHeight.size }}>
-          <LissajousPreview params={params} />
+          <LissajousPreview params={lissParams} />
         </div>
         <div className="drag-handle-h" onMouseDown={lissPreviewHeight.onMouseDown} />
         <div className="right-sidebar-scroll">
           <LissajousParams
-            params={params}
-            onChange={setParams}
+            params={lissParams}
+            onChange={setLissParams}
             onReset={() => setParams(DEFAULT_PARAMS)}
+            notice={selectedKf
+              ? `Editando keyframe ${Math.round(selectedKf.t * 100)}%`
+              : keyframes.length > 0
+                ? 'Los keyframes definen la onda: selecciona uno para editarlo'
+                : null}
           />
         </div>
       </div>
