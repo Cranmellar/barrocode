@@ -103,12 +103,16 @@ La vista global muestra:
 - posición virtual del extrusor;
 - cubo de orientación X/Y/Z.
 
+El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin aceleraciones, incluyendo desplazamientos, cebado y pausas) y tamaño de la pieza en mm. Al pasar el cursor muestra longitudes de impresión y desplazamiento, E total y número de puntos.
+
 | Control | Acción |
 |---|---|
 | Arrastrar con botón izquierdo | Pan |
 | Arrastrar con botón derecho | Rotar azimut/elevación |
 | Rueda del mouse | Zoom |
 | **Ajustar** | Encuadre automático |
+| **Iso / Planta / Frente** | Vistas predefinidas, con encuadre |
+| Slider de capas (borde derecho) | Muestra hasta la capa elegida; **Sola** deja solo esa capa en color y las inferiores en gris |
 
 ## 7. Exportar
 

@@ -16,6 +16,7 @@ import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import { buildToolpath } from '../lib/toolpath';
+import { summarizeGcode } from '../lib/gcodeStats';
 import {
   type View3D, layerColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
 } from '../lib/draw3D';
@@ -39,6 +40,25 @@ interface Props {
   onAddKeyframe: () => void;
 }
 
+const LAYER_SLIDER_W = 56;
+
+const VIEW_PRESETS = [
+  { label: 'Iso',    azimuth: 325, elevation: 28, title: 'Vista isométrica' },
+  { label: 'Planta', azimuth: 0,   elevation: 90, title: 'Vista superior (X → derecha, Y ↑)' },
+  { label: 'Frente', azimuth: 0,   elevation: 0,  title: 'Vista frontal (X → derecha, Z ↑)' },
+];
+
+function formatDuration(sec: number): string {
+  if (sec < 60) return `${Math.round(sec)} s`;
+  const min = Math.round(sec / 60);
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
+}
+
+function fmtMM(v: number): string {
+  return v >= 100 ? v.toFixed(0) : v.toFixed(1);
+}
+
 function uid() {
   return Math.random().toString(36).slice(2, 9);
 }
@@ -56,6 +76,9 @@ export function Preview2D({
     azimuth: 325, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
   const [isInteracting, setIsInteracting] = useState(false);
+  // null = all layers; otherwise the 1-based top layer shown.
+  const [layerCap, setLayerCap] = useState<number | null>(null);
+  const [layerSolo, setLayerSolo] = useState(false);
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragRef = useRef<{
@@ -131,32 +154,34 @@ export function Preview2D({
   }, []); // stable — all state accessed through refs
 
   // ── Auto-fit ────────────────────────────────────────────────────────────
-  const fitView = useCallback(() => {
+  const fitView = useCallback((azimuth = view.azimuth, elevation = view.elevation) => {
     const canvas = canvasRef.current;
     if (!canvas || flatPoints.length === 0) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0) return;
 
-    const projected = flatPoints.map(p => project(p.x, p.y, p.z, view.azimuth, view.elevation));
+    const projected = flatPoints.map(p => project(p.x, p.y, p.z, azimuth, elevation));
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
     const margin = 48;
+    // Keep the model clear of the layer slider on the right edge.
+    const width = rect.width - (layers.length > 1 ? LAYER_SLIDER_W : 0);
     const scale = Math.min(
-      (rect.width  - margin * 2) / (maxX - minX || 1),
+      (width       - margin * 2) / (maxX - minX || 1),
       (rect.height - margin * 2) / (maxY - minY || 1),
       20,
     );
     setView(v => ({
-      ...v, scale,
-      offsetX: rect.width  / 2 - ((minX + maxX) / 2) * scale,
+      ...v, azimuth, elevation, scale,
+      offsetX: width       / 2 - ((minX + maxX) / 2) * scale,
       offsetY: rect.height / 2 - ((minY + maxY) / 2) * scale,
     }));
-  }, [flatPoints, view.azimuth, view.elevation]);
+  }, [flatPoints, layers.length, view.azimuth, view.elevation]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
     if (layers.length > 0 && layers.length !== prevLayerCount.current) {
       prevLayerCount.current = layers.length;
-      const t = setTimeout(fitView, 60);
+      const t = setTimeout(() => fitView(), 60);
       return () => clearTimeout(t);
     }
   }, [layers, fitView]);
@@ -183,8 +208,10 @@ export function Preview2D({
     drawScene(ctx, rect.width, rect.height, {
       view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
       keyframes, selectedKfId, timelineProgress, isInteracting,
+      layerCap: Math.min(layerCap ?? toolpath.length, toolpath.length) - 1,
+      layerSolo,
     });
-  }, [sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting]);
+  }, [sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, layerCap, layerSolo]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -248,7 +275,11 @@ export function Preview2D({
   };
 
   const numLayers = layers.length;
-  const totalPts = layers.reduce((s, l) => s + l.paths.reduce((a, p) => a + p.length, 0), 0);
+  const totalPts = flatPoints.length;
+  const shownCap = Math.min(layerCap ?? numLayers, numLayers);
+
+  const stats = useMemo(() => (gcode ? summarizeGcode(gcode) : null), [gcode]);
+  const crossings = toolpath.reduce((n, l) => n + l.crossings, 0);
 
   return (
     <div className="preview-container">
@@ -256,11 +287,27 @@ export function Preview2D({
         {centerTab === 'preview' && (
           <>
             <span className="toolbar-title">Trayectoria</span>
-            <button className="btn-small" onClick={fitView}>Ajustar</button>
-            <span className="toolbar-hint">Arrastrar = pan · Clic der. = rotar · Rueda = zoom</span>
-            {layers.length > 0 && (
-              <span className="toolbar-info">
-                {layers.length} capa{layers.length !== 1 ? 's' : ''} · {totalPts.toLocaleString()} pts
+            <button className="btn-small" onClick={() => fitView()} title="Encuadrar la pieza">Ajustar</button>
+            <div className="view-presets" role="group" aria-label="Vistas">
+              {VIEW_PRESETS.map(v => (
+                <button key={v.label}
+                  className={`view-preset${view.azimuth === v.azimuth && view.elevation === v.elevation ? ' view-preset--on' : ''}`}
+                  onClick={() => fitView(v.azimuth, v.elevation)}
+                  title={v.title}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            {layers.length > 0 && modelBounds && (
+              <span className="toolbar-info" title={[
+                stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
+                stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
+                `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
+                crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
+                'Tiempo a velocidad programada, sin aceleraciones',
+              ].filter(Boolean).join('\n')}>
+                {stats && <>≈ {formatDuration(stats.timeSec)} · </>}
+                {fmtMM(modelBounds.maxX - modelBounds.minX)} × {fmtMM(modelBounds.maxY - modelBounds.minY)} × {fmtMM(numLayers * params.layerHeight)} mm
               </span>
             )}
           </>
@@ -285,17 +332,44 @@ export function Preview2D({
       </div>
 
       {centerTab === 'preview' && (
-        <canvas
-          ref={canvasRef}
-          className="preview-canvas"
-          style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
-          onContextMenu={onContextMenu}
-          onWheel={onWheel}
-        />
+        <div className="preview-stage">
+          <canvas
+            ref={canvasRef}
+            className="preview-canvas"
+            title="Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom"
+            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
+            onMouseDown={onMouseDown}
+            onMouseMove={onMouseMove}
+            onMouseUp={onMouseUp}
+            onMouseLeave={onMouseUp}
+            onContextMenu={onContextMenu}
+            onWheel={onWheel}
+          />
+          {numLayers > 1 && (
+            <div className="layer-slider">
+              <span className="layer-slider-value" title="Capa superior visible">
+                {shownCap}<span className="layer-slider-total">/{numLayers}</span>
+              </span>
+              <input
+                type="range" min={1} max={numLayers} step={1}
+                value={shownCap}
+                aria-label="Capas visibles"
+                onChange={e => {
+                  const v = parseInt(e.target.value, 10);
+                  setLayerCap(v >= numLayers ? null : v);
+                }}
+              />
+              <button
+                className={`layer-solo${layerSolo ? ' layer-solo--on' : ''}`}
+                aria-pressed={layerSolo}
+                onClick={() => setLayerSolo(!layerSolo)}
+                title="Mostrar solo esta capa (las inferiores quedan en gris)"
+              >
+                Sola
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {centerTab === 'gcode' && (

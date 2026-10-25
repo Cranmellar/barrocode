@@ -231,6 +231,8 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Arrastrar</th><td>desplazar la vista 3D</td></tr>
                 <tr><th scope="row">Clic derecho + arrastrar</th><td>rotar la vista 3D</td></tr>
                 <tr><th scope="row">Rueda sobre la vista</th><td>zoom</td></tr>
+                <tr><th scope="row">Iso · Planta · Frente</th><td>vistas predefinidas</td></tr>
+                <tr><th scope="row">Slider de capas</th><td>ver hasta una capa · <em>Sola</em>: solo esa capa</td></tr>
                 <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor</td></tr>
                 <tr><th scope="row">Arrastrar divisores</th><td>redimensionar paneles</td></tr>
                 <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>

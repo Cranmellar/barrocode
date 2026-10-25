@@ -80,13 +80,18 @@ export interface Scene {
   selectedKfId: string | null;
   timelineProgress: number;
   isInteracting: boolean;
+  // Highest visible layer index; with layerSolo, only that layer is drawn
+  // in colour and the ones below it as faint context.
+  layerCap: number;
+  layerSolo: boolean;
 }
 
 export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, scene: Scene) {
   const {
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-    keyframes, selectedKfId, timelineProgress, isInteracting,
+    keyframes, selectedKfId, timelineProgress, isInteracting, layerCap, layerSolo,
   } = scene;
+  const shown = (li: number) => layerSolo ? li === layerCap : li <= layerCap;
   const { azimuth, elevation, scale, offsetX, offsetY } = view;
 
   ctx.fillStyle = '#EDEDED';
@@ -159,12 +164,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
   // During camera interaction: stride by 4 for responsiveness.
   const lodStride = isInteracting ? 4 : 1;
   for (let li = 0; li < numLayers; li++) {
-    const alpha = 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
+    if (li > layerCap) continue;
+    const ghost = !shown(li);
+    const alpha = ghost ? 0.14 : 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
 
     ctx.save();
-    ctx.strokeStyle = layerColor(li, numLayers);
+    ctx.strokeStyle = ghost ? 'rgb(90,90,90)' : layerColor(li, numLayers);
     ctx.globalAlpha = alpha;
-    ctx.lineWidth   = Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
+    ctx.lineWidth   = ghost ? 1 : Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
     ctx.lineJoin    = 'round';
     ctx.lineCap     = 'round';
 
@@ -185,9 +192,10 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
   // knows which layer the open kf editor is targeting
   if (!isInteracting && selectedKfId && numLayers > 0) {
     const selKf = keyframes.find(k => k.id === selectedKfId);
-    if (selKf) {
-      const editLi = Math.min(numLayers - 1,
-        Math.round(selKf.t * Math.max(0, numLayers - 1)));
+    const editLi = selKf
+      ? Math.min(numLayers - 1, Math.round(selKf.t * Math.max(0, numLayers - 1)))
+      : -1;
+    if (selKf && shown(editLi)) {
       const editLayer = toolpath[editLi];
       const editAllMm = editLayer.paths.flat();
 
@@ -249,6 +257,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.globalAlpha = 0.38;
     ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
     for (let li = 0; li < numLayers; li++) {
+      if (!shown(li)) continue;
       const layer = toolpath[li];
       for (let pi = 0; pi < layer.paths.length - 1; pi++) {
         const fromPath = layer.paths[pi];
@@ -256,7 +265,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       }
       const next = toolpath[li + 1];
       const lastPath = layer.paths[layer.paths.length - 1];
-      if (!params.softJoin && next?.paths.length && lastPath) {
+      if (!params.softJoin && shown(li + 1) && next?.paths.length && lastPath) {
         drawTravel(lastPath[lastPath.length - 1], next.paths[0][0], next.centroid, layer.z, next.z);
       }
     }
@@ -270,6 +279,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.lineWidth = 1.2;
     ctx.globalAlpha = 0.55;
     for (let li = 0; li < numLayers - 1; li++) {
+      if (!shown(li) || !shown(li + 1)) continue;
       const a = toolpath[li].paths[toolpath[li].paths.length - 1];
       const b = toolpath[li + 1].paths[0];
       if (!a || !b) continue;
@@ -289,6 +299,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     for (const kf of keyframes) {
       const kfIdx = Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)));
       const kfPt  = flat[kfIdx];
+      if (!shown(kfPt.layerIndex)) continue;
       const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
       const isSelected = kf.id === selectedKfId;
       const kfSize = isSelected ? 7 : 5;
