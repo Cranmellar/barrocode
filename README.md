@@ -125,7 +125,7 @@ flowchart TB
 - `src/lib/waveGenerator.ts` calcula offsets de Lissajous, keyframes, escala alrededor de centro y capas.
 - `src/lib/toolpath.ts` arma la trayectoria final en mm: ordena trayectos por nearest-neighbor y calcula la Z de cada punto (oscilación + Z-hop). La usan tanto el G-code como la vista previa, así que ambos muestran lo mismo.
 - `src/lib/gcodeGenerator.ts` emite esa trayectoria como G-code, con soft join y viajes concéntricos.
-- `src/components/Preview2D.tsx` dibuja la previsualización ortográfica en Canvas.
+- `src/components/Preview2D.tsx` maneja la previsualización (cámara, interacción, línea de tiempo); `src/lib/draw3D.ts` la dibuja en Canvas con proyección ortográfica.
 
 Más detalle técnico en [docs/architecture.md](docs/architecture.md).
 
@@ -176,6 +176,7 @@ src/
     svgParser.ts
     waveGenerator.ts
     toolpath.ts
+    draw3D.ts
     gcodeGenerator.ts
     hopUtils.ts
     skirtUtils.ts
