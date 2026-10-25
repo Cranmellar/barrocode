@@ -53,7 +53,7 @@ export function Preview2D({
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const topdownRef  = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState<View3D>({
-    azimuth: 215, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
+    azimuth: 325, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
   const [isInteracting, setIsInteracting] = useState(false);
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

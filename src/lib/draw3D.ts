@@ -27,11 +27,14 @@ export function layerColor(index: number, total: number, alpha = 1): string {
   return `hsla(${hue},${sat.toFixed(0)}%,${lit.toFixed(0)}%,${alpha})`;
 }
 
+// At az = 0 the camera looks along +Y: X to the right, Y away, Z up.
+// `ry` is depth towards the viewer; its sign keeps the view right-handed,
+// so the preview is never a mirror image of the print.
 export function project(x: number, y: number, z: number, az: number, el: number): [number, number] {
   const A = az * Math.PI / 180;
   const E = el * Math.PI / 180;
-  const rx =  x * Math.cos(A) + y * Math.sin(A);
-  const ry = -x * Math.sin(A) + y * Math.cos(A);
+  const rx = x * Math.cos(A) + y * Math.sin(A);
+  const ry = x * Math.sin(A) - y * Math.cos(A);
   return [rx, ry * Math.sin(E) - z * Math.cos(E)];
 }
 
