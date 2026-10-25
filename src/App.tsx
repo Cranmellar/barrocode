@@ -418,25 +418,27 @@ export default function App() {
           )}
         </div>
 
-        <div style={{ display:'flex', flexDirection:'row', flexShrink:0, margin:'8px 12px 0', border:'2px solid #4A4E8C', borderRadius:6, overflow:'hidden', background:'#fff', minHeight:76 }}>
+        <div className="sample-nav">
           <button
-            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderRight:'1px solid #D2D2D2', fontSize:22, cursor:'pointer', color:'#1C1C1C', padding:0 }}
+            className="sample-nav-arrow"
             onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
+            aria-label="Muestra anterior"
           >‹</button>
           <button
-            style={{ flex:1, minWidth:0, display:'flex', flexDirection:'row', alignItems:'center', justifyContent:'center', gap:12, padding:'10px 14px', background:'transparent', border:'none', cursor:'pointer' }}
+            className="sample-nav-load"
             onClick={loadSample}
             title={`Cargar muestra ${sampleIndex + 1}`}
           >
-            <img src={SAMPLES[sampleIndex].uri} width={48} height={48} style={{ display:'block', flexShrink:0 }} alt="" />
-            <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-start', gap:3 }}>
-              <span style={{ fontSize:11, color:'#1C1C1C', fontWeight:700, letterSpacing:'0.04em' }}>Muestra {sampleIndex + 1}</span>
-              <span style={{ fontSize:10, color:'#6A6A6A', letterSpacing:'0.06em' }}>de {SAMPLES.length} · clic para cargar</span>
-            </div>
+            <img src={SAMPLES[sampleIndex].uri} width={48} height={48} alt="" />
+            <span className="sample-nav-text">
+              <span className="sample-nav-title">Muestra {sampleIndex + 1}</span>
+              <span className="sample-nav-sub">de {SAMPLES.length} · clic para cargar</span>
+            </span>
           </button>
           <button
-            style={{ width:36, flexShrink:0, background:'transparent', border:'none', borderLeft:'1px solid #D2D2D2', fontSize:22, cursor:'pointer', color:'#1C1C1C', padding:0 }}
+            className="sample-nav-arrow"
             onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
+            aria-label="Muestra siguiente"
           >›</button>
         </div>
 
