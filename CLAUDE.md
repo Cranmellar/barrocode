@@ -26,7 +26,7 @@ The whole app runs in the browser. There is no backend, no native shell.
 | `npm run preview` | Local static preview of `dist/` |
 | `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-Tests cover `lib/` only (no DOM, so `svgParser` is untested) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked.
+Tests cover `lib/` only and live in `src/lib/__tests__/`. They run in Node; `svgParser.test.ts` opts into jsdom, which has no SVG layout, so only the sanitizer is tested there — sampling needs a real browser. There is no linter or formatter config wired into npm scripts. Don't add one without being asked.
 
 ---
 
@@ -45,7 +45,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 ```
 SVG string
   └─ parseSVG()            [lib/svgParser.ts]
-       • inserts raw SVG into a hidden 1000×1000 DOM div
+       • sanitizedSvg(): parse into an inert HTML document, strip scripting
+         (script, foreignObject, SMIL, on* attributes, javascript: links),
+         then import into a hidden 1000×1000 DOM div — never innerHTML
        • queries path / polyline / polygon / line / circle / ellipse / rect
        • arc-length sampling via getTotalLength + getPointAtLength
        • finite-difference tangent/normal per sample

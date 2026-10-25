@@ -158,6 +158,30 @@ function sanitizeXmlEntities(svg: string): string {
   });
 }
 
+const UNSAFE_ELEMENTS =
+  'script, foreignObject, iframe, object, embed, animate, animateMotion, animateTransform, set';
+
+/**
+ * Build the live <svg> element from untrusted markup. The markup is parsed
+ * into an inert document (nothing runs or loads there), stripped of
+ * scripting, and only then imported into the page.
+ */
+export function sanitizedSvg(svgString: string): SVGSVGElement | null {
+  const doc = new DOMParser().parseFromString(svgString, 'text/html');
+  const svg = doc.querySelector('svg');
+  if (!svg) return null;
+
+  svg.querySelectorAll(UNSAFE_ELEMENTS).forEach(n => n.remove());
+  for (const el of [svg, ...Array.from(svg.querySelectorAll('*'))]) {
+    for (const { name, value } of Array.from(el.attributes)) {
+      const lower = name.toLowerCase();
+      const scriptUrl = /(^|:)href$/.test(lower) && /^\s*javascript:/i.test(value);
+      if (lower.startsWith('on') || scriptUrl) el.removeAttribute(name);
+    }
+  }
+  return document.importNode(svg, true);
+}
+
 export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const parser = new DOMParser();
   const doc = parser.parseFromString(sanitizeXmlEntities(svgString), 'image/svg+xml');
@@ -177,14 +201,14 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
     height: vb?.height || parseFloat(sourceSvgEl.getAttribute('height') ?? '200') || 200,
   };
 
-  // Insert SVG into hidden container so the browser can measure it.
-  const container = getHiddenContainer();
-  container.innerHTML = svgString;
-  const liveSvgEl = container.querySelector('svg') as SVGSVGElement | null;
-
+  const liveSvgEl = sanitizedSvg(svgString);
   if (!liveSvgEl) {
     throw new Error('No <svg> element found in the uploaded file.');
   }
+
+  // Insert SVG into hidden container so the browser can measure it.
+  const container = getHiddenContainer();
+  container.replaceChildren(liveSvgEl);
 
   // Make the hidden SVG large enough that viewBox scaling doesn't distort
   // the screen CTM in a way that causes precision issues.

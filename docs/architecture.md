@@ -51,6 +51,8 @@ flowchart TB
 
 `svgParser.ts` usa `DOMParser` y luego inserta el SVG en un contenedor oculto. Esto permite usar `SVGGeometryElement.getTotalLength()` y `getPointAtLength()` del navegador.
 
+El SVG viene del usuario y puede venir de internet, así que nunca se inserta con `innerHTML`: `sanitizedSvg()` lo parsea en un documento inerte, elimina scripts, `foreignObject`, animaciones SMIL, atributos `on*` y enlaces `javascript:`, y recién entonces lo importa a la página.
+
 El muestreo produce `SampledPoint`:
 
 ```text
