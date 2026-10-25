@@ -64,8 +64,10 @@ La tangente se calcula con diferencias finitas y la normal se deriva rotando la 
 `waveGenerator.ts` evalúa una figura de Lissajous en el marco local del extrusor:
 
 ```text
-phaseN = 2π * s / wlN + delta + phaseBase
-phaseT = 2π * s / wlT + phaseBase
+cycN   = Σ 2π * ds / wlN        (= 2π * s / wlN si wlN es constante)
+cycT   = Σ 2π * ds / wlT
+phaseN = cycN + delta + phaseBase
+phaseT = cycT + phaseBase
 offsetN = ampN * sin(phaseN)
 offsetT = ampT * sin(phaseT)
 point = centerline + normal * offsetN + tangent * offsetT
