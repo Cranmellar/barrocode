@@ -244,8 +244,10 @@ export default function App() {
 
   const selectedKfIdRef = useRef(selectedKfId);
   const helpOpenRef = useRef(helpOpen);
+  const addKeyframeRef = useRef(addKeyframe);
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
+  useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -258,11 +260,19 @@ export default function App() {
         setHelpOpen(true);
         return;
       }
+      if (helpOpenRef.current) return;
       const id = selectedKfIdRef.current;
-      if (helpOpenRef.current || !id) return;
-      if (e.key === 'Escape') {
+      const key = e.key.toLowerCase();
+      if (key === 'k') {
+        addKeyframeRef.current();
+      } else if (key === 'g') {
+        setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
+      } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]')) {
+        const step = (e.shiftKey ? 0.001 : 0.01) * (key === 'arrowleft' ? -1 : 1);
+        setTimelineProgress(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
+      } else if (key === 'escape' && id) {
         setSelectedKfId(null);
-      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+      } else if ((key === 'delete' || key === 'backspace') && id) {
         setKeyframes(prev => prev.filter(k => k.id !== id));
         setSelectedKfId(null);
       } else {

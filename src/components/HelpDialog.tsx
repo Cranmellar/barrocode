@@ -236,7 +236,10 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor</td></tr>
                 <tr><th scope="row">Arrastrar divisores</th><td>redimensionar paneles</td></tr>
                 <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>
+                <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd></th><td>mover el extrusor 1 % (con <kbd>Shift</kbd>, 0,1 %)</td></tr>
+                <tr><th scope="row"><kbd>K</kbd></th><td>añadir keyframe en el extrusor (o seleccionar el que ya está ahí)</td></tr>
                 <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
+                <tr><th scope="row"><kbd>G</kbd></th><td>alternar Trayectoria / G-code</td></tr>
               </tbody>
             </table>
           </section>

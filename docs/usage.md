@@ -114,6 +114,16 @@ El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin
 | **Iso / Planta / Frente** | Vistas predefinidas, con encuadre |
 | Slider de capas (borde derecho) | Muestra hasta la capa elegida; **Sola** deja solo esa capa en color y las inferiores en gris |
 
+### Atajos de teclado
+
+| Tecla | Acción |
+|---|---|
+| `←` / `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %) |
+| `K` | Añade un keyframe en el extrusor, o selecciona el que ya está ahí |
+| `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
+| `G` | Alterna Trayectoria / G-code |
+| `?` | Abre la ayuda |
+
 ## 7. Exportar
 
 Haz clic en **Descargar .gcode**. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.
