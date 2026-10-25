@@ -245,7 +245,7 @@ export function HelpDialog({ open, onClose }: Props) {
               <li>No hay retracción: <em>Transición Z suave</em> une capas sin cortar el flujo.</li>
               <li><em>Pausa al inicio</em> y <em>Cebado de boquilla</em> estabilizan la primera extrusión.</li>
               <li>Calibra la primera capa con <em>Desplazamiento Z</em>.</li>
-              <li>Ajusta el <em>Multiplicador</em> (panel derecho, Extrusión) según tu bomba o tornillo.</li>
+              <li>Ajusta el <em>Multiplicador</em> (panel izquierdo, Máquina › Extrusión) según tu bomba o tornillo.</li>
             </ul>
           </section>
         </div>

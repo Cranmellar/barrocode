@@ -44,13 +44,15 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
+El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (capas, escala y posición, centro y escala), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). Un bloque plegado muestra un resumen de sus valores clave, y el estado de cada bloque se recuerda entre sesiones.
+
 | Parámetro | Efecto |
 |---|---|
 | **Espaciado de muestras** | Densidad de muestreo del camino en unidades SVG. Menor valor produce una onda más suave y más puntos. |
 | **Altura de capa** | Incremento Z entre capas apiladas. |
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
-| **Z seguro** | Altura de desplazamiento cuando no se usa transición suave. |
+| **Z de seguridad** | Altura de desplazamiento al inicio, tras el cebado y al terminar. |
 | **Factor de escala** | Convierte unidades SVG a mm. Usa `1` si el SVG está en mm; usa `0.2645` para píxeles a 96 dpi. |
 | **Origen X / Y** | Desplaza toda la impresión sobre la cama. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
@@ -86,7 +88,7 @@ La línea de tiempo permite anclar parámetros de Lissajous en posiciones espec�
 3. Con un keyframe seleccionado, el panel derecho edita **su** onda (amplitudes, longitudes de onda, delta, Z); el encabezado *Editando Keyframe N %* lo indica. La franja inferior edita su posición, escala y centro.
 4. Pulsa **OK** o `Esc` para terminar; `Supr` elimina el keyframe seleccionado. Cambia de keyframe con **‹ ›** o haciendo clic en su rombo; arrástralo para moverlo.
 
-Con keyframes y ninguno seleccionado, los campos de onda del panel derecho quedan bloqueados: la onda la definen los keyframes. *Fase* y *Extrusión* siguen siendo globales.
+Con keyframes y ninguno seleccionado, los campos de onda del panel derecho quedan bloqueados: la onda la definen los keyframes. *Fase* sigue siendo global.
 
 Entre keyframes, BarroCode interpola linealmente.
 

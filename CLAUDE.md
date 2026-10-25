@@ -100,11 +100,11 @@ src/
   types/index.ts            All shared types
   components/
     Preview2D.tsx           3D ortho canvas + timeline + kf editor (≈892 lines, LARGEST)
-    LissajousParams.tsx     Right panel: wave sliders + presets
+    LissajousParams.tsx     Right panel: wave sliders + presets; edits the selected keyframe
     LissajousPreview.tsx    Bottom center: animated Lissajous canvas
-    PathParams.tsx          Left panel: layers, speeds, options
+    PathParams.tsx          Left panel: collapsible Pieza / Trayecto / Máquina groups
     PathList.tsx            Per-path overrides + collapse
-    CenterScaleParams.tsx   Bottom left: pivot + scale + z-hop
+    CenterScaleParams.tsx   Pivot + scale sections, rendered inside PathParams' Pieza group
     CenterPad.tsx           56×56 canvas pivot picker
     GcodeOutput.tsx         G-code textarea + copy + download
     HelpDialog.tsx          "?" quick-start modal (native <dialog>)
@@ -139,7 +139,7 @@ Keyframes (`WaveKeyframe[]`) override Lissajous fields at given `t ∈ [0,1]`. B
 - `gcodeTimerRef` — debounce handle for G-code regeneration (400 ms)
 - `centerTab: 'preview' | 'gcode'` — which tab is active in the center panel
 - `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
-- `selectedKfId: string | null` — id of the currently selected keyframe
+- `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 
 ---
@@ -177,7 +177,6 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
 - **`resampleSVG` in `lib/svgParser.ts`** is dead code.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the 56×56 canvas boundary on fast moves.
-- **`skirtThreshold` lives under the "Velocidades" UI section** in `PathParams.tsx` but conceptually belongs with travel options.
 
 ---
 

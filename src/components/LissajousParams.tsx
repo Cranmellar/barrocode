@@ -1,6 +1,5 @@
 import React from 'react';
 import type { PrintParams } from '../types';
-import { NumInput } from './NumInput';
 
 interface Props {
   params: PrintParams;
@@ -32,31 +31,6 @@ function Slider({ label, value, min, max, step, unit, hint, cls, valCls, onChang
         className={cls ?? ''}
         style={{ background: trackBg }}
         onChange={e => onChange(parseFloat(e.target.value))} />
-    </div>
-  );
-}
-
-function Num({ label, value, min, max, step, unit, hint, onChange }: {
-  label: string; value: number; min?: number; max?: number;
-  step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
-}) {
-  return (
-    <div className="param-row" title={hint}>
-      <label>{label}{unit && <span className="unit"> {unit}</span>}</label>
-      <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
-    </div>
-  );
-}
-
-function Check({ label, checked, hint, onChange }: {
-  label: string; checked: boolean; hint?: string; onChange: (v: boolean) => void;
-}) {
-  return (
-    <div className="param-row param-check" title={hint}>
-      <label>
-        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-        {label}
-      </label>
     </div>
   );
 }
@@ -157,7 +131,6 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
 
   const deg = (r: number) => r * (180 / Math.PI);
   const rad = (d: number) => d * (Math.PI / 180);
-  const globalBadge = editingKf || waveLocked ? 'Global' : undefined;
 
   return (
     <div className="lissajous-params">
@@ -261,7 +234,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
       </fieldset>
 
       {/* ── Fase ── */}
-      <Sec title="Fase" badge={globalBadge}>
+      <Sec title="Fase" badge={editingKf || waveLocked ? 'Global' : undefined}>
         <Slider label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
           hint="Fase global al inicio del arco (s=0)"
@@ -270,18 +243,6 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
           min={-360} max={360} step={1} unit="°"
           hint="Fase extra añadida en cada capa — crea efecto de torsión/espiral"
           onChange={v => set('phaseShiftPerLayer', rad(v))} />
-      </Sec>
-
-      {/* ── Extrusión ── */}
-      <Sec title="Extrusión" badge={globalBadge}>
-        <Check label="Generar valores E" checked={params.generateE}
-          hint="Incluye la columna E en el G-code. Desactívalo para salida solo de movimiento."
-          onChange={v => set('generateE', v)} />
-        {params.generateE &&
-          <Num label="Multiplicador" value={params.extrusionMultiplier}
-            min={0} step={0.005} unit="E/mm"
-            hint="Unidades E por mm de desplazamiento — ajústalo a tu sistema de bomba/tornillo"
-            onChange={v => set('extrusionMultiplier', v)} />}
       </Sec>
     </div>
   );

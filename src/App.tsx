@@ -9,7 +9,6 @@ import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
 import { Preview2D } from './components/Preview2D';
 import { PathList } from './components/PathList';
-import { CenterScaleParams } from './components/CenterScaleParams';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
@@ -454,7 +453,6 @@ export default function App() {
         )}
 
         <PathParams params={params} onChange={setParams} />
-        <CenterScaleParams params={params} onChange={setParams} />
       </div>
 
       {/* Divisor izquierdo */}
