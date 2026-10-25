@@ -281,6 +281,64 @@ html, body, #root { height: 100%; overflow: hidden; }
   font-variation-settings: 'wght' 600;
 }
 
+
+.help-figure { margin: 4px 0 10px; }
+
+.help-flow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+.help-flow-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.help-flow-step + .help-flow-step::before {
+  content: '→';
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 11px;
+  color: var(--muted);
+}
+.help-flow-step svg { width: 100%; max-width: 64px; height: auto; display: block; }
+.help-flow-step b { color: var(--accent); font-weight: 700; font-variation-settings: 'wght' 700; }
+.hf-ink    { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linejoin: round; }
+.hf-accent { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+
+.help-diagram {
+  display: block;
+  width: 100%;
+  max-width: 420px;
+  margin: 0 auto;
+  height: auto;
+  padding: 6px 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card);
+}
+.hd-base  { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 3; }
+.hd-wave  { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
+.hd-dim   { stroke: var(--ink-2); stroke-width: 1; }
+.hd-track { stroke: var(--border-rule); stroke-width: 2; }
+.hd-n, .hd-t { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.hd-n     { stroke: var(--n-axis); }
+.hd-t     { stroke: var(--t-axis); }
+.hd-label { font-size: 10px; fill: var(--ink-2); letter-spacing: 0.02em; }
+.hd-n-text { fill: var(--n-axis); }
+.hd-t-text { fill: var(--t-axis); }
+
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
 .upload-area-row {
   display: flex;
