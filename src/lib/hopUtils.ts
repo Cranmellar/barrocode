@@ -147,3 +147,28 @@ export function hopAtArc(
   }
   return hop;
 }
+
+const HOP_STEPS = 8;  // samples across each hop window of width 2·hopRadius
+
+/**
+ * Arc positions strictly inside (arcFrom, arcTo) where extra points are
+ * needed to resolve the hop parabola. Path samples are usually coarser
+ * than the hop window, so without these a hop can fall between samples.
+ */
+export function hopSampleArcs(
+  arcFrom: number,
+  arcTo: number,
+  crossings: number[],
+  hopRadius: number,
+): number[] {
+  if (hopRadius <= 0) return [];
+  const out: number[] = [];
+  for (const c of crossings) {
+    if (c + hopRadius <= arcFrom || c - hopRadius >= arcTo) continue;
+    for (let j = 0; j <= HOP_STEPS; j++) {
+      const a = c - hopRadius + (2 * hopRadius * j) / HOP_STEPS;
+      if (a > arcFrom + 1e-6 && a < arcTo - 1e-6) out.push(a);
+    }
+  }
+  return out.sort((a, b) => a - b).filter((a, i, all) => i === 0 || a - all[i - 1] > 1e-6);
+}

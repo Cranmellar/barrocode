@@ -71,7 +71,9 @@ WaveLayer[] + PrintParams + svgH
        • svgToMM() here (NOT before)
        • nearest-neighbour path order O(n²) per layer, each layer starting
          where the previous one ended
-       • buildArcPath + findCrossings (inter-path gaps excluded) + hopAtArc
+       • buildArcPath + findCrossings (inter-path gaps excluded) + hopAtArc;
+         hopSampleArcs inserts points across each hop window so the parabola
+         is resolved even when hopRadius < sample spacing
        • z = layer.z + zOffset + hop per point; centroid per layer
      → ToolpathLayer[] { index, z, paths: {x,y,z}[][] (mm), centroid, crossings }
 
@@ -174,7 +176,6 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 - **`Preview2D.tsx` is ≈892 lines** and overdue for a split. The canvas draw code is the obvious extraction (→ `lib/draw3D.ts`). Don't refactor it preemptively; do it when adding a feature that would otherwise inflate the file further.
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
 - **`resampleSVG` in `lib/svgParser.ts`** is dead code.
-- **Z-hop is only evaluated at sample points.** With `hopRadius` smaller than the sample spacing (defaults: 1 mm vs 2 SVG units), a hop can fall between samples and come out partial or missing.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the 56×56 canvas boundary on fast moves.
 - **`skirtThreshold` lives under the "Velocidades" UI section** in `PathParams.tsx` but conceptually belongs with travel options.
 

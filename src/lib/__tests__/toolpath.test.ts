@@ -20,7 +20,7 @@ describe('buildToolpath — z-hop', () => {
     const pts = layer.paths[0];
 
     expect(layer.crossings).toBe(1);
-    const firstPass = pts.filter(p => p.y === 50);
+    const firstPass = pts.slice(0, 51);  // the horizontal leg, 0 → 100 in 2 mm steps
     expect(firstPass.every(p => p.z === layer.z)).toBe(true);
     const secondPass = pts.filter(p => p.x === 51 && Math.abs(p.y - 50) < 2);
     expect(Math.max(...secondPass.map(p => p.z))).toBeGreaterThan(layer.z + 2);
@@ -38,6 +38,19 @@ describe('buildToolpath — z-hop', () => {
     expect(Math.max(...atCrossing.map(p => p.z))).toBeGreaterThan(layer.z + 2);
     const away = second.filter(p => Math.abs(p.y - 50) > HOP.hopRadius);
     expect(away.every(p => p.z === layer.z)).toBe(true);
+  });
+
+  it('reaches full hop height even when the crossing falls between samples', () => {
+    // Samples at y = 51 and 49 sit exactly hopRadius away from the crossing at y = 50.
+    const a = sampledPath('a', polyline([[0, 50], [100, 50]]));
+    const b = sampledPath('b', polyline([[51, 101], [51, 1]]));
+    const [layer] = toolpath([a, b], { zHopHeight: 2.5, hopRadius: 1 });
+    const second = layer.paths[1];
+    const lifted = second.filter(p => p.z > layer.z);
+
+    expect(Math.max(...second.map(p => p.z))).toBeCloseTo(layer.z + 2.5, 6);
+    expect(lifted.every(p => p.x === 51 && Math.abs(p.y - 50) < 1)).toBe(true);
+    expect(lifted.length).toBeGreaterThanOrEqual(5);
   });
 
   it('does not treat travel between paths as a crossing', () => {

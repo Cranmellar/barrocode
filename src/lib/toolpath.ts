@@ -7,7 +7,7 @@
 
 import type { WaveLayer, PrintParams } from '../types';
 import { svgToMM } from './waveGenerator';
-import { buildArcPath, findCrossings, hopAtArc } from './hopUtils';
+import { buildArcPath, findCrossings, hopAtArc, hopSampleArcs } from './hopUtils';
 import { computeCentroid, type MM2 } from './skirtUtils';
 
 export interface ToolpathPoint { x: number; y: number; z: number }
@@ -68,13 +68,29 @@ export function buildToolpath(
       crossings = findCrossings(arcPath, Math.max(params.hopRadius * 3, 2), gaps);
     }
 
+    const zAt = (zOffset: number, arc: number) =>
+      layer.z + zOffset + hopAtArc(arc, crossings, params.zHopHeight, params.hopRadius);
+
     let k = 0;
-    const paths = ordered.map(path => path.map(p => ({
-      x: p.x,
-      y: p.y,
-      z: layer.z + p.zOffset
-        + hopAtArc(arcPath[k++].arc, crossings, params.zHopHeight, params.hopRadius),
-    })));
+    const paths = ordered.map(path => {
+      const out: ToolpathPoint[] = [];
+      path.forEach((p, i) => {
+        const arc = arcPath[k++].arc;
+        if (i > 0 && crossings.length > 0) {
+          const prev = path[i - 1], prevArc = arcPath[k - 2].arc;
+          for (const a of hopSampleArcs(prevArc, arc, crossings, params.hopRadius)) {
+            const f = (a - prevArc) / (arc - prevArc);
+            out.push({
+              x: prev.x + (p.x - prev.x) * f,
+              y: prev.y + (p.y - prev.y) * f,
+              z: zAt(prev.zOffset + (p.zOffset - prev.zOffset) * f, a),
+            });
+          }
+        }
+        out.push({ x: p.x, y: p.y, z: zAt(p.zOffset, arc) });
+      });
+      return out;
+    });
 
     if (flat.length > 0) cur = flat[flat.length - 1];
     out.push({
