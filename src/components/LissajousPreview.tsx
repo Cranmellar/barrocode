@@ -61,7 +61,7 @@ export function LissajousPreview({ params }: Props) {
     const { lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta } = params;
     const { offsetX, offsetY, scale } = viewRef.current;
 
-    ctx.fillStyle = '#F5F5F9';
+    ctx.fillStyle = '#F5F5F5';
     ctx.fillRect(0, 0, W, H);
 
     function toCanvas(t: number, n: number): [number, number] {
@@ -98,7 +98,7 @@ export function LissajousPreview({ params }: Props) {
       for (let i = 1; i < pts.length; i++) {
         const frac  = i / pts.length;
         const alpha = 0.06 + frac * 0.80;
-        ctx.strokeStyle = `rgba(79,70,229,${alpha.toFixed(2)})`;
+        ctx.strokeStyle = `rgba(74,78,140,${alpha.toFixed(2)})`;
         const [x0, y0] = toCanvas(pts[i - 1].t, pts[i - 1].n);
         const [x1, y1] = toCanvas(pts[i].t,     pts[i].n);
         ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
@@ -122,7 +122,7 @@ export function LissajousPreview({ params }: Props) {
           ctx.beginPath();
           ctx.moveTo(dx, dy);
           ctx.lineTo(dx + (vx / vlen) * L, dy + (vy / vlen) * L);
-          ctx.strokeStyle = '#4F46E5';
+          ctx.strokeStyle = '#4A4E8C';
           ctx.lineWidth = 2;
           ctx.stroke();
         }
@@ -131,7 +131,7 @@ export function LissajousPreview({ params }: Props) {
       ctx.save();
       ctx.translate(dx, dy);
       ctx.rotate(Math.PI / 4);
-      ctx.fillStyle   = '#4F46E5';
+      ctx.fillStyle   = '#4A4E8C';
       ctx.strokeStyle = '#fff';
       ctx.lineWidth   = 2;
       ctx.beginPath();

@@ -14,22 +14,22 @@
 
 /* ── Tokens ──────────────────────────────────────────────────────────────── */
 :root {
-  /* Neutral white — very slight indigo tint, away from warm paper */
-  --bg:          #EDEDF2;
-  --card:        #F5F5F9;
+  /* Neutral greys — no hue tint */
+  --bg:          #EDEDED;
+  --card:        #F5F5F5;
   --card-2:      #FFFFFF;
-  --panel-r:     #F1F1F6;
+  --panel-r:     #F1F1F1;
 
-  /* Ink — deep indigo-black */
-  --ink:         #1A1640;
-  --ink-2:       #38346A;
-  --muted:       #6A6590;
+  /* Ink — neutral near-black */
+  --ink:         #1C1C1C;
+  --ink-2:       #3A3A3A;
+  --muted:       #6A6A6A;
 
-  /* Single accent — indigo (slightly lighter for legibility) */
-  --accent:      #4F46E5;
-  --accent-hi:   #6366F1;
-  --accent-lo:   #3730A3;
-  --accent-bg:   rgba(79,70,229,0.06);
+  /* Single accent — desaturated indigo */
+  --accent:      #4A4E8C;
+  --accent-hi:   #6064A6;
+  --accent-lo:   #35386A;
+  --accent-bg:   rgba(74,78,140,0.06);
 
   /* Axis colours — semantic only, not UI chrome */
   --n-axis:      #1D64B4;
@@ -42,8 +42,8 @@
   --err:         #AA2A2A;
 
   /* Structure — border only, no shadows */
-  --border:      #D0D0D9;
-  --border-rule: rgba(15,15,25,0.16);  /* thin structural rule */
+  --border:      #D2D2D2;
+  --border-rule: rgba(20,20,20,0.16);  /* thin structural rule */
 
   /* Geometry — Swiss precision: minimal radius, no pills */
   --radius:      4px;
@@ -1057,7 +1057,7 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
   transition: background 0.1s, color 0.1s;
 }
 .seg-btn:last-child { border-right: none; }
-.seg-btn:hover { background: rgba(79,70,229,0.08); }
+.seg-btn:hover { background: rgba(74,78,140,0.08); }
 .seg-btn--active {
   background: var(--accent);
   color: var(--card-2);
@@ -1105,8 +1105,8 @@ input[type="range"].t-range::-moz-range-thumb  { background: var(--t-axis); }
 .gcode-actions { margin-left: auto; display: flex; gap: 6px; align-items: center; }
 .gcode-textarea {
   flex: 1;
-  background: #F6FBF4;
-  color: #1D421D;
+  background: var(--card-2);
+  color: var(--ink);
   border: none;
   padding: 10px 14px;
   font: inherit;

@@ -77,7 +77,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     tRef.current = T;
 
     // ── Background ──────────────────────────────────────────────────────────
-    ctx.fillStyle = '#EDEDF2';
+    ctx.fillStyle = '#EDEDED';
     ctx.fillRect(0, 0, W, H);
 
     // ── Dim silhouette: every layer except the active one ───────────────────
@@ -88,7 +88,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     for (let li = 0; li < layers.length; li++) {
       if (li === layerIdx) continue;
       ctx.globalAlpha = 0.10;
-      ctx.strokeStyle = '#2A200E';
+      ctx.strokeStyle = '#222222';
       for (const path of layers[li].paths) {
         if (path.length < 2) continue;
         ctx.beginPath();
@@ -129,7 +129,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     const [ccx, ccy] = w2s(centerX, centerY, T);
 
     // Circle ring
-    ctx.strokeStyle = '#4F46E5';
+    ctx.strokeStyle = '#4A4E8C';
     ctx.lineWidth   = 1.2;
     ctx.beginPath();
     ctx.arc(ccx, ccy, 4, 0, Math.PI * 2);
@@ -143,7 +143,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.stroke();
 
     // Dot
-    ctx.fillStyle = '#4F46E5';
+    ctx.fillStyle = '#4A4E8C';
     ctx.beginPath(); ctx.arc(ccx, ccy, 2, 0, Math.PI * 2); ctx.fill();
 
     ctx.restore();
