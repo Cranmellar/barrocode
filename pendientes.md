@@ -18,7 +18,7 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 - [x] **Pivot drag en el visualizador** — permitir que el punto que corresponde al centro de escala se pueda desplazar arrastrando con el mouse en el viewport 3D.
 - [x] **Shift = ajuste fino** — agregar la opción de mantener Shift apretado para cambios muy leves al variar cualquier parámetro. Rueda = cambio grueso, Shift+rueda = cambio fino.
 - [x] **Pivot fields con paso más grueso** — al variar el centro de pivote, el desplazamiento por tick del wheel debiese ser mayor, para ubicar más rápidamente el punto donde quiero.
-- [ ] **"Añadir keyframe aquí" → "OK" cuando hay keyframe seleccionada** — cuando se está trabajando con una keyframe existente, el botón debe cambiar a un OK para confirmar y evitar crear 2 keyframes en el mismo punto.
+- [x] **"Añadir keyframe aquí" → "OK" cuando hay keyframe seleccionada** — cuando se está trabajando con una keyframe existente, el botón debe cambiar a un OK para confirmar y evitar crear 2 keyframes en el mismo punto.
 
 ### UX — visualización
 
@@ -39,7 +39,7 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 
 Orden de ejecución acordado: UI-1 → UI-2 → UI-3 → UI-4 → UI-5. Absorben varios tickets de las secciones anteriores (indicados en cada uno).
 
-- [ ] **UI-1 — Unificar la edición de keyframes.** Hoy un keyframe se edita en tres lugares (timeline del visor, etiquetas + editor de la fila inferior, panel derecho), y el editor inferior no tiene los campos Z. Propuesta:
+- [x] **UI-1 — Unificar la edición de keyframes.** Hoy un keyframe se edita en tres lugares (timeline del visor, etiquetas + editor de la fila inferior, panel derecho), y el editor inferior no tiene los campos Z. Propuesta:
   - El panel derecho es el único editor de la onda, con un encabezado de contexto claro (*Onda global* / *Keyframe 40 %* con su color). Con keyframes y ninguno seleccionado, los campos que definen los keyframes se bloquean en vez de editar valores globales que no tienen efecto.
   - La fila inferior queda solo con lo propio del keyframe: posición, escala y centro, más navegación anterior/siguiente.
   - Seleccionar un keyframe lleva el extrusor a su posición; el botón *Añadir* pasa a *OK* sobre un keyframe existente (absorbe el ticket "Añadir → OK").

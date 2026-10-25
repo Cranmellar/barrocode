@@ -15,7 +15,7 @@
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { svgToMM } from '../lib/waveGenerator';
-import { getParamsAtT } from '../lib/waveGenerator';
+import { getParamsAtT, findKeyframeAt } from '../lib/waveGenerator';
 import { buildToolpath, type ToolpathLayer } from '../lib/toolpath';
 import { skirtArcPoints, type MM2 } from '../lib/skirtUtils';
 import { GcodeOutput } from './GcodeOutput';
@@ -124,10 +124,12 @@ export function Preview2D({
   const onKfsRef        = useRef(onKeyframesChange);
   const selectedKfIdRef = useRef(selectedKfId);
   const onKfSelectRef   = useRef(onKfSelect);
+  const onTimelineRef   = useRef(onTimelineChange);
   useEffect(() => { kfsRef.current          = keyframes;         }, [keyframes]);
   useEffect(() => { onKfsRef.current        = onKeyframesChange; }, [onKeyframesChange]);
   useEffect(() => { selectedKfIdRef.current = selectedKfId;      }, [selectedKfId]);
   useEffect(() => { onKfSelectRef.current   = onKfSelect;        }, [onKfSelect]);
+  useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
   const svgH = viewBox?.height ?? 200;
 
@@ -160,6 +162,8 @@ export function Preview2D({
           .map(k => k.id === d.id ? { ...k, t: newT } : k)
           .sort((a, b) => a.t - b.t),
       );
+      // The extruder rides along with the keyframe being edited.
+      if (d.id === selectedKfIdRef.current) onTimelineRef.current(newT);
     }
     function onUp() {
       const d = kfDragRef.current;
@@ -848,15 +852,19 @@ export function Preview2D({
             {(() => {
               const li = Math.min(numLayers - 1, Math.floor(timelineProgress * numLayers));
               const dColor = layerColor(li, numLayers);
+              const atKf = findKeyframeAt(keyframes, timelineProgress);
+              const confirm = atKf !== null && atKf.id === selectedKfId;
               return (
                 <button
                   className="timeline-thumb-tag"
                   style={{ left: `calc(${timelineProgress * 100}% + ${((0.5 - timelineProgress) * 14).toFixed(2)}px)` }}
                   onClick={onAddKeyframe}
-                  title="Añadir keyframe aquí"
+                  title={confirm ? 'Terminar de editar este keyframe'
+                    : atKf ? 'Seleccionar el keyframe de aquí'
+                    : 'Añadir keyframe aquí'}
                 >
                   <span className="ttt-diamond" style={{ background: dColor }} />
-                  <span className="ttt-plus">+</span>
+                  <span className="ttt-plus">{confirm ? '✓' : atKf ? '›' : '+'}</span>
                 </button>
               );
             })()}

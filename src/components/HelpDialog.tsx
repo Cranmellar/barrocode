@@ -216,9 +216,11 @@ export function HelpDialog({ open, onClose }: Props) {
             <KeyframeDiagram />
             <p>
               Mueve el <em>Extrusor</em> en la línea de tiempo bajo la vista 3D y pulsa{' '}
-              <kbd>+</kbd> para fijar la onda en ese punto. Selecciona un keyframe para
-              editarlo; arrastra su rombo para moverlo. Entre keyframes los valores se
-              interpolan. Con keyframes activos, los ajustes por trayecto se ignoran.
+              <kbd>+</kbd> para fijar la onda en ese punto. Selecciona un keyframe (clic en
+              su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
+              derecho; su posición, escala y centro en la franja inferior. Arrastra su rombo
+              para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
+              los ajustes por trayecto se ignoran.
             </p>
           </section>
 
@@ -232,6 +234,7 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor</td></tr>
                 <tr><th scope="row">Arrastrar divisores</th><td>redimensionar paneles</td></tr>
                 <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>
+                <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
               </tbody>
             </table>
           </section>

@@ -82,6 +82,19 @@ function lerpLocal(loF: LocalParams, hiF: LocalParams, alpha: number): LocalPara
   };
 }
 
+// Tolerance in t under which the timeline cursor counts as sitting on a keyframe,
+// so "add" never creates a second keyframe on top of an existing one.
+const KF_MATCH_TOL = 0.005;
+
+export function findKeyframeAt(keyframes: WaveKeyframe[], t: number): WaveKeyframe | null {
+  let best: WaveKeyframe | null = null;
+  for (const k of keyframes) {
+    const d = Math.abs(k.t - t);
+    if (d < KF_MATCH_TOL && (!best || d < Math.abs(best.t - t))) best = k;
+  }
+  return best;
+}
+
 // Point lookup for arbitrary t — used by Preview2D for the timeline indicator.
 export function getParamsAtT(
   t: number,
