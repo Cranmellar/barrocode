@@ -44,6 +44,7 @@
   /* Structure — border only, no shadows */
   --border:      #D2D2D2;
   --border-rule: rgba(20,20,20,0.16);  /* thin structural rule */
+  --scrim:       rgba(28,28,28,0.38);
 
   /* Geometry — Swiss precision: minimal radius, no pills */
   --radius:      4px;
@@ -117,8 +118,9 @@ html, body, #root { height: 100%; overflow: hidden; }
 
 /* ── App banner ──────────────────────────────────────────────────────────── */
 .app-banner {
+  position: relative;
   flex-shrink: 0;
-  padding: 14px 16px 10px;
+  padding: 14px 16px 10px 46px;
 }
 .app-banner img {
   width: 100%;
@@ -135,6 +137,148 @@ html, body, #root { height: 100%; overflow: hidden; }
   color: var(--muted);
   letter-spacing: 0.22em;
   text-transform: uppercase;
+}
+
+/* ── Help ────────────────────────────────────────────────────────────────── */
+.help-btn {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-rule);
+  border-radius: 50%;
+  background: var(--card-2);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  font-variation-settings: 'wght' 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.help-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--card-2);
+}
+.help-btn:focus-visible,
+.help-close:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.help-dialog {
+  width: min(640px, calc(100vw - 32px));
+  max-height: min(86vh, 760px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--card-2);
+  color: var(--ink);
+  user-select: text;
+}
+.help-dialog::backdrop { background: var(--scrim); }
+
+.help-inner {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+}
+.help-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.help-header h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  font-variation-settings: 'wght' 700;
+  letter-spacing: 0.04em;
+}
+.help-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border-rule);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+.help-close:hover { background: var(--ink); border-color: var(--ink); color: var(--card-2); }
+
+.help-body {
+  overflow-y: auto;
+  padding: 4px 20px 20px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--ink-2);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.help-body p { margin: 0; }
+.help-lead { margin-top: 12px !important; color: var(--ink); }
+.help-body h3 {
+  margin: 18px 0 6px;
+  font-size: 10px;
+  font-weight: 700;
+  font-variation-settings: 'wght' 700;
+  color: var(--muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.help-body strong { color: var(--ink); font-weight: 700; font-variation-settings: 'wght' 700; }
+.help-body em { font-style: normal; color: var(--accent); }
+.help-body code,
+.help-body kbd {
+  font: inherit;
+  font-size: 11px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--card);
+  color: var(--ink);
+}
+
+.help-steps,
+.help-tips { margin: 0; padding-left: 20px; }
+.help-steps li + li,
+.help-tips li + li { margin-top: 6px; }
+.help-steps li::marker { color: var(--accent); font-weight: 700; }
+
+.help-defs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 3px 14px;
+  margin: 0;
+}
+.help-defs dt { color: var(--ink); font-weight: 600; font-variation-settings: 'wght' 600; }
+.help-defs dd { margin: 0; }
+
+.help-table { width: 100%; border-collapse: collapse; }
+.help-table th,
+.help-table td {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.help-table th {
+  width: 42%;
+  padding-right: 12px;
+  color: var(--ink);
+  font-weight: 600;
+  font-variation-settings: 'wght' 600;
 }
 
 /* ── Upload zone ─────────────────────────────────────────────────────────── */
