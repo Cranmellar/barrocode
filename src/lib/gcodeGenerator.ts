@@ -22,6 +22,8 @@ import type { WaveLayer, PrintParams, SVGViewBox } from '../types';
 import { buildToolpath, type ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 
+const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
+
 function fmt(n: number, d = 3) { return n.toFixed(d); }
 
 function dist(ax: number, ay: number, bx: number, by: number) {
@@ -219,6 +221,13 @@ export function generateGcode(
     );
   }
 
+  const topZ: number[] = [];
+  let top = -Infinity;
+  for (const layer of toolpath) {
+    for (const path of layer.paths) for (const p of path) top = Math.max(top, p.z);
+    topZ.push(top);
+  }
+
   let cur: MM2 = { x: params.originX, y: params.originY };
 
   for (let li = 0; li < toolpath.length; li++) {
@@ -271,7 +280,8 @@ export function generateGcode(
   }
 
   blocks.push('\n; ===== End =====');
-  blocks.push(`G1 Z${fmt(params.safeZ + 10)} F${params.travelSpeed}  ; final lift`);
+  const finalZ = Math.max(params.safeZ, topZ[topZ.length - 1]) + FINAL_CLEARANCE;
+  blocks.push(`G1 Z${fmt(finalZ)} F${params.travelSpeed}  ; final lift`);
   blocks.push('M84  ; disable motors');
 
   return blocks.join('\n');

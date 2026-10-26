@@ -91,6 +91,16 @@ describe('generateGcode — program start and end', () => {
     expect(run(facingPair()).gcode).toContain('\nM82 ');
     expect(run(facingPair(), { generateE: false }).gcode).not.toContain('M82');
   });
+
+  it('lifts clear of a part taller than safe Z when finished', () => {
+    const { gcode, params } = run([lemniscate()], { ...WAVE, ...HOP, numLayers: 12 });
+    const moves = interpret(gcode);
+    let last = 0, top = -Infinity;
+    moves.forEach((m, i) => { if (m.extruding) { last = i; top = Math.max(top, m.to.z); } });
+
+    expect(top).toBeGreaterThan(params.safeZ);
+    for (const m of moves.slice(last + 1)) expect(m.to.z).toBeGreaterThan(top);
+  });
 });
 
 describe('generateGcode — reference output', () => {
