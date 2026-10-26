@@ -8,7 +8,7 @@
  * automáticamente cuando cambian las amplitudes.
  */
 
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { computeLissajousFigure } from '../lib/waveGenerator';
 import type { PrintParams } from '../types';
 
@@ -22,17 +22,42 @@ function figureArc(wlN: number, wlT: number): number {
 }
 
 export function LissajousPreview({ params }: Props) {
+  // Two stacked canvases: everything but the moving dot is drawn only when
+  // the figure, framing or size changes; each animation frame redraws just
+  // the dot on a transparent canvas on top. Both stay in the DOM because
+  // canvas text takes font-variation-settings from the element's style.
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dotRef    = useRef<HTMLCanvasElement>(null);
   const rafRef    = useRef(0);
   const timeRef   = useRef(0);
   const viewRef   = useRef<View>({ offsetX: 0, offsetY: 0, scale: 1 });
+  const figureRef = useRef<{ dpr: number; view: View; pts: Array<{ t: number; n: number }> } | null>(null);
+  const [size, setSize] = useState({ w: 0, h: 0 });
+  // The static layer is drawn once, so redraw it when GSCode finishes loading.
+  const [fontEpoch, setFontEpoch] = useState(0);
+
+  const { lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta } = params;
+
+  useEffect(() => {
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize({ w: width, h: height });
+    });
+    ro.observe(canvasRef.current!);
+    const onFonts = () => setFontEpoch(e => e + 1);
+    document.fonts.addEventListener('loadingdone', onFonts);
+    return () => {
+      ro.disconnect();
+      document.fonts.removeEventListener('loadingdone', onFonts);
+    };
+  }, []);
 
   const autoFit = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
-    const maxAmp = Math.max(params.lissAmpN, params.lissAmpT, 0.5);
+    const maxAmp = Math.max(lissAmpN, lissAmpT, 0.5);
     const margin = 20;
     const scale = Math.min(
       (rect.width  - margin * 2) / (maxAmp * 2 || 1),
@@ -40,26 +65,81 @@ export function LissajousPreview({ params }: Props) {
       60,
     );
     viewRef.current = { offsetX: rect.width / 2, offsetY: rect.height * 0.48, scale };
-  }, [params.lissAmpN, params.lissAmpT]);
+  }, [lissAmpN, lissAmpT]);
 
   // Auto-fit whenever amplitudes change
   useEffect(() => { autoFit(); }, [autoFit]);
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  const drawDot = useCallback(() => {
+    const canvas = dotRef.current;
+    const fig = figureRef.current;
+    if (!canvas || !fig) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.setTransform(fig.dpr, 0, 0, fig.dpr, 0, 0);
+
+    const { pts, view: { offsetX, offsetY, scale } } = fig;
+    if (pts.length < 2) return;
+    const toCanvas = (t: number, n: number): [number, number] =>
+      [offsetX + t * scale, offsetY - n * scale];
+
+    // Animated travel dot
+    const T_PERIOD = 5000;
+    const prog  = (timeRef.current % T_PERIOD) / T_PERIOD;
+    const dotI  = Math.floor(prog * (pts.length - 1));
+    const dotPt = pts[dotI];
+    const [dx, dy] = toCanvas(dotPt.t, dotPt.n);
+
+    if (dotI < pts.length - 2) {
+      const next = pts[dotI + 2];
+      const [nx, ny] = toCanvas(next.t, next.n);
+      const vx = nx - dx, vy = ny - dy;
+      const vlen = Math.hypot(vx, vy);
+      if (vlen > 0.5) {
+        const L = 10;
+        ctx.beginPath();
+        ctx.moveTo(dx, dy);
+        ctx.lineTo(dx + (vx / vlen) * L, dy + (vy / vlen) * L);
+        ctx.strokeStyle = '#4A4E8C';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+    }
+
+    ctx.save();
+    ctx.translate(dx, dy);
+    ctx.rotate(Math.PI / 4);
+    ctx.fillStyle   = '#4A4E8C';
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.rect(-4, -4, 8, 8);
+    ctx.fill(); ctx.stroke();
+    ctx.restore();
+  }, []);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const dotCanvas = dotRef.current;
+    const { w: W, h: H } = size;
+    if (!canvas || !dotCanvas || W === 0 || H === 0) return;
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    canvas.width  = rect.width  * dpr;
-    canvas.height = rect.height * dpr;
+    const pw = Math.round(W * dpr), ph = Math.round(H * dpr);
+    if (dotCanvas.width !== pw || dotCanvas.height !== ph) {
+      dotCanvas.width = pw;
+      dotCanvas.height = ph;
+    }
+    // Assigning the size also clears the canvas and resets its transform.
+    canvas.width = pw;
+    canvas.height = ph;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     ctx.scale(dpr, dpr);
 
-    const W = rect.width, H = rect.height;
-    const { lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta } = params;
-    const { offsetX, offsetY, scale } = viewRef.current;
+    const view = { ...viewRef.current };
+    const { offsetX, offsetY, scale } = view;
 
     ctx.fillStyle = '#F5F5F5';
     ctx.fillRect(0, 0, W, H);
@@ -104,40 +184,6 @@ export function LissajousPreview({ params }: Props) {
         ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
       }
       ctx.restore();
-
-      // Animated travel dot
-      const T_PERIOD = 5000;
-      const prog  = (timeRef.current % T_PERIOD) / T_PERIOD;
-      const dotI  = Math.floor(prog * (pts.length - 1));
-      const dotPt = pts[dotI];
-      const [dx, dy] = toCanvas(dotPt.t, dotPt.n);
-
-      if (dotI < pts.length - 2) {
-        const next = pts[dotI + 2];
-        const [nx, ny] = toCanvas(next.t, next.n);
-        const vx = nx - dx, vy = ny - dy;
-        const vlen = Math.hypot(vx, vy);
-        if (vlen > 0.5) {
-          const L = 10;
-          ctx.beginPath();
-          ctx.moveTo(dx, dy);
-          ctx.lineTo(dx + (vx / vlen) * L, dy + (vy / vlen) * L);
-          ctx.strokeStyle = '#4A4E8C';
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      }
-
-      ctx.save();
-      ctx.translate(dx, dy);
-      ctx.rotate(Math.PI / 4);
-      ctx.fillStyle   = '#4A4E8C';
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth   = 2;
-      ctx.beginPath();
-      ctx.rect(-4, -4, 8, 8);
-      ctx.fill(); ctx.stroke();
-      ctx.restore();
     }
 
     // Empty state
@@ -158,32 +204,32 @@ export function LissajousPreview({ params }: Props) {
       10, H - 9,
     );
     ctx.restore();
-  }, [params]);
+
+    figureRef.current = { dpr, view, pts };
+    drawDot();
+  }, [size, fontEpoch, autoFit, lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta, drawDot]);
 
   // Animation loop — skips when both amplitudes are ~0
-  const { lissAmpN, lissAmpT } = params;
   const hasContent = lissAmpN > 0.01 || lissAmpT > 0.01;
 
   useEffect(() => {
-    if (!hasContent) {
-      draw();
-      return;
-    }
+    if (!hasContent) return;
     let last = performance.now();
     function tick(now: number) {
       // The first rAF timestamp can predate the performance.now() taken above.
       timeRef.current += Math.max(0, now - last);
       last = now;
-      draw();
+      drawDot();
       rafRef.current = requestAnimationFrame(tick);
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [draw, hasContent]);
+  }, [drawDot, hasContent]);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
       <canvas ref={canvasRef} className="lissajous-canvas" style={{ flex: 1 }} />
+      <canvas ref={dotRef} className="lissajous-dot" />
     </div>
   );
 }

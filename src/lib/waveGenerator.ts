@@ -211,6 +211,17 @@ function applyScaleSVG(
 
 // ── All layers ───────────────────────────────────────────────────────────────
 
+// Every PrintParams field generateWaveLayers reads; App keys its memo on
+// these so G-code-only edits don't rebuild the layers. A test pins the list.
+export const WAVE_PARAMS = [
+  'lissAmpN', 'lissAmpT', 'lissAmpZ', 'lissWlN', 'lissWlT', 'lissWlZ',
+  'lissDelta', 'lissPhaseZ', 'lissPhaseOffset', 'phaseShiftPerLayer',
+  'layerHeight', 'numLayers', 'useNumLayers', 'totalHeight', 'nozzleHeightOffset',
+  'reversePath', 'alternateDirection', 'closePath',
+  'centerX', 'centerY', 'scaleX', 'scaleY',
+  'scaleFactor', 'originX', 'originY', 'flipY',
+] as const satisfies readonly (keyof PrintParams)[];
+
 export function generateWaveLayers(
   sampledPaths: SampledPath[],
   params: PrintParams,

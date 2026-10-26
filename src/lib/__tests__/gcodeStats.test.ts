@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { summarizeGcode } from '../gcodeStats';
 import { generateWaveLayers } from '../waveGenerator';
 import { generateGcode } from '../gcodeGenerator';
+import { buildToolpath } from '../toolpath';
 import { PARAMS, VIEWBOX, polyline, sampledPath } from './fixtures';
 
 describe('summarizeGcode', () => {
@@ -23,7 +24,7 @@ describe('summarizeGcode', () => {
   it('accounts for all extrusion in a generated program', () => {
     const path = sampledPath('a', polyline([[10, 10], [60, 10], [60, 40]]));
     const layers = generateWaveLayers([path], PARAMS, [], VIEWBOX.height);
-    const gcode = generateGcode(layers, PARAMS, VIEWBOX);
+    const gcode = generateGcode(buildToolpath(layers, PARAMS, VIEWBOX.height), PARAMS);
     const es = [...gcode.matchAll(/E([\d.]+)/g)];
     const last = es[es.length - 1];
     const s = summarizeGcode(gcode);

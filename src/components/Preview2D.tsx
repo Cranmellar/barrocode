@@ -13,18 +13,18 @@
  */
 
 import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties } from 'react';
-import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
+import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
-import { buildToolpath } from '../lib/toolpath';
+import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
 interface Props {
   sampledPaths: SampledPath[];
-  layers: WaveLayer[];
+  toolpath: ToolpathLayer[];
   params: PrintParams;
   viewBox: SVGViewBox | null;
   timelineProgress: number;
@@ -64,7 +64,7 @@ function uid() {
 }
 
 export function Preview2D({
-  sampledPaths, layers, params, viewBox,
+  sampledPaths, toolpath, params, viewBox,
   timelineProgress, onTimelineChange,
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeFilename,
@@ -76,6 +76,9 @@ export function Preview2D({
     azimuth: 325, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
   const [isInteracting, setIsInteracting] = useState(false);
+  // CSS size of the 3D canvas. Observed rather than read while drawing, so a
+  // panel resize redraws it and the canvas buffer is only reallocated then.
+  const [size, setSize] = useState({ w: 0, h: 0 });
   // null = all layers; otherwise the 1-based top layer shown.
   const [layerCap, setLayerCap] = useState<number | null>(null);
   const [layerSolo, setLayerSolo] = useState(false);
@@ -102,13 +105,6 @@ export function Preview2D({
   useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
   const svgH = viewBox?.height ?? 200;
-
-  // Recomputed only when layers/projection params change, not on every camera move.
-  const toolpath = useMemo(
-    () => buildToolpath(layers, params, svgH),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layers, params.scaleFactor, params.originX, params.originY, params.flipY, params.zHopHeight, params.hopRadius, svgH],
-  );
 
   const flatPoints = useMemo(() => flattenPoints(toolpath), [toolpath]);
 
@@ -162,11 +158,12 @@ export function Preview2D({
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0) return;
 
-    const projected = flatPoints.map(p => project(p.x, p.y, p.z, azimuth, elevation));
+    const proj = makeProjector(azimuth, elevation);
+    const projected = flatPoints.map(p => proj(p.x, p.y, p.z));
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
     const margin = 48;
     // Keep the model clear of the layer slider on the right edge.
-    const width = rect.width - (layers.length > 1 ? LAYER_SLIDER_W : 0);
+    const width = rect.width - (toolpath.length > 1 ? LAYER_SLIDER_W : 0);
     const scale = Math.min(
       (width       - margin * 2) / (maxX - minX || 1),
       (rect.height - margin * 2) / (maxY - minY || 1),
@@ -177,53 +174,94 @@ export function Preview2D({
       offsetX: width       / 2 - ((minX + maxX) / 2) * scale,
       offsetY: rect.height / 2 - ((minY + maxY) / 2) * scale,
     }));
-  }, [flatPoints, layers.length, view.azimuth, view.elevation]);
+  }, [flatPoints, toolpath.length, view.azimuth, view.elevation]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
-    if (layers.length > 0 && layers.length !== prevLayerCount.current) {
-      prevLayerCount.current = layers.length;
+    if (toolpath.length > 0 && toolpath.length !== prevLayerCount.current) {
+      prevLayerCount.current = toolpath.length;
       const t = setTimeout(() => fitView(), 60);
       return () => clearTimeout(t);
     }
-  }, [layers, fitView]);
+  }, [toolpath.length, fitView]);
 
+  // The canvas unmounts while the G-code tab is open, so observe it per tab.
   useEffect(() => {
-    const h = () => setView(v => ({ ...v }));
-    window.addEventListener('resize', h);
-    return () => window.removeEventListener('resize', h);
-  }, []);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize({ w: width, h: height });
+    });
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [centerTab]);
+
+  const visibleCap = Math.min(layerCap ?? toolpath.length, toolpath.length) - 1;
 
   // ── Draw ─────────────────────────────────────────────────────────────────
+  // Inputs of drawGeometry. When a redraw leaves them unchanged (a timeline
+  // scrub), the layer strokes come from a cached canvas. The cache is built
+  // only then: a detached canvas rasterises on the main thread, so drawing
+  // into it on every camera move would cost more than it saves.
+  const geometryRef     = useRef<HTMLCanvasElement | null>(null);
+  const lastGeomDepsRef = useRef<unknown[]>([]);
+  const cacheDepsRef    = useRef<unknown[]>([]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    const { w: W, h: H } = size;
+    if (W === 0 || H === 0) return;
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    canvas.width  = rect.width  * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
+    const pw = Math.floor(W * dpr), ph = Math.floor(H * dpr);
+    if (canvas.width !== pw || canvas.height !== ph) {
+      canvas.width  = pw;
+      canvas.height = ph;
+    }
 
-    drawScene(ctx, rect.width, rect.height, {
-      view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-      keyframes, selectedKfId, timelineProgress, isInteracting,
-      layerCap: Math.min(layerCap ?? toolpath.length, toolpath.length) - 1,
-      layerSolo,
-    });
-  }, [sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, layerCap, layerSolo]);
+    const geometry = {
+      view, toolpath, params, isInteracting, layerCap: visibleCap, layerSolo,
+    };
+    const geomDeps = [pw, ph, dpr, ...Object.values(geometry)];
+    const same = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);
+    let cache: HTMLCanvasElement | undefined;
+    if (same(geomDeps, lastGeomDepsRef.current)) {
+      cache = geometryRef.current ??= document.createElement('canvas');
+      if (!same(geomDeps, cacheDepsRef.current)) {
+        cache.width  = pw;
+        cache.height = ph;
+        const cctx = cache.getContext('2d');
+        if (!cctx) return;
+        cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawGeometry(cctx, geometry);
+        cacheDepsRef.current = geomDeps;
+      }
+    }
+    lastGeomDepsRef.current = geomDeps;
+
+    // The buffer is kept between draws, so nothing resets the context state;
+    // save/restore keeps one draw's state from leaking into the next.
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawScene(ctx, W, H, {
+      ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
+      keyframes, selectedKfId,
+    }, cache);
+    ctx.restore();
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
     if (centerTab !== 'gcode') return;
     const canvas = topdownRef.current;
-    if (!canvas || layers.length === 0) return;
+    if (!canvas || toolpath.length === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     drawTopDown(ctx, canvas.width, canvas.height, toolpath, flatPoints);
-  }, [centerTab, layers, toolpath, flatPoints]);
+  }, [centerTab, toolpath, flatPoints]);
 
   // ── Mouse interaction ─────────────────────────────────────────────────────
   const stopInteracting = () => {
@@ -276,7 +314,7 @@ export function Preview2D({
     }, 150);
   };
 
-  const numLayers = layers.length;
+  const numLayers = toolpath.length;
   const totalPts = flatPoints.length;
   const shownCap = Math.min(layerCap ?? numLayers, numLayers);
 
@@ -300,7 +338,7 @@ export function Preview2D({
                 </button>
               ))}
             </div>
-            {layers.length > 0 && modelBounds && (
+            {toolpath.length > 0 && modelBounds && (
               <span className="toolbar-info" title={[
                 stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
                 stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
@@ -377,14 +415,14 @@ export function Preview2D({
       {centerTab === 'gcode' && (
         <div className="gcode-tab-view">
           <GcodeOutput gcode={gcode} filename={gcodeFilename} />
-          {layers.length > 0 && (
+          {toolpath.length > 0 && (
             <canvas ref={topdownRef} width={160} height={120} className="gcode-topdown" />
           )}
         </div>
       )}
 
       {/* Timeline row */}
-      {layers.length > 0 && (
+      {toolpath.length > 0 && (
         <div className="timeline-row">
           <span className="timeline-label">Extrusor</span>
 

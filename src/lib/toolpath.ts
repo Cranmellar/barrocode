@@ -20,6 +20,11 @@ export interface ToolpathLayer {
   crossings: number;          // self-crossings that received a z-hop
 }
 
+// Every PrintParams field buildToolpath reads; a test pins the list.
+export const TOOLPATH_PARAMS = [
+  'scaleFactor', 'originX', 'originY', 'flipY', 'zHopHeight', 'hopRadius',
+] as const satisfies readonly (keyof PrintParams)[];
+
 function nearestNeighbourOrder<T extends MM2>(paths: T[][], start: MM2): T[][] {
   const remaining = [...paths];
   const ordered: T[][] = [];
@@ -39,6 +44,18 @@ function nearestNeighbourOrder<T extends MM2>(paths: T[][], start: MM2): T[][] {
   return ordered;
 }
 
+function sameXY(a: MM2[][], b: MM2[][]): boolean {
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const pa = a[i], pb = b[i];
+    if (pa.length !== pb.length) return false;
+    for (let k = 0; k < pa.length; k++) {
+      if (pa[k].x !== pb[k].x || pa[k].y !== pb[k].y) return false;
+    }
+  }
+  return true;
+}
+
 export function buildToolpath(
   layers: WaveLayer[],
   params: PrintParams,
@@ -47,6 +64,10 @@ export function buildToolpath(
   const out: ToolpathLayer[] = [];
   // Each layer is ordered starting from where the previous one ended.
   let cur: MM2 = { x: params.originX, y: params.originY };
+  // Crossings of the last two layers. Without keyframes or a per-layer
+  // phase shift every layer (every other one with alternateDirection) has
+  // the same XY, so detection runs once instead of once per layer.
+  const recent: { ordered: MM2[][]; crossings: number[] }[] = [];
 
   for (const layer of layers) {
     const mmPaths = layer.paths
@@ -62,10 +83,17 @@ export function buildToolpath(
 
     let crossings: number[] = [];
     if (params.zHopHeight > 0) {
-      const gaps = new Set<number>();
-      let end = -1;
-      for (const path of ordered.slice(0, -1)) { end += path.length; gaps.add(end); }
-      crossings = findCrossings(arcPath, Math.max(params.hopRadius * 3, 2), gaps);
+      const same = recent.find(r => sameXY(r.ordered, ordered));
+      if (same) {
+        crossings = same.crossings;
+      } else {
+        const gaps = new Set<number>();
+        let end = -1;
+        for (const path of ordered.slice(0, -1)) { end += path.length; gaps.add(end); }
+        crossings = findCrossings(arcPath, Math.max(params.hopRadius * 3, 2), gaps);
+      }
+      recent.unshift({ ordered, crossings });
+      if (recent.length > 2) recent.pop();
     }
 
     const zAt = (zOffset: number, arc: number) =>
