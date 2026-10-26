@@ -278,10 +278,12 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.fill(); ctx.stroke();
     ctx.restore();
 
+    // Clear of the selected keyframe diamond (radius 14) that sits on the extruder.
     ctx.save();
-    ctx.font = '700 8px GSCode, monospace';
-    ctx.fillStyle = 'rgba(16,14,9,0.5)';
-    ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 9, ey + 14);
+    ctx.font = '700 9px GSCode, monospace';
+    ctx.fillStyle = 'rgba(16,14,9,0.6)';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 19, ey);
     ctx.restore();
   }
 
