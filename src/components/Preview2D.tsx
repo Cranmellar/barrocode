@@ -18,7 +18,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import { buildToolpath } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, layerColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, project, boundsOf, flattenPoints, drawScene, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -396,8 +396,6 @@ export function Preview2D({
 
             {/* Add-keyframe tag floating above the scrub thumb */}
             {(() => {
-              const li = Math.min(numLayers - 1, Math.floor(timelineProgress * numLayers));
-              const dColor = layerColor(li, numLayers);
               const atKf = findKeyframeAt(keyframes, timelineProgress);
               const confirm = atKf !== null && atKf.id === selectedKfId;
               return (
@@ -409,30 +407,24 @@ export function Preview2D({
                     : atKf ? 'Seleccionar el keyframe de aquí'
                     : 'Añadir keyframe aquí'}
                 >
-                  <span className="ttt-diamond" style={{ background: dColor }} />
+                  <span className="ttt-diamond" />
                   <span className="ttt-plus">{confirm ? '✓' : atKf ? '›' : '+'}</span>
                 </button>
               );
             })()}
 
-            {keyframes.map(kf => {
-              const kfLayerIdx = Math.round(kf.t * Math.max(0, numLayers - 1));
-              const kfColor = kf.id === selectedKfId
-                ? 'var(--accent)'
-                : layerColor(kfLayerIdx, numLayers);
-              return (
-                <div
-                  key={kf.id}
-                  className={`kf-diamond ${kf.id === selectedKfId ? 'kf-selected' : ''}`}
-                  style={{ left: `${kf.t * 100}%`, background: kfColor, cursor: 'ew-resize' }}
-                  onMouseDown={e => {
-                    e.preventDefault();
-                    kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
-                  }}
-                  title={`KF ${(kf.t * 100).toFixed(1)}% — arrastrar para mover`}
-                />
-              );
-            })}
+            {keyframes.map(kf => (
+              <div
+                key={kf.id}
+                className={`kf-diamond ${kf.id === selectedKfId ? 'kf-selected' : ''}`}
+                style={{ left: `${kf.t * 100}%` }}
+                onMouseDown={e => {
+                  e.preventDefault();
+                  kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
+                }}
+                title={`KF ${(kf.t * 100).toFixed(1)}% — arrastrar para mover`}
+              />
+            ))}
           </div>
 
           <span className="timeline-label" style={{ minWidth: 36, textAlign: 'right' }}>

@@ -18,6 +18,10 @@ export interface View3D {
   offsetY: number;
 }
 
+// Mirror --accent / --ink-2 in index.css; canvas can't read CSS variables.
+const ACCENT = '#4A4E8C';
+const INK_2  = '#3A3A3A';
+
 // Vivid palette: cobalt-blue (bottom) → warm terracotta (top)
 export function layerColor(index: number, total: number, alpha = 1): string {
   const t = total <= 1 ? 0 : index / (total - 1);
@@ -200,7 +204,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       const editAllMm = editLayer.paths.flat();
 
       ctx.save();
-      ctx.strokeStyle = '#4A4E8C';
+      ctx.strokeStyle = ACCENT;
       ctx.globalAlpha = 0.55;
       ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
       ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
@@ -303,9 +307,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
       const isSelected = kf.id === selectedKfId;
       const kfSize = isSelected ? 7 : 5;
-      const color  = isSelected ? '#6064A6' : layerColor(kfPt.layerIndex, numLayers);
+      const color  = isSelected ? ACCENT : INK_2;
 
-      // Diamond
+      // Hollow when idle, filled when selected — same look as the timeline.
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(kx,          ky - kfSize);
@@ -313,18 +317,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       ctx.lineTo(kx,          ky + kfSize);
       ctx.lineTo(kx - kfSize, ky);
       ctx.closePath();
-      ctx.fillStyle   = color;
-      ctx.strokeStyle = '#fff';
+      ctx.fillStyle   = isSelected ? ACCENT : '#fff';
+      ctx.strokeStyle = isSelected ? '#fff' : INK_2;
       ctx.lineWidth   = 2;
       ctx.fill(); ctx.stroke();
       ctx.restore();
 
       // Tag — pentagon pointing left, attached to diamond right tip
-      const TAG_H = 13, TAG_W = 28, TAG_R = 3, NOTCH = 5;
+      const TAG_H = 14, TAG_W = 32, TAG_R = 3, NOTCH = 5;
       const tx = kx + kfSize + 2;
       const ty = ky - TAG_H / 2;
       ctx.save();
-      ctx.globalAlpha = isSelected ? 0.72 : 0.52;
+      ctx.globalAlpha = isSelected ? 0.9 : 0.7;
       ctx.fillStyle   = color;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth   = 1.2;
@@ -339,7 +343,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       ctx.fill();
       ctx.stroke();
       ctx.globalAlpha = 1;
-      ctx.font      = `${isSelected ? 700 : 600} 8px GSCode, monospace`;
+      ctx.font      = `${isSelected ? 700 : 600} 9px GSCode, monospace`;
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

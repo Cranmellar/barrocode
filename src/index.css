@@ -708,13 +708,12 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   line-height: 1.35;
 }
 .liss-context--kf {
-  border-left-color: var(--kf-color);
+  border-left-color: var(--accent);
   background: var(--accent-bg);
   color: var(--ink);
   font-weight: 700;
   font-variation-settings: 'wght' 700;
 }
-.liss-context--kf .kf-chip { background: var(--kf-color); }
 .liss-context-text { flex: 1; min-width: 0; }
 .liss-context-done { padding: 2px 10px; font-size: 10px; }
 .liss-context--locked {
@@ -1224,8 +1223,8 @@ input[type="range"]::-moz-range-thumb {
   position: absolute;
   width: 10px;
   height: 10px;
-  background: var(--muted);
-  border: 2px solid var(--card);
+  background: var(--card-2);
+  border: 2px solid var(--ink-2);
   border-radius: 2px;
   transform: translate(-50%, -50%) rotate(45deg);
   cursor: ew-resize;
@@ -1275,6 +1274,7 @@ input[type="range"]::-moz-range-thumb {
 .ttt-diamond {
   width: 8px;
   height: 8px;
+  border: 1.5px solid #fff;
   border-radius: 1px;
   transform: rotate(45deg);
   flex-shrink: 0;
@@ -1297,6 +1297,7 @@ input[type="range"]::-moz-range-thumb {
   display: inline-block;
   width: 8px;
   height: 8px;
+  background: var(--accent);
   border-radius: 1px;
   transform: rotate(45deg);
   flex-shrink: 0;

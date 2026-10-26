@@ -6,7 +6,7 @@ interface Props {
   params: PrintParams;
   onChange: (p: PrintParams) => void;
   onReset: () => void;
-  editingKf: { label: string; color: string; onDone: () => void } | null;
+  editingKf: { label: string; onDone: () => void } | null;
   // Keyframes exist but none is selected: the wave fields have no effect.
   waveLocked: boolean;
 }
@@ -139,7 +139,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         <button className="btn-reset" onClick={onReset}>Reiniciar</button>
       </div>
       {editingKf ? (
-        <div className="liss-context liss-context--kf" style={{ '--kf-color': editingKf.color } as React.CSSProperties}>
+        <div className="liss-context liss-context--kf">
           <span className="kf-chip" />
           <span className="liss-context-text">Editando {editingKf.label}</span>
           <button className="btn-small liss-context-done" onClick={editingKf.onDone}
