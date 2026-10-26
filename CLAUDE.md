@@ -112,7 +112,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G-code output must not change; the snapshot tests pin it.
 
-1. **G-code textarea (biggest freeze).** `GcodeOutput` puts the whole program into a `<textarea>`, and laying out MBs of text blocks the tab switch and every regeneration while the tab is open. Show only the head (≈1–2k lines) plus a "… N líneas más, descarga el archivo" note; copy and download keep the full string. Also memoize `lineCount` and `kb`: `new Blob([gcode])` and `split('\n')` run on every render, ≈40 ms at 4 MB. *Effort: small, one file.*
+1. ~~**G-code textarea (biggest freeze).**~~ **Done.** `GcodeOutput` now shows only the first 1500 lines plus a comment line saying how many are hidden; copy and download use the full string, and the line count and size are memoized. Opening the tab now takes ≈0.1–0.2 s at 60 and 150 layers. An edit made with the tab open still costs ≈0.7 s at 60 layers; #2, #3 and #6 address that.
 2. **Z-hop crossing detection runs on every edit.** `findCrossings` takes ≈80 % of a slider tick's JS (≈150 ms per call in the browser at 60 layers). Three fixes:
    - **Reuse crossings** when a layer's ordered XY equals an earlier layer's. With `phaseShiftPerLayer = 0` and no keyframes, the defaults, every layer has the same XY, so one call replaces 60. With `alternateDirection`, compare against layer `li − 2`.
    - Use **numeric grid keys** and an `Int32Array` stamp instead of `` `${gx},${gy}` `` strings and the `tested` Set. A prototype measured 2× in Node.
