@@ -117,6 +117,37 @@ function screenMapper(view: View3D): (x: number, y: number, z: number) => [numbe
   };
 }
 
+export type MarkerScene = Pick<Scene,
+  'view' | 'flatPoints' | 'keyframes' | 'selectedKfId' | 'layerCap' | 'layerSolo'>;
+
+export interface KeyframeMarker { kf: WaveKeyframe; number: number; x: number; y: number; r: number }
+
+// Screen position of each visible keyframe diamond, in drawing order (the
+// last one is on top).
+export function keyframeMarkers(scene: MarkerScene): KeyframeMarker[] {
+  const { view, flatPoints: flat, keyframes, selectedKfId, layerCap, layerSolo } = scene;
+  if (flat.length === 0) return [];
+  const toScreen = screenMapper(view);
+  const markers: KeyframeMarker[] = [];
+  [...keyframes].sort((a, b) => a.t - b.t).forEach((kf, i) => {
+    const pt = flat[Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)))];
+    if (layerSolo ? pt.layerIndex !== layerCap : pt.layerIndex > layerCap) return;
+    const [x, y] = toScreen(pt.x, pt.y, pt.z);
+    markers.push({ kf, number: i + 1, x, y, r: kf.id === selectedKfId ? 14 : 12 });
+  });
+  return markers;
+}
+
+// The topmost keyframe diamond under a screen point, if any.
+export function keyframeAt(scene: MarkerScene, x: number, y: number): WaveKeyframe | null {
+  const markers = keyframeMarkers(scene);
+  for (let i = markers.length - 1; i >= 0; i--) {
+    const m = markers[i];
+    if (Math.abs(x - m.x) + Math.abs(y - m.y) <= m.r + 2) return m.kf;
+  }
+  return null;
+}
+
 /**
  * Draws the scene. `geometry`, when given, is a device-pixel canvas holding
  * drawGeometry's output for this scene and is copied instead of redrawn.
@@ -129,7 +160,6 @@ export function drawScene(
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
     keyframes, selectedKfId, timelineProgress, isInteracting, layerCap, layerSolo,
   } = scene;
-  const shown = (li: number) => layerSolo ? li === layerCap : li <= layerCap;
   const { azimuth, elevation } = view;
 
   ctx.fillStyle = '#EDEDED';
@@ -240,18 +270,13 @@ export function drawScene(
 
   // Keyframe markers: numbered diamonds, same colour and number as on the timeline.
   // Drawn after the extruder, which sits on the selected keyframe.
-  if (!isInteracting && flat.length > 0) {
-    const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+  if (!isInteracting) {
     ctx.save();
     ctx.font = '700 11px GSCode, monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    sorted.forEach((kf, i) => {
-      const kfPt = flat[Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)))];
-      if (!shown(kfPt.layerIndex)) return;
-      const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
+    for (const { kf, number, x: kx, y: ky, r } of keyframeMarkers(scene)) {
       const isSelected = kf.id === selectedKfId;
-      const r = isSelected ? 14 : 12;
       ctx.beginPath();
       ctx.moveTo(kx, ky - r); ctx.lineTo(kx + r, ky); ctx.lineTo(kx, ky + r); ctx.lineTo(kx - r, ky);
       ctx.closePath();
@@ -260,8 +285,8 @@ export function drawScene(
       ctx.lineWidth   = 2;
       ctx.fill(); ctx.stroke();
       ctx.fillStyle = INK;
-      ctx.fillText(String(i + 1), kx, ky + 0.5);
-    });
+      ctx.fillText(String(number), kx, ky + 0.5);
+    }
     ctx.restore();
   }
 

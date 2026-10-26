@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { project } from '../draw3D';
+import { project, keyframeAt } from '../draw3D';
+import type { WaveKeyframe } from '../../types';
 
 // Screen y grows downward, so "up" on screen is negative y.
 describe('project', () => {
@@ -29,5 +30,26 @@ describe('project', () => {
         expect(ax * by - ay * bx).toBeLessThan(0);
       }
     }
+  });
+});
+
+describe('keyframeAt', () => {
+  const view = { azimuth: 0, elevation: 90, scale: 1, offsetX: 0, offsetY: 0 };
+  const flatPoints = [0, 1, 2].map(i => ({ x: i * 100, y: 0, z: 0, layerIndex: i }));
+  const kf = (id: string, t: number) => ({ id, t }) as WaveKeyframe;
+  const scene = {
+    view, flatPoints, keyframes: [kf('b', 1), kf('a', 0.5)],
+    selectedKfId: null, layerCap: 2, layerSolo: false,
+  };
+
+  it('finds the diamond under the point, by its drawn position', () => {
+    expect(keyframeAt(scene, 100, 0)?.id).toBe('a');
+    expect(keyframeAt(scene, 205, 5)?.id).toBe('b');
+    expect(keyframeAt(scene, 150, 0)).toBeNull();
+  });
+
+  it('ignores keyframes on hidden layers', () => {
+    expect(keyframeAt({ ...scene, layerCap: 1 }, 200, 0)).toBeNull();
+    expect(keyframeAt({ ...scene, layerCap: 2, layerSolo: true }, 100, 0)).toBeNull();
   });
 });

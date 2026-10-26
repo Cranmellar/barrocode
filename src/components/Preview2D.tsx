@@ -18,7 +18,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown,
+  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -82,6 +82,7 @@ export function Preview2D({
   // null = all layers; otherwise the 1-based top layer shown.
   const [layerCap, setLayerCap] = useState<number | null>(null);
   const [layerSolo, setLayerSolo] = useState(false);
+  const [overKf, setOverKf] = useState(false);
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragRef = useRef<{
@@ -272,15 +273,32 @@ export function Preview2D({
       setIsInteracting(false);
     }, 150);
   };
+  const kfUnder = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return keyframeAt(
+      { view, flatPoints, keyframes, selectedKfId, layerCap: visibleCap, layerSolo },
+      e.clientX - rect.left, e.clientY - rect.top,
+    );
+  };
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (e.button === 0) {
+      const kf = kfUnder(e);
+      if (kf) {
+        onKfSelect(kf.id);
+        return;
+      }
+    }
     dragRef.current = { button: e.button, startX: e.clientX, startY: e.clientY, startView: { ...view } };
     if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     setIsInteracting(true);
   };
   const onMouseMove = (e: React.MouseEvent) => {
     const d = dragRef.current;
-    if (!d) return;
+    if (!d) {
+      setOverKf(kfUnder(e) !== null);
+      return;
+    }
     const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
     if (d.button === 0) {
       setView(v => ({ ...v, offsetX: d.startView.offsetX + dx, offsetY: d.startView.offsetY + dy }));
@@ -376,8 +394,10 @@ export function Preview2D({
           <canvas
             ref={canvasRef}
             className="preview-canvas"
-            title="Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom"
-            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
+            title={overKf
+              ? 'Clic para editar este keyframe'
+              : 'Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom · Clic en un keyframe = editarlo'}
+            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : overKf && !dragRef.current ? 'pointer' : 'grab' }}
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
