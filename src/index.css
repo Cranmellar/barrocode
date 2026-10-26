@@ -1190,7 +1190,7 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  height: 32px;
+  height: 42px;
   background: var(--card);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
@@ -1209,15 +1209,54 @@ input[type="range"]::-moz-range-thumb {
 
 /* ── Timeline track with keyframe markers ───────────────────────────────── */
 .timeline-track {
-  position: relative;
   flex: 1;
   display: flex;
-  align-items: center;
+  flex-direction: column;
+  min-width: 0;
 }
-.timeline-track input[type="range"] {
-  width: 100%;
+.timeline-track input[type="range"] { width: 100%; flex: none; margin: 0; }
+/* Inset by half the 14px slider thumb so a keyframe at t sits over the thumb at t. */
+.kf-lane {
   position: relative;
+  height: 18px;
+  margin: 0 7px 4px;
+  cursor: pointer;
+}
+.timeline-playhead {
+  position: absolute;
+  top: 0;
+  height: calc(100% + 8px);
+  width: 1px;
+  background: var(--ink);
+  transform: translateX(-50%);
   z-index: 1;
+  pointer-events: none;
+}
+.kf-ghost {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-2);
+  border: 1px dashed var(--ink-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+.kf-ghost:hover {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
 }
 .kf-diamond {
   position: absolute;
@@ -1228,7 +1267,7 @@ input[type="range"]::-moz-range-thumb {
   border-radius: 2px;
   transform: translate(-50%, -50%) rotate(45deg);
   cursor: grab;
-  z-index: 2;
+  z-index: 3;
   top: 50%;
   transition: background 0.1s, transform 0.12s;
   user-select: none;
@@ -1256,51 +1295,6 @@ input[type="range"]::-moz-range-thumb {
   border-color: var(--card-2);
   outline: 2px solid var(--accent);
   outline-offset: 1px;
-}
-/* ── Timeline thumb tag ──────────────────────────────────────────────────── */
-.timeline-thumb-tag {
-  position: absolute;
-  bottom: calc(50% + 11px);
-  transform: translateX(-50%);
-  z-index: 4;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 8px 3px 6px;
-  background: rgba(16,14,9,0.80);
-  border: 1px solid rgba(255,255,255,0.18);
-  border-radius: 4px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: opacity 0.1s, transform 0.1s;
-}
-.timeline-thumb-tag:hover {
-  background: rgba(16,14,9,0.95);
-  transform: translateX(-50%) translateY(-2px);
-}
-.timeline-thumb-tag::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 5px solid rgba(16,14,9,0.80);
-}
-.ttt-diamond {
-  width: 8px;
-  height: 8px;
-  border: 1.5px solid #fff;
-  border-radius: 1px;
-  transform: rotate(45deg);
-  flex-shrink: 0;
-}
-.ttt-plus {
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1;
 }
 
 .kf-add-btn { color: var(--ok); border-color: var(--ok); font-size: 12px; }
