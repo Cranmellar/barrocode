@@ -103,22 +103,39 @@ export interface Scene {
   layerSolo: boolean;
 }
 
-export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, scene: Scene) {
+// What drawGeometry reads. It excludes the timeline, so a scrub can reuse a
+// cached drawing of it.
+export type GeometryScene = Pick<Scene,
+  'view' | 'toolpath' | 'params' | 'isInteracting' | 'layerCap' | 'layerSolo'>;
+
+function screenMapper(view: View3D): (x: number, y: number, z: number) => [number, number] {
+  const { azimuth, elevation, scale, offsetX, offsetY } = view;
+  const proj = makeProjector(azimuth, elevation);
+  return (x, y, z) => {
+    const [px, py] = proj(x, y, z);
+    return [offsetX + px * scale, offsetY + py * scale];
+  };
+}
+
+/**
+ * Draws the scene. `geometry`, when given, is a device-pixel canvas holding
+ * drawGeometry's output for this scene and is copied instead of redrawn.
+ */
+export function drawScene(
+  ctx: CanvasRenderingContext2D, W: number, H: number, scene: Scene,
+  geometry?: CanvasImageSource,
+) {
   const {
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
     keyframes, selectedKfId, timelineProgress, isInteracting, layerCap, layerSolo,
   } = scene;
   const shown = (li: number) => layerSolo ? li === layerCap : li <= layerCap;
-  const { azimuth, elevation, scale, offsetX, offsetY } = view;
+  const { azimuth, elevation } = view;
 
   ctx.fillStyle = '#EDEDED';
   ctx.fillRect(0, 0, W, H);
 
-  const proj = makeProjector(azimuth, elevation);
-  function toScreen(x: number, y: number, z: number): [number, number] {
-    const [px, py] = proj(x, y, z);
-    return [offsetX + px * scale, offsetY + py * scale];
-  }
+  const toScreen = screenMapper(view);
 
   const flat = flatPoints;
   const numLayers = toolpath.length;
@@ -178,89 +195,14 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.restore();
   }
 
-  // Layer paths — vivid strokes, drawn in print order with final Z.
-  // During camera interaction: stride by 4 for responsiveness.
-  const lodStride = isInteracting ? 4 : 1;
-  for (let li = 0; li < numLayers; li++) {
-    if (li > layerCap) continue;
-    const ghost = !shown(li);
-    const alpha = ghost ? 0.14 : 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
-
+  // Layer strokes and their overlays, from the cache when one is given.
+  if (geometry) {
     ctx.save();
-    ctx.strokeStyle = ghost ? 'rgb(90,90,90)' : layerColor(li, numLayers);
-    ctx.globalAlpha = alpha;
-    ctx.lineWidth   = ghost ? 1 : Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
-    ctx.lineJoin    = 'round';
-    ctx.lineCap     = 'round';
-
-    for (const pts of toolpath[li].paths) {
-      ctx.beginPath();
-      for (let i = 0; i < pts.length; i++) {
-        const isEndpoint = i === 0 || i === pts.length - 1;
-        if (lodStride > 1 && !isEndpoint && i % lodStride !== 0) continue;
-        const [sx, sy] = toScreen(pts[i].x, pts[i].y, pts[i].z);
-        if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-      }
-      ctx.stroke();
-    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(geometry, 0, 0);
     ctx.restore();
-  }
-
-  // Concentric skirt travel arcs — same moves buildSkirtTravel emits
-  if (!isInteracting && numLayers > 0) {
-    const drawTravel = (from: MM2, to: MM2, centroid: MM2, zFrom: number, zTo: number) => {
-      const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
-      ctx.beginPath();
-      const [fx, fy] = toScreen(from.x, from.y, zFrom);
-      ctx.moveTo(fx, fy);
-      for (const pt of arcPts ?? [to]) {
-        const [sx, sy] = toScreen(pt.x, pt.y, zTo);
-        ctx.lineTo(sx, sy);
-      }
-      ctx.stroke();
-    };
-
-    ctx.save();
-    ctx.setLineDash([3, 6]);
-    ctx.lineWidth = 1.1;
-    ctx.globalAlpha = 0.38;
-    ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
-    for (let li = 0; li < numLayers; li++) {
-      if (!shown(li)) continue;
-      const layer = toolpath[li];
-      for (let pi = 0; pi < layer.paths.length - 1; pi++) {
-        const fromPath = layer.paths[pi];
-        drawTravel(fromPath[fromPath.length - 1], layer.paths[pi + 1][0], layer.centroid, layer.z, layer.z);
-      }
-      const next = toolpath[li + 1];
-      const lastPath = layer.paths[layer.paths.length - 1];
-      if (!params.softJoin && shown(li + 1) && next?.paths.length && lastPath) {
-        drawTravel(lastPath[lastPath.length - 1], next.paths[0][0], next.centroid, layer.z, next.z);
-      }
-    }
-    ctx.restore();
-  }
-
-  // Soft-join transitions between layers (dashed, visible)
-  if (!isInteracting && params.softJoin && numLayers > 1) {
-    ctx.save();
-    ctx.setLineDash([3, 5]);
-    ctx.lineWidth = 1.2;
-    ctx.globalAlpha = 0.55;
-    for (let li = 0; li < numLayers - 1; li++) {
-      if (!shown(li) || !shown(li + 1)) continue;
-      const a = toolpath[li].paths[toolpath[li].paths.length - 1];
-      const b = toolpath[li + 1].paths[0];
-      if (!a || !b) continue;
-      const from = a[a.length - 1], to = b[0];
-      ctx.strokeStyle = layerColor(li, numLayers, 0.7);
-      ctx.beginPath();
-      const [ax, ay] = toScreen(from.x, from.y, from.z);
-      const [bx, by] = toScreen(to.x, to.y, to.z);
-      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
-      ctx.stroke();
-    }
-    ctx.restore();
+  } else {
+    drawGeometry(ctx, scene);
   }
 
   // Virtual extruder
@@ -440,6 +382,104 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.restore();
   }
 
+}
+
+/**
+ * Layer strokes plus the overlays tied to them: skirt travel and soft-join
+ * lines. Draws no text, so it can render into a canvas that isn't in the
+ * DOM (see CLAUDE.md on canvas fonts).
+ */
+export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene) {
+  const { view, toolpath, params, isInteracting, layerCap, layerSolo } = scene;
+  const shown = (li: number) => layerSolo ? li === layerCap : li <= layerCap;
+  const { scale } = view;
+  const toScreen = screenMapper(view);
+  const numLayers = toolpath.length;
+
+  // Layer paths — vivid strokes, drawn in print order with final Z.
+  // During camera interaction: stride by 4 for responsiveness.
+  const lodStride = isInteracting ? 4 : 1;
+  for (let li = 0; li < numLayers; li++) {
+    if (li > layerCap) continue;
+    const ghost = !shown(li);
+    const alpha = ghost ? 0.14 : 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
+
+    ctx.save();
+    ctx.strokeStyle = ghost ? 'rgb(90,90,90)' : layerColor(li, numLayers);
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth   = ghost ? 1 : Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
+    ctx.lineJoin    = 'round';
+    ctx.lineCap     = 'round';
+
+    for (const pts of toolpath[li].paths) {
+      ctx.beginPath();
+      for (let i = 0; i < pts.length; i++) {
+        const isEndpoint = i === 0 || i === pts.length - 1;
+        if (lodStride > 1 && !isEndpoint && i % lodStride !== 0) continue;
+        const [sx, sy] = toScreen(pts[i].x, pts[i].y, pts[i].z);
+        if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // Concentric skirt travel arcs — same moves buildSkirtTravel emits
+  if (!isInteracting && numLayers > 0) {
+    const drawTravel = (from: MM2, to: MM2, centroid: MM2, zFrom: number, zTo: number) => {
+      const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
+      ctx.beginPath();
+      const [fx, fy] = toScreen(from.x, from.y, zFrom);
+      ctx.moveTo(fx, fy);
+      for (const pt of arcPts ?? [to]) {
+        const [sx, sy] = toScreen(pt.x, pt.y, zTo);
+        ctx.lineTo(sx, sy);
+      }
+      ctx.stroke();
+    };
+
+    ctx.save();
+    ctx.setLineDash([3, 6]);
+    ctx.lineWidth = 1.1;
+    ctx.globalAlpha = 0.38;
+    ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
+    for (let li = 0; li < numLayers; li++) {
+      if (!shown(li)) continue;
+      const layer = toolpath[li];
+      for (let pi = 0; pi < layer.paths.length - 1; pi++) {
+        const fromPath = layer.paths[pi];
+        drawTravel(fromPath[fromPath.length - 1], layer.paths[pi + 1][0], layer.centroid, layer.z, layer.z);
+      }
+      const next = toolpath[li + 1];
+      const lastPath = layer.paths[layer.paths.length - 1];
+      if (!params.softJoin && shown(li + 1) && next?.paths.length && lastPath) {
+        drawTravel(lastPath[lastPath.length - 1], next.paths[0][0], next.centroid, layer.z, next.z);
+      }
+    }
+    ctx.restore();
+  }
+
+  // Soft-join transitions between layers (dashed, visible)
+  if (!isInteracting && params.softJoin && numLayers > 1) {
+    ctx.save();
+    ctx.setLineDash([3, 5]);
+    ctx.lineWidth = 1.2;
+    ctx.globalAlpha = 0.55;
+    for (let li = 0; li < numLayers - 1; li++) {
+      if (!shown(li) || !shown(li + 1)) continue;
+      const a = toolpath[li].paths[toolpath[li].paths.length - 1];
+      const b = toolpath[li + 1].paths[0];
+      if (!a || !b) continue;
+      const from = a[a.length - 1], to = b[0];
+      ctx.strokeStyle = layerColor(li, numLayers, 0.7);
+      ctx.beginPath();
+      const [ax, ay] = toScreen(from.x, from.y, from.z);
+      const [bx, by] = toScreen(to.x, to.y, to.z);
+      ctx.moveTo(ax, ay); ctx.lineTo(bx, by);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
 }
 
 /** Top-down XY thumbnail shown next to the G-code. */

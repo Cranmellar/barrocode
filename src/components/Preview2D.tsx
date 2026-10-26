@@ -18,7 +18,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -197,7 +197,17 @@ export function Preview2D({
     return () => ro.disconnect();
   }, [centerTab]);
 
+  const visibleCap = Math.min(layerCap ?? toolpath.length, toolpath.length) - 1;
+
   // ── Draw ─────────────────────────────────────────────────────────────────
+  // Inputs of drawGeometry. When a redraw leaves them unchanged (a timeline
+  // scrub), the layer strokes come from a cached canvas. The cache is built
+  // only then: a detached canvas rasterises on the main thread, so drawing
+  // into it on every camera move would cost more than it saves.
+  const geometryRef     = useRef<HTMLCanvasElement | null>(null);
+  const lastGeomDepsRef = useRef<unknown[]>([]);
+  const cacheDepsRef    = useRef<unknown[]>([]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -211,18 +221,37 @@ export function Preview2D({
       canvas.width  = pw;
       canvas.height = ph;
     }
+
+    const geometry = {
+      view, toolpath, params, isInteracting, layerCap: visibleCap, layerSolo,
+    };
+    const geomDeps = [pw, ph, dpr, ...Object.values(geometry)];
+    const same = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);
+    let cache: HTMLCanvasElement | undefined;
+    if (same(geomDeps, lastGeomDepsRef.current)) {
+      cache = geometryRef.current ??= document.createElement('canvas');
+      if (!same(geomDeps, cacheDepsRef.current)) {
+        cache.width  = pw;
+        cache.height = ph;
+        const cctx = cache.getContext('2d');
+        if (!cctx) return;
+        cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        drawGeometry(cctx, geometry);
+        cacheDepsRef.current = geomDeps;
+      }
+    }
+    lastGeomDepsRef.current = geomDeps;
+
     // The buffer is kept between draws, so nothing resets the context state;
     // save/restore keeps one draw's state from leaking into the next.
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
-      view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-      keyframes, selectedKfId, timelineProgress, isInteracting,
-      layerCap: Math.min(layerCap ?? toolpath.length, toolpath.length) - 1,
-      layerSolo,
-    });
+      ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
+      keyframes, selectedKfId,
+    }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, layerCap, layerSolo]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
