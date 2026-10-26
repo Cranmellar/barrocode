@@ -5,13 +5,21 @@
  *   - All layers as a very dim silhouette (average context)
  *   - The layer that corresponds to the current keyframe's t-position,
  *     drawn bright so the user knows which layer they are editing
- *   - The center crosshair as a draggable accent-colored handle
+ *   - The center crosshair as a draggable terracotta handle
  *   - Coords and layer number as micro-labels
  */
 
 import { useRef, useEffect, useMemo, useState } from 'react';
 import type { WaveLayer, PrintParams } from '../types';
 import { svgToMM } from '../lib/waveGenerator';
+
+// Canvas can't read CSS variables: bg mirrors --bg and path mirrors --accent in index.css.
+const C = {
+  bg:     '#EDEDED',
+  ghost:  '#222222',
+  path:   '#4A4E8C',
+  pivot:  '#C05830',
+};
 
 interface Props {
   layers:   WaveLayer[];
@@ -101,7 +109,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     tRef.current = T;
 
     // ── Background ──────────────────────────────────────────────────────────
-    ctx.fillStyle = '#EDEDED';
+    ctx.fillStyle = C.bg;
     ctx.fillRect(0, 0, W, H);
 
     // ── Dim silhouette: every layer except the active one ───────────────────
@@ -112,7 +120,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     for (let li = 0; li < layers.length; li++) {
       if (li === layerIdx) continue;
       ctx.globalAlpha = 0.10;
-      ctx.strokeStyle = '#222222';
+      ctx.strokeStyle = C.ghost;
       for (const path of layers[li].paths) {
         if (path.length < 2) continue;
         ctx.beginPath();
@@ -126,11 +134,11 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     }
     ctx.restore();
 
-    // ── Active layer — bright terracotta ─────────────────────────────────────
+    // ── Active layer ─────────────────────────────────────────────────────────
     if (layers[layerIdx]) {
       ctx.save();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = '#C05830';
+      ctx.strokeStyle = C.path;
       ctx.lineWidth   = 1.4;
       ctx.lineJoin    = 'round';
       ctx.lineCap     = 'round';
@@ -153,7 +161,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     const [ccx, ccy] = w2s(centerX, centerY, T);
 
     // Circle ring
-    ctx.strokeStyle = '#4A4E8C';
+    ctx.strokeStyle = C.pivot;
     ctx.lineWidth   = 1.2;
     ctx.beginPath();
     ctx.arc(ccx, ccy, 4, 0, Math.PI * 2);
@@ -167,7 +175,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.stroke();
 
     // Dot
-    ctx.fillStyle = '#4A4E8C';
+    ctx.fillStyle = C.pivot;
     ctx.beginPath(); ctx.arc(ccx, ccy, 2, 0, Math.PI * 2); ctx.fill();
 
     ctx.restore();
@@ -179,7 +187,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.fillStyle = 'rgba(16,14,9,0.38)';
     ctx.fillText(`${centerX.toFixed(1)}, ${centerY.toFixed(1)}`, 3, H - 3);
     ctx.textAlign   = 'right';
-    ctx.fillStyle   = '#C05830';
+    ctx.fillStyle   = C.path;
     ctx.fillText(`L${layerIdx + 1}`, W - 3, H - 3);
     ctx.restore();
 
