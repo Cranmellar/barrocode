@@ -3,7 +3,7 @@ import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
 
-interface Props { params: PrintParams; onChange: (p: PrintParams) => void }
+interface Props { params: PrintParams; onChange: (p: PrintParams) => void; svgMmPerUnit: number | null }
 
 function Num({ label, value, min, max, step, unit, hint, onChange }: {
   label: string; value: number; min?: number; max?: number;
@@ -69,7 +69,7 @@ function Group({ title, summary, open, onToggle, children }: {
   );
 }
 
-export function PathParams({ params, onChange }: Props) {
+export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
   const [groups, setGroups] = useState(loadGroups);
 
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
@@ -124,6 +124,14 @@ export function PathParams({ params, onChange }: Props) {
             min={0.001} step={0.1} unit="SVG→mm"
             hint="Multiplica todas las coordenadas SVG para obtener milímetros."
             onChange={v => set('scaleFactor', v)} />
+          {svgMmPerUnit !== null && (params.scaleFactor === svgMmPerUnit
+            ? <div className="param-info">→ tamaño real del SVG</div>
+            : <div className="param-info">
+                <button className="btn-small" onClick={() => set('scaleFactor', svgMmPerUnit)}
+                  title="El SVG declara su tamaño en unidades físicas">
+                  Usar tamaño real (×{svgMmPerUnit})
+                </button>
+              </div>)}
           <Num label="Origen X" value={params.originX} step={1} unit="mm"
             onChange={v => set('originX', v)} />
           <Num label="Origen Y" value={params.originY} step={1} unit="mm"

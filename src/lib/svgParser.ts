@@ -197,6 +197,13 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
       height: lengthPx(sourceSvgEl.getAttribute('height')),
     };
 
+  // mm per user unit, when the root states its size in a physical unit.
+  const widthMM = lengthMM(sourceSvgEl.getAttribute('width'));
+  const heightMM = lengthMM(sourceSvgEl.getAttribute('height'));
+  const mmPerUnit = widthMM !== null ? +(widthMM / viewBox.width).toFixed(4)
+    : heightMM !== null ? +(heightMM / viewBox.height).toFixed(4)
+    : null;
+
   // Insert SVG into hidden container so the browser can measure it.
   const container = getHiddenContainer();
   container.innerHTML = svgString;
@@ -251,7 +258,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
     );
   }
 
-  return { paths, viewBox, raw: svgString };
+  return { paths, viewBox, mmPerUnit, raw: svgString };
 }
 
 /**

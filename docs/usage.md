@@ -53,7 +53,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
 | **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor. |
-| **Factor de escala** | Convierte unidades SVG a mm. Usa `1` si el SVG está en mm; usa `0.2645` para píxeles a 96 dpi. |
+| **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. La pieza se ubica desde la esquina superior izquierda del `viewBox`. |
 | **Origen X / Y** | Desplaza toda la impresión sobre la cama. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
 | **Velocidad de impresión / desplazamiento** | Define avances en mm/min. |
