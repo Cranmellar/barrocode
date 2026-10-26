@@ -61,14 +61,12 @@
   -webkit-font-smoothing: antialiased;
 }
 
-html, body, #root { height: 100%; overflow: hidden; }
+html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 
 /* ── Root layout ─────────────────────────────────────────────────────────── */
 .app-layout {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+  height: 100%;
   overflow: hidden;
   user-select: none;
   background: var(--bg);
@@ -1129,6 +1127,21 @@ input[type="range"]::-moz-range-thumb {
 .right-sidebar-scroll::-webkit-scrollbar       { width: 3px; }
 .right-sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); }
 
+/* Fade at the foot of a scrolling column while more content sits below */
+.scroll-more::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  display: block;
+  flex-shrink: 0;
+  height: 40px;
+  margin-top: -40px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--fade-bg));
+}
+.left-sidebar        { --fade-bg: var(--card); }
+.right-sidebar-scroll { --fade-bg: var(--panel-r); }
+
 /* ── G-code pane ─────────────────────────────────────────────────────────── */
 .gcode-pane {
   display: flex;
@@ -1365,16 +1378,29 @@ input[type="range"]::-moz-range-thumb {
 .kf-group .kf-field:last-child { border-bottom: none; }
 .kf-group-center {
   flex: 2;
+  flex-direction: row;
 }
 .kf-group-center .kf-pad-wrap {
-  flex: 1;
+  flex: 0 1 auto;
+  min-width: 0;
   padding: 6px;
   min-height: 0;
 }
 .kf-group-center .center-pad-canvas {
-  width: 100%;
+  width: auto;
   height: 100%;
+  max-width: 100%;
 }
+.kf-center-fields {
+  flex: 1 0 108px;
+  display: flex;
+  flex-direction: column;
+}
+.kf-center-fields .kf-field {
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+}
+.kf-center-fields .kf-field:last-child { border-bottom: none; }
 /* thin rule between logical groups */
 .kf-divider {
   width: 1px;
@@ -1438,26 +1464,10 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-pad-wrap {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: flex-start;
-  gap: 2px;
   min-height: 0;
-  padding: 4px 6px;
   border-right: 1px solid var(--border);
 }
-.kf-pad-label {
-  font-size: 10px;
-  font-weight: 700;
-  font-variation-settings: 'wght' 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-  line-height: 1;
-}
 .center-pad-canvas {
-  width: 56px;
-  height: 56px;
   border: 1px solid var(--border-rule);
   border-radius: var(--radius-sm);
   cursor: crosshair;
