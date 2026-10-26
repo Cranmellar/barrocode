@@ -153,7 +153,7 @@ Screen layout (all panels resizable via `useResize` in `App.tsx`):
 │ logo + ?            │ Preview2D toolbar: Ajustar,          │ LissajousPreview     │
 │ session banner      │  Iso/Planta/Frente, summary, tabs    │ ─── drag ───         │
 │ upload, samples     │ 3D canvas + layer slider (right)     │ LissajousParams:     │
-│ PathList            │ timeline + KF diamonds               │  context header      │
+│ PathList            │ timeline: KF lane (+ spans) + slider │  context header      │
 │ PathParams groups:  │ ─── drag ───                         │  (global / KF / lock)│
 │  Pieza (incl.       │ Keyframe strip (in App.tsx):         │  presets, N, T, Z,   │
 │  CenterScaleParams),│  ‹ › nav, Añadir/OK, delete;         │  Delta, Fase         │

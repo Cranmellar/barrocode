@@ -398,6 +398,41 @@ export function Preview2D({
                 onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
               }}
             >
+              {(() => {
+                const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+                if (sorted.length === 0) return null;
+                const p = timelineProgress;
+                const first = sorted[0].t;
+                const last = sorted[sorted.length - 1].t;
+                const segClass = (hold: boolean, active: boolean) =>
+                  `kf-seg${hold ? ' kf-seg--hold' : ''}${active ? ' kf-seg--active' : ''}`;
+                return (
+                  <>
+                    <div
+                      className={segClass(true, p < first)}
+                      style={{ left: 0, width: `${first * 100}%` }}
+                      title="Antes del primer keyframe se usan sus valores"
+                    />
+                    {sorted.slice(1).map((b, i) => {
+                      const a = sorted[i];
+                      return (
+                        <div
+                          key={a.id}
+                          className={segClass(false, p >= a.t && p < b.t)}
+                          style={{ left: `${a.t * 100}%`, width: `${(b.t - a.t) * 100}%` }}
+                          title={`Interpolación: KF ${Math.round(a.t * 100)}% → KF ${Math.round(b.t * 100)}%`}
+                        />
+                      );
+                    })}
+                    <div
+                      className={segClass(true, p >= last)}
+                      style={{ left: `${last * 100}%`, right: 0 }}
+                      title="Después del último keyframe se mantienen sus valores"
+                    />
+                  </>
+                );
+              })()}
+
               <div className="timeline-playhead" style={{ left: `${timelineProgress * 100}%` }} />
 
               {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
