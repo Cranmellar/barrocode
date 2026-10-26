@@ -39,9 +39,9 @@ function segSegIntersect(
 }
 
 /**
- * Find arc positions (mm along the path) where the path crosses itself.
- * Uses a spatial grid to reduce the search from O(n²) to O(n) average.
- * Logs a warning (non-silent) when the path is unusually dense.
+ * Find arc positions (mm along the path) where the path crosses itself,
+ * sorted ascending. Uses a spatial grid to reduce the search from O(n²) to
+ * O(n) average. Logs a warning (non-silent) when the path is unusually dense.
  *
  * cellSize — grid cell side length in mm; coarser = faster but more
  * false-positive pairs to test.  Caller should pass max(hopRadius*3, 2).
@@ -62,73 +62,95 @@ export function findCrossings(
     console.warn(`[hopUtils] findCrossings: path has ${n} points — crossing detection may be slow`);
   }
 
-  // ── Build spatial grid ──────────────────────────────────────────────────
-  // Each cell maps to a list of segment start indices.
-  const grid = new Map<string, number[]>();
-
-  function cellKey(gx: number, gy: number) { return `${gx},${gy}`; }
-
-  function cellsForSegment(i: number): Array<[number, number]> {
-    const ax = arcPath[i].x,     ay = arcPath[i].y;
-    const bx = arcPath[i + 1].x, by = arcPath[i + 1].y;
-    const minGx = Math.floor(Math.min(ax, bx) / cellSize);
-    const maxGx = Math.floor(Math.max(ax, bx) / cellSize);
-    const minGy = Math.floor(Math.min(ay, by) / cellSize);
-    const maxGy = Math.floor(Math.max(ay, by) / cellSize);
-    const cells: Array<[number, number]> = [];
-    for (let gx = minGx; gx <= maxGx; gx++) {
-      for (let gy = minGy; gy <= maxGy; gy++) {
-        cells.push([gx, gy]);
-      }
-    }
-    return cells;
+  // Cell range of every segment, computed once and reused by both passes.
+  const segCells = new Int32Array(4 * (n - 1));
+  let minGx = Infinity, minGy = Infinity, maxGy = -Infinity;
+  for (let i = 0; i < n - 1; i++) {
+    const a = arcPath[i], b = arcPath[i + 1];
+    const x0 = Math.floor(Math.min(a.x, b.x) / cellSize);
+    const x1 = Math.floor(Math.max(a.x, b.x) / cellSize);
+    const y0 = Math.floor(Math.min(a.y, b.y) / cellSize);
+    const y1 = Math.floor(Math.max(a.y, b.y) / cellSize);
+    segCells.set([x0, x1, y0, y1], 4 * i);
+    if (x0 < minGx) minGx = x0;
+    if (y0 < minGy) minGy = y0;
+    if (y1 > maxGy) maxGy = y1;
   }
+  // Integer cell keys: string keys dominated the cost of this function.
+  const rows = maxGy - minGy + 1;
+  const cellKey = (gx: number, gy: number) => (gx - minGx) * rows + (gy - minGy);
 
+  // ── Build spatial grid ──────────────────────────────────────────────────
+  // Each cell maps to a list of segment start indices, ascending.
+  const grid = new Map<number, number[]>();
   for (let i = 0; i < n - 1; i++) {
     if (gaps.has(i)) continue;
-    for (const [gx, gy] of cellsForSegment(i)) {
-      const key = cellKey(gx, gy);
-      const bucket = grid.get(key);
-      if (bucket) bucket.push(i);
-      else grid.set(key, [i]);
+    const c = 4 * i;
+    for (let gx = segCells[c]; gx <= segCells[c + 1]; gx++) {
+      for (let gy = segCells[c + 2]; gy <= segCells[c + 3]; gy++) {
+        const key = cellKey(gx, gy);
+        const bucket = grid.get(key);
+        if (bucket) bucket.push(i);
+        else grid.set(key, [i]);
+      }
     }
   }
 
   // ── Test candidate pairs from shared cells ──────────────────────────────
-  const tested = new Set<number>(); // encoded pair to avoid duplicates
+  // testedWith[j] === i marks pair (i, j) as tested when they share several cells.
+  const testedWith = new Int32Array(n).fill(-1);
   const crossings: number[] = [];
 
   for (let i = 0; i < n - 1; i++) {
     if (gaps.has(i)) continue;
-    for (const [gx, gy] of cellsForSegment(i)) {
-      const bucket = grid.get(cellKey(gx, gy));
-      if (!bucket) continue;
-      for (const j of bucket) {
-        if (j <= i + 1) continue;                         // adjacent or earlier
-        if (i === 0 && j === n - 2) continue;             // shared endpoint
-        const pairKey = i * n + j;
-        if (tested.has(pairKey)) continue;
-        tested.add(pairKey);
+    const c = 4 * i;
+    for (let gx = segCells[c]; gx <= segCells[c + 1]; gx++) {
+      for (let gy = segCells[c + 2]; gy <= segCells[c + 3]; gy++) {
+        const bucket = grid.get(cellKey(gx, gy));
+        if (!bucket) continue;
+        for (const j of bucket) {
+          if (j <= i + 1) continue;                         // adjacent or earlier
+          if (i === 0 && j === n - 2) continue;             // shared endpoint
+          if (testedWith[j] === i) continue;
+          testedWith[j] = i;
 
-        const s = segSegIntersect(
-          arcPath[i].x,     arcPath[i].y,     arcPath[i + 1].x, arcPath[i + 1].y,
-          arcPath[j].x,     arcPath[j].y,     arcPath[j + 1].x, arcPath[j + 1].y,
-        );
-        if (s !== null) {
-          // Hop on the later pass (j > i): that is where the nozzle meets
-          // the bead already deposited by segment i.
-          const crossArc = arcPath[j].arc + s * (arcPath[j + 1].arc - arcPath[j].arc);
-          crossings.push(crossArc);
+          const s = segSegIntersect(
+            arcPath[i].x,     arcPath[i].y,     arcPath[i + 1].x, arcPath[i + 1].y,
+            arcPath[j].x,     arcPath[j].y,     arcPath[j + 1].x, arcPath[j + 1].y,
+          );
+          if (s !== null) {
+            // Hop on the later pass (j > i): that is where the nozzle meets
+            // the bead already deposited by segment i.
+            const crossArc = arcPath[j].arc + s * (arcPath[j + 1].arc - arcPath[j].arc);
+            crossings.push(crossArc);
+          }
         }
       }
     }
   }
 
-  return crossings;
+  return crossings.sort((a, b) => a - b);
+}
+
+// Index range [start, end) of the sorted crossings that may lie within
+// (lo, hi). The range is padded so rounding never drops one; callers keep
+// their exact distance test.
+function crossingRange(sorted: number[], lo: number, hi: number): [number, number] {
+  const pad = 1e-9 * (1 + Math.abs(lo) + Math.abs(hi));
+  const firstAbove = (v: number) => {
+    let a = 0, b = sorted.length;
+    while (a < b) {
+      const mid = (a + b) >> 1;
+      if (sorted[mid] > v) b = mid; else a = mid + 1;
+    }
+    return a;
+  };
+  return [firstAbove(lo - pad), firstAbove(hi + pad)];
 }
 
 /**
- * Parabolic z-hop contribution at `arc` given the list of crossing arcs.
+ * Parabolic z-hop contribution at `arc` given the crossing arcs, sorted
+ * ascending as findCrossings returns them.
  * hopRadius — arc distance on each side of a crossing where the lift applies.
  */
 export function hopAtArc(
@@ -139,8 +161,9 @@ export function hopAtArc(
 ): number {
   if (zHopHeight <= 0 || hopRadius <= 0 || crossings.length === 0) return 0;
   let hop = 0;
-  for (const crossArc of crossings) {
-    const d = Math.abs(arc - crossArc);
+  const [start, end] = crossingRange(crossings, arc - hopRadius, arc + hopRadius);
+  for (let i = start; i < end; i++) {
+    const d = Math.abs(arc - crossings[i]);
     if (d < hopRadius) {
       hop = Math.max(hop, zHopHeight * (1 - (d / hopRadius) ** 2));
     }
@@ -154,6 +177,7 @@ const HOP_STEPS = 8;  // samples across each hop window of width 2·hopRadius
  * Arc positions strictly inside (arcFrom, arcTo) where extra points are
  * needed to resolve the hop parabola. Path samples are usually coarser
  * than the hop window, so without these a hop can fall between samples.
+ * `crossings` must be sorted ascending.
  */
 export function hopSampleArcs(
   arcFrom: number,
@@ -163,7 +187,9 @@ export function hopSampleArcs(
 ): number[] {
   if (hopRadius <= 0) return [];
   const out: number[] = [];
-  for (const c of crossings) {
+  const [start, end] = crossingRange(crossings, arcFrom - hopRadius, arcTo + hopRadius);
+  for (let i = start; i < end; i++) {
+    const c = crossings[i];
     if (c + hopRadius <= arcFrom || c - hopRadius >= arcTo) continue;
     for (let j = 0; j <= HOP_STEPS; j++) {
       const a = c - hopRadius + (2 * hopRadius * j) / HOP_STEPS;

@@ -113,12 +113,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G-code output must not change; the snapshot tests pin it.
 
 1. ~~**G-code textarea (biggest freeze).**~~ **Done.** `GcodeOutput` now shows only the first 1500 lines plus a comment line saying how many are hidden; copy and download use the full string, and the line count and size are memoized. Opening the tab now takes ≈0.1–0.2 s at 60 and 150 layers. An edit made with the tab open still costs ≈0.7 s at 60 layers; #2, #3 and #6 address that.
-2. **Z-hop crossing detection runs on every edit.** `findCrossings` takes ≈80 % of a slider tick's JS (≈150 ms per call in the browser at 60 layers). Three fixes:
-   - **Reuse crossings** when a layer's ordered XY equals an earlier layer's. With `phaseShiftPerLayer = 0` and no keyframes, the defaults, every layer has the same XY, so one call replaces 60. With `alternateDirection`, compare against layer `li − 2`.
-   - Use **numeric grid keys** and an `Int32Array` stamp instead of `` `${gx},${gy}` `` strings and the `tested` Set. A prototype measured 2× in Node.
-   - **Sort `crossings`** and binary-search them in `hopAtArc` / `hopSampleArcs`, which are O(points × crossings) today. On a wave with many loops (`lissAmpT` 8, `lissWlT` 10) they take 76 ms of 235.
-
-   *Effort: small, `toolpath.ts` + `hopUtils.ts`.*
+2. ~~**Z-hop crossing detection runs on every edit.**~~ **Done.** It took ≈80 % of a slider tick's JS. `buildToolpath` now reuses the crossings of either of the two previous layers when the ordered XY is identical. With the defaults (no keyframes, `phaseShiftPerLayer = 0`) every layer is identical; with `alternateDirection`, every other one is. `findCrossings` uses integer grid keys and an `Int32Array` stamp in place of string keys and a pair Set, and returns crossings sorted, so `hopAtArc` / `hopSampleArcs` binary-search them. 1,600 random configurations gave toolpaths identical to the old code. `buildToolpath` at 60 layers: 49 → 12 ms (defaults), 41 → 22 ms (per-layer phase shift, no reuse), 220 → 31 ms (many loops). In the browser at 60 layers a slider tick fell from ≈210 to ≈100 ms and a print-speed change from ≈540 to ≈330 ms; at 150 layers, ≈450 to ≈200 ms per tick.
 3. **The whole pipeline re-runs for params that don't change geometry.** The layers effect depends on all of `params`, so speeds, E, skirt, `softJoin`, `safeZ`, dwell and priming rebuild the wave layers and the toolpath, crossings included. On top of that, `generateGcode` calls `buildToolpath` again even though `Preview2D` already built it. Fixes:
    - Memoize `generateWaveLayers` on the wave fields only (perf spec §7 lists them).
    - Lift the toolpath `useMemo` from `Preview2D` into `App.tsx` and pass the result to both `Preview2D` and `generateGcode`, which then takes a `ToolpathLayer[]`.
@@ -179,7 +174,8 @@ WaveLayer[] + PrintParams + svgH
        • svgToMM() here (NOT before)
        • nearest-neighbour path order O(n²) per layer, each layer starting
          where the previous one ended
-       • buildArcPath + findCrossings (inter-path gaps excluded) + hopAtArc;
+       • buildArcPath + findCrossings (inter-path gaps excluded, reused when
+         a layer's XY matches one of the two before it) + hopAtArc;
          hopSampleArcs inserts points across each hop window so the parabola
          is resolved even when hopRadius < sample spacing
        • z = layer.z + zOffset + hop per point; centroid per layer
