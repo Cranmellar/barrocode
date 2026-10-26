@@ -12,13 +12,13 @@
  * Los keyframes se marcan como diamantes en su propio carril, sobre la barra de tiempo.
  */
 
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import { buildToolpath } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, keyframeColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -398,8 +398,6 @@ export function Preview2D({
                 onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
               }}
             >
-              <div className="timeline-playhead" style={{ left: `${timelineProgress * 100}%` }} />
-
               {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
                 <button
                   className="kf-ghost"
@@ -411,20 +409,20 @@ export function Preview2D({
                 >+</button>
               )}
 
-              {keyframes.map(kf => {
+              {[...keyframes].sort((a, b) => a.t - b.t).map((kf, i) => {
                 const dragging = kf.id === draggingKfId;
                 return (
                   <div
                     key={kf.id}
-                    className={`kf-diamond${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
-                    style={{ left: `${kf.t * 100}%` }}
+                    className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
+                    style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}
                     onMouseDown={e => {
                       e.preventDefault();
                       e.stopPropagation();
                       kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
                     }}
-                    title={dragging ? undefined : `KF ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
-                  />
+                    title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
+                  >{i + 1}</div>
                 );
               })}
 

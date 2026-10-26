@@ -216,8 +216,9 @@ export function HelpDialog({ open, onClose }: Props) {
             <KeyframeDiagram />
             <p>
               Mueve el <em>Extrusor</em> en la línea de tiempo bajo la vista 3D y pulsa{' '}
-              <kbd>+</kbd> para fijar la onda en ese punto. Selecciona un keyframe (clic en
-              su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
+              <kbd>+</kbd> para fijar la onda en ese punto. Cada keyframe es un rombo con
+              número y color, iguales en la línea de tiempo, la vista 3D y los paneles.
+              Selecciona uno (clic en su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
               derecho; su posición, escala y centro en la franja inferior. Arrastra su rombo
               para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
               los ajustes por trayecto se ignoran.

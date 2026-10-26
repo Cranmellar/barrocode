@@ -1,9 +1,10 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, type CSSProperties } from 'react';
 import logoUrl from './assets/logo.png';
 import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt } from './lib/waveGenerator';
 import { generateGcode } from './lib/gcodeGenerator';
+import { keyframeColor } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
@@ -610,8 +611,10 @@ export default function App() {
                     title="Keyframe anterior" aria-label="Keyframe anterior">‹</button>
                   <span className="kf-nav-label">
                     {selectedKf
-                      ? <><span className="kf-chip" />
-                          KF {selectedIdx + 1} / {keyframes.length}</>
+                      ? <><span className="kf-badge" style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
+                            {selectedIdx + 1}
+                          </span>
+                          de {keyframes.length}</>
                       : `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`}
                   </span>
                   <button className="btn-small kf-nav-btn" disabled={!nextKf}
@@ -631,7 +634,7 @@ export default function App() {
                     : 'Fijar la onda en la posición del extrusor'}
                 >
                   {kfAtCursor
-                    ? kfAtCursor.id === selectedKfId ? '✓ OK' : `Editar KF ${Math.round(kfAtCursor.t * 100)}%`
+                    ? kfAtCursor.id === selectedKfId ? '✓ OK' : `Editar keyframe ${sortedKfs.indexOf(kfAtCursor) + 1}`
                     : `⊕ Añadir en ${Math.round(timelineProgress * 100)}%`}
                 </button>
                 {selectedKf && (
@@ -750,7 +753,9 @@ export default function App() {
             onChange={setLissParams}
             onReset={() => setParams(DEFAULT_PARAMS)}
             editingKf={selectedKf && {
-              label: `Keyframe ${Math.round(selectedKf.t * 100)}%`,
+              number: selectedIdx + 1,
+              label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
+              color: keyframeColor(selectedKf.t),
               onDone: () => setSelectedKfId(null),
             }}
             waveLocked={keyframes.length > 0 && !selectedKf}

@@ -85,13 +85,13 @@ Los preajustes aplican combinaciones de amplitud, longitud de onda y fase con un
 La línea de tiempo permite anclar parámetros de Lissajous en posiciones específicas de la trayectoria.
 
 1. Mueve el extrusor de la línea de tiempo al punto deseado.
-2. Haz clic en **⊕ Añadir** (o en el **+** sobre el extrusor). El keyframe toma la onda que se ve en ese punto y queda seleccionado.
+2. Haz clic en **⊕ Añadir**, en el **+** punteado de la línea de tiempo o pulsa `K`. El keyframe toma la onda que se ve en ese punto y queda seleccionado.
 3. Con un keyframe seleccionado, el panel derecho edita **su** onda (amplitudes, longitudes de onda, delta, Z); el encabezado *Editando Keyframe N %* lo indica. La franja inferior edita su posición, escala y centro.
 4. Pulsa **OK** o `Esc` para terminar; `Supr` elimina el keyframe seleccionado. Cambia de keyframe con **‹ ›** o haciendo clic en su rombo; arrástralo para moverlo.
 
 Con keyframes y ninguno seleccionado, los campos de onda del panel derecho quedan bloqueados: la onda la definen los keyframes. *Fase* sigue siendo global.
 
-Entre keyframes, BarroCode interpola linealmente.
+Cada keyframe se muestra como un rombo numerado de color, con el mismo número y color en la línea de tiempo, la vista 3D y los paneles. Entre keyframes, BarroCode interpola linealmente.
 
 ## 6. Previsualización
 
