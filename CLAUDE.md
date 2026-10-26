@@ -47,7 +47,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - `npm test` (63 tests) and `npm run build` pass (≈85 kB app JS + 141 kB vendor; gzip ≈74 kB).
 - Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
-- Performance (Ola 8) is partly done: toolpath memoized in `Preview2D`, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md).
+- Performance (Ola 8) is partly done: toolpath memoized in `Preview2D`, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
 - **Some `pendientes.md` tickets are ticked `[x]` but not implemented** — treat them as open:
   - NumInput refresh while focused during wheel (`NumInput.tsx` still guards `setRaw` with `!focusedRef.current`).
@@ -87,6 +87,51 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 - `parseSVG` inserts the raw uploaded SVG with `container.innerHTML`. Event-handler attributes (`onload`, etc.) in a shared SVG could run. Cheap hardening: strip `<script>` and `on*` attributes from the already-parsed `doc` and insert it with `importNode`.
 - `getPointAtLength` works in **element-local** length. For elements under a scaling `transform`, `arcLength`/`totalLength` are not in root SVG units, so wavelengths come out wrong. Fix by accumulating arc length from the transformed points.
 - `viewBox.x/y` are ignored by `svgToMM`; SVGs with a non-zero viewBox origin print offset.
+
+---
+
+## Performance — user-side findings (measured 2026-10-26 on `main` @ `29ad9a1`)
+
+**Setup:** `npm run build && npx vite preview`, headless Chromium driven by Playwright. Main-thread time comes from CDP `Performance.getMetrics` (`TaskDuration`). Inputs: sample 4, default params (z-hop is **on** by default), 60 and 150 layers. At 60 layers that is 68,160 points, 180 hop crossings and 1.6 MB of G-code. Headless Chromium rasterises canvas in software, so treat canvas numbers as relative. The pure-JS numbers come from `vite-node` on a 750-point flower curve and match what the browser shows.
+
+| What the user does | 60 layers | 150 layers |
+|---|---|---|
+| Opens the G-code tab | **1.0–2.4 s freeze** | **≈5.7 s freeze** |
+| Edits any param while the G-code tab is open | ≈1.4 s | — |
+| Moves a Lissajous slider one tick | ≈210 ms main thread | ≈450 ms |
+| Changes print speed (geometry unchanged) | ≈540 ms | ≈1.1 s |
+| Scrubs the timeline one step | ≈60 ms wall | ≈200 ms |
+| Rotates the camera one step (LOD on) | ≈50 ms wall | ≈110 ms |
+| Leaves the app idle, even with no SVG loaded | ≈20 % of a core, all the time | same |
+
+Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G-code output must not change; the snapshot tests pin it.
+
+1. **G-code textarea (biggest freeze).** `GcodeOutput` puts the whole program into a `<textarea>`, and laying out MBs of text blocks the tab switch and every regeneration while the tab is open. Show only the head (≈1–2k lines) plus a "… N líneas más, descarga el archivo" note; copy and download keep the full string. Also memoize `lineCount` and `kb`: `new Blob([gcode])` and `split('\n')` run on every render, ≈40 ms at 4 MB. *Effort: small, one file.*
+2. **Z-hop crossing detection runs on every edit.** `findCrossings` takes ≈80 % of a slider tick's JS (≈150 ms per call in the browser at 60 layers). Three fixes:
+   - **Reuse crossings** when a layer's ordered XY equals an earlier layer's. With `phaseShiftPerLayer = 0` and no keyframes, the defaults, every layer has the same XY, so one call replaces 60. With `alternateDirection`, compare against layer `li − 2`.
+   - Use **numeric grid keys** and an `Int32Array` stamp instead of `` `${gx},${gy}` `` strings and the `tested` Set. A prototype measured 2× in Node.
+   - **Sort `crossings`** and binary-search them in `hopAtArc` / `hopSampleArcs`, which are O(points × crossings) today. On a wave with many loops (`lissAmpT` 8, `lissWlT` 10) they take 76 ms of 235.
+
+   *Effort: small, `toolpath.ts` + `hopUtils.ts`.*
+3. **The whole pipeline re-runs for params that don't change geometry.** The layers effect depends on all of `params`, so speeds, E, skirt, `softJoin`, `safeZ`, dwell and priming rebuild the wave layers and the toolpath, crossings included. On top of that, `generateGcode` calls `buildToolpath` again even though `Preview2D` already built it. Fixes:
+   - Memoize `generateWaveLayers` on the wave fields only (perf spec §7 lists them).
+   - Lift the toolpath `useMemo` from `Preview2D` into `App.tsx` and pass the result to both `Preview2D` and `generateGcode`, which then takes a `ToolpathLayer[]`.
+
+   *Effort: small–medium.*
+4. **`LissajousPreview` runs constantly.** Every animation frame it resets `canvas.width`, which reallocates the canvas, recomputes the 1000-point figure and makes 1000 separate `stroke()` calls, one per alpha step. That costs battery and fan noise, and it competes with the 3D preview. Draw the figure once per param or size change into an offscreen canvas (or ≈16 alpha-bucketed `Path2D`s), and each frame only blit it and draw the moving dot. Resize from a `ResizeObserver`. Keep the rAF cancel when the amplitudes are ≈0. *Effort: small, one file.*
+5. **Per-frame waste in the 3D preview.**
+   - `project()` recomputes `cos`/`sin` of azimuth and elevation for every point, ≈8 ms per frame at 68k points and the largest JS cost while scrubbing. Add a `makeProjector(az, el)` that computes the trig once per draw, and keep `project` for the tests.
+   - `canvas.width/height` is assigned on every draw, which reallocates the canvas. The same happens in `LissajousPreview` and `CenterPad`. Assign them only when the size or `devicePixelRatio` changes.
+   - The timeline scrub redraws every layer at full quality. Cache the layer strokes in an offscreen canvas, keyed on view, toolpath, `layerCap`, `layerSolo` and selected keyframe, and on scrub redraw only the extruder, the centre axis and the keyframe markers. *Medium.*
+6. **G-code generation and stats still run on the main thread.** When the 400 ms debounce fires, `generateGcode` (≈70 ms at 60 layers, ≈350 ms on a wave with many loops) and `summarizeGcode` (50–150 ms: `split`, a regex and an object per line) block the UI mid-interaction. After #2 and #3, move both into a worker (perf spec Phase 5), or compute the stats in the same pass that emits the G-code. *Effort: medium.*
+7. **Keyframe drag and `CenterPad` drag** call `setKeyframes` on every `mousemove`, so each move runs the full pipeline, about the cost of a slider tick. Coalesce the moves with `requestAnimationFrame`; #2 and #3 remove most of the cost. `CenterPad.partBounds` also passes every point through `svgToMM` each time the layers or params change; take the bounds from the shared toolpath instead.
+
+Lower priority:
+- Editing `sampleSpacing` re-parses the SVG on every keystroke or wheel tick, with three `getPointAtLength` calls per sample. Debounce it by ≈300 ms.
+- Autosave runs `JSON.stringify` on the raw SVG 1 s after every change. Store the raw SVG under its own key, and only when it changes.
+- The whole tree re-renders on each timeline tick, with no `React.memo`. This costs less than 3 ms, small next to the canvas.
+
+`docs/performance-optimization-spec.md` is partly stale. §4.2 (the draw effect no longer recomputes geometry) and §4.4 (there is no `MAX_PTS` guard any more; the grid exists) describe old code.
 
 ---
 
