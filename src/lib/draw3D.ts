@@ -178,9 +178,9 @@ export function drawScene(
     const r  = Math.max(flatMaxX - flatMinX, flatMaxY - flatMinY) * 0.65;
     const step = r > 80 ? 20 : r > 30 ? 10 : 5;
     ctx.save();
-    ctx.strokeStyle = 'rgba(110, 110, 110, 0.22)';
+    // Solid, at the ink coverage the old 8/6 dash had (0.22 × 8/14).
+    ctx.strokeStyle = 'rgba(110, 110, 110, 0.13)';
     ctx.lineWidth = 0.9;
-    ctx.setLineDash([8, 6]);
     for (let gx = Math.floor((cx - r) / step) * step; gx <= cx + r; gx += step) {
       ctx.beginPath();
       const [x0, y0] = toScreen(gx, cy - r, 0);
@@ -193,7 +193,6 @@ export function drawScene(
       const [x1, y1] = toScreen(cx + r, gy, 0);
       ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     }
-    ctx.setLineDash([]);
     ctx.restore();
   }
 
