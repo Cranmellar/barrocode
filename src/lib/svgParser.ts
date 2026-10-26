@@ -126,6 +126,24 @@ function sampleElement(
   return points;
 }
 
+const MM_PER_UNIT: Record<string, number> = {
+  mm: 1, cm: 10, q: 0.25, in: 25.4, pt: 25.4 / 72, pc: 25.4 / 6,
+};
+
+/** A root width/height in mm, or null when it has no physical unit (unitless, px, %). */
+function lengthMM(attr: string | null): number | null {
+  const m = attr?.trim().match(/^([\d.]+(?:e[+-]?\d+)?)\s*(mm|cm|q|in|pt|pc)$/i);
+  return m ? parseFloat(m[1]) * MM_PER_UNIT[m[2].toLowerCase()] : null;
+}
+
+/** A root width/height in user units (CSS px), as used when there is no viewBox. */
+function lengthPx(attr: string | null): number {
+  const mm = lengthMM(attr);
+  if (mm !== null) return mm * 96 / 25.4;
+  const v = parseFloat(attr ?? '');
+  return v > 0 && !attr!.trim().endsWith('%') ? v : 200;
+}
+
 /**
  * Parse an SVG string and sample all geometry elements.
  *
@@ -168,14 +186,23 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
     throw new Error(`SVG parse error: ${parseError.textContent?.slice(0, 200)}`);
   }
 
-  const sourceSvgEl = doc.documentElement as unknown as SVGSVGElement;
-  const vb = sourceSvgEl.viewBox?.baseVal;
-  const viewBox = {
-    x: vb?.x ?? 0,
-    y: vb?.y ?? 0,
-    width: vb?.width || parseFloat(sourceSvgEl.getAttribute('width') ?? '200') || 200,
-    height: vb?.height || parseFloat(sourceSvgEl.getAttribute('height') ?? '200') || 200,
-  };
+  const sourceSvgEl = doc.documentElement;
+  const vb = (sourceSvgEl.getAttribute('viewBox') ?? '').trim().split(/[\s,]+/).map(Number);
+  const hasViewBox = vb.length === 4 && vb.every(Number.isFinite) && vb[2] > 0 && vb[3] > 0;
+  const viewBox = hasViewBox
+    ? { x: vb[0], y: vb[1], width: vb[2], height: vb[3] }
+    : {
+      x: 0, y: 0,
+      width: lengthPx(sourceSvgEl.getAttribute('width')),
+      height: lengthPx(sourceSvgEl.getAttribute('height')),
+    };
+
+  // mm per user unit, when the root states its size in a physical unit.
+  const widthMM = lengthMM(sourceSvgEl.getAttribute('width'));
+  const heightMM = lengthMM(sourceSvgEl.getAttribute('height'));
+  const mmPerUnit = widthMM !== null ? +(widthMM / viewBox.width).toFixed(4)
+    : heightMM !== null ? +(heightMM / viewBox.height).toFixed(4)
+    : null;
 
   // Insert SVG into hidden container so the browser can measure it.
   const container = getHiddenContainer();
@@ -210,6 +237,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
 
     const pts = sampleElement(el, liveSvgEl, spacing);
     if (pts.length < 2) return;
+    for (const p of pts) { p.x -= viewBox.x; p.y -= viewBox.y; }
 
     paths.push({
       id: el.id || `${el.tagName.toLowerCase()}-${idx}`,
@@ -230,7 +258,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
     );
   }
 
-  return { paths, viewBox, raw: svgString };
+  return { paths, viewBox, mmPerUnit, raw: svgString };
 }
 
 /**

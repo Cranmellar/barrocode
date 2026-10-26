@@ -35,8 +35,11 @@ export interface SVGViewBox {
 }
 
 export interface ParsedSVG {
+  /** User units, shifted so the viewBox's top-left corner is (0, 0). */
   paths: SampledPath[];
   viewBox: SVGViewBox;
+  /** mm per user unit from a physical width/height (`100mm`, `200pt`); null if unitless. */
+  mmPerUnit: number | null;
   raw: string;
 }
 

@@ -53,7 +53,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
 | **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor. |
-| **Factor de escala** | Convierte unidades SVG a mm. Usa `1` si el SVG está en mm; usa `0.2645` para píxeles a 96 dpi. |
+| **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. La pieza se ubica desde la esquina superior izquierda del `viewBox`. |
 | **Origen X / Y** | Desplaza toda la impresión sobre la cama. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
 | **Velocidad de impresión / desplazamiento** | Define avances en mm/min. |
@@ -64,7 +64,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Dirección alternada** | Invierte capas impares para reducir deriva direccional. |
 | **Cerrar trayecto** | Agrega retorno al inicio de cada trayecto. |
 | **Pausa al inicio** | Inserta `G4` en la primera posición para estabilizar el flujo de arcilla. |
-| **Movimiento de cebado** | Extruye una línea corta antes de la impresión principal. |
+| **Movimiento de cebado** | Extruye una línea corta antes de la impresión principal, paralela a X y a 10 mm de la primera capa: por debajo de la pieza, o por encima si por debajo quedaría en Y negativa. |
 
 ## 4. Parámetros De Lissajous
 
@@ -75,6 +75,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. |
 | **Delta** | Diferencia de fase entre N y T. `0°` tiende a línea; `90°` tiende a elipse cuando las longitudes de onda coinciden. |
 | **Offset de fase** | Fase inicial de la onda. |
+| **Amplitud Z** | Oscilación vertical de la boquilla. La primera capa no baja de su altura y cada punto queda al menos media altura de capa sobre la capa anterior: con amplitudes grandes o desfase por capa, los valles se aplanan en vez de chocar. |
 | **Desfase por capa** | Fase extra aplicada por capa para crear torsión o comportamiento helicoidal. |
 
 Los preajustes aplican combinaciones de amplitud, longitud de onda y fase con una miniatura de la figura local resultante.

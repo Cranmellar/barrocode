@@ -19,11 +19,12 @@
  */
 
 import type { WaveLayer, PrintParams, SVGViewBox } from '../types';
-import { buildToolpath, type ToolpathPoint } from './toolpath';
+import { buildToolpath, type ToolpathLayer, type ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
+const PRIME_GAP = 10;        // mm between the priming line and the part
 
 function fmt(n: number, d = 3) { return n.toFixed(d); }
 
@@ -105,6 +106,26 @@ function buildTransition(
     prevX = x; prevY = y;
   }
   return lines;
+}
+
+// ── Priming line ────────────────────────────────────────────────────────────
+
+/**
+ * Start of the priming line, which runs along +X beside the first layer's
+ * bounding box: below it, or above it when below would turn Y negative on a
+ * part that is not already there (corner-origin beds can't reach it).
+ */
+function primingStart(layer: ToolpathLayer): MM2 {
+  let minX = Infinity, minY = Infinity, maxY = -Infinity;
+  for (const path of layer.paths) {
+    for (const p of path) {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+  }
+  const below = minY - PRIME_GAP;
+  return { x: minX, y: below >= 0 || minY < 0 ? below : maxY + PRIME_GAP };
 }
 
 // ── Concentric skirt travel ──────────────────────────────────────────────────
@@ -209,9 +230,8 @@ export function generateGcode(
   let isFirstMove = true;
 
   if (params.primingMove) {
-    const pz = layers[0].z;
-    const px = params.originX - 5;
-    const py = params.originY - 5;
+    const pz = toolpath[0].z;
+    const { x: px, y: py } = primingStart(toolpath[0]);
     blocks.push(
       `; --- Priming ---\n` +
       `G1 X${fmt(px)} Y${fmt(py)} F${params.travelSpeed}\n` +

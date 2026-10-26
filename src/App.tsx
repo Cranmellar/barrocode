@@ -338,10 +338,12 @@ export default function App() {
   const leftScroll        = useScrollMore<HTMLDivElement>();
   const rightScroll       = useScrollMore<HTMLDivElement>();
 
-  const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = []) => {
+  const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = [], adoptScale = false) => {
     try {
       const result = parseSVG(raw, spacing);
       result.paths = result.paths.map(p => ({ ...p, ...pathState.find(s => s.id === p.id) }));
+      const mmPerUnit = result.mmPerUnit;
+      if (adoptScale && mmPerUnit !== null) setParams(p => ({ ...p, scaleFactor: mmPerUnit }));
       setParsedSVG(result);
       setError(null);
       lastRawRef.current = { raw, spacing };
@@ -357,7 +359,7 @@ export default function App() {
     setSavedSession(null);
     setGcodeFilename(file.name.replace(/\.svg$/i, '.gcode'));
     const reader = new FileReader();
-    reader.onload = ev => doParse(ev.target?.result as string, params.sampleSpacing);
+    reader.onload = ev => doParse(ev.target?.result as string, params.sampleSpacing, [], true);
     reader.readAsText(file);
   }
 
@@ -561,7 +563,7 @@ export default function App() {
           />
         )}
 
-        <PathParams params={params} onChange={setParams} />
+        <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null} />
       </div>
 
       {/* Divisor izquierdo */}

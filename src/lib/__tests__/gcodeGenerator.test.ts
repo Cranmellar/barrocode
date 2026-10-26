@@ -87,6 +87,23 @@ describe('generateGcode — motion invariants', () => {
 });
 
 describe('generateGcode — priming', () => {
+  it('primes beside the part, never across it or at negative coordinates', () => {
+    for (const geometry of [facingPair, crossingPair, () => [lemniscate()]]) {
+      for (const lissAmpN of [0, 3]) {
+        const { gcode, toolpath } = run(geometry(), { primingMove: true, lissAmpN });
+        const priming = gcode.slice(gcode.indexOf('; --- Priming'), gcode.indexOf('; --- End priming'));
+        const [line] = interpret(priming).filter(m => m.extruding);
+        const pts = toolpath[0].paths.flat();
+
+        expect(line.to.y).toBe(line.from.y);
+        expect(Math.min(...pts.map(p => Math.abs(p.y - line.from.y)))).toBeGreaterThanOrEqual(10 - 1e-3);
+        if (pts.every(p => p.x >= 0 && p.y >= 0)) {
+          expect(Math.min(line.from.x, line.from.y)).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
+
   it('travels to the first path and descends before extruding', () => {
     const { gcode } = run(facingPair(), { primingMove: true, softJoin: true });
     const afterPriming = gcode.slice(gcode.indexOf('; --- End priming ---'));
