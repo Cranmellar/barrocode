@@ -40,11 +40,19 @@ export function keyframeColor(t: number): string {
 // `ry` is depth towards the viewer; its sign keeps the view right-handed,
 // so the preview is never a mirror image of the print.
 export function project(x: number, y: number, z: number, az: number, el: number): [number, number] {
+  return makeProjector(az, el)(x, y, z);
+}
+
+// Same as project with the camera trig computed once, for per-point loops.
+export function makeProjector(az: number, el: number): (x: number, y: number, z: number) => [number, number] {
   const A = az * Math.PI / 180;
   const E = el * Math.PI / 180;
-  const rx = x * Math.cos(A) + y * Math.sin(A);
-  const ry = x * Math.sin(A) - y * Math.cos(A);
-  return [rx, ry * Math.sin(E) - z * Math.cos(E)];
+  const cosA = Math.cos(A), sinA = Math.sin(A), cosE = Math.cos(E), sinE = Math.sin(E);
+  return (x, y, z) => {
+    const rx = x * cosA + y * sinA;
+    const ry = x * sinA - y * cosA;
+    return [rx, ry * sinE - z * cosE];
+  };
 }
 
 // Safe min/max over an array of any size — avoids the V8 spread-argument
@@ -106,8 +114,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
   ctx.fillStyle = '#EDEDED';
   ctx.fillRect(0, 0, W, H);
 
+  const proj = makeProjector(azimuth, elevation);
   function toScreen(x: number, y: number, z: number): [number, number] {
-    const [px, py] = project(x, y, z, azimuth, elevation);
+    const [px, py] = proj(x, y, z);
     return [offsetX + px * scale, offsetY + py * scale];
   }
 

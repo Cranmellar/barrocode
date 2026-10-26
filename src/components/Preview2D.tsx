@@ -18,7 +18,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -76,6 +76,9 @@ export function Preview2D({
     azimuth: 325, elevation: 28, scale: 3, offsetX: 0, offsetY: 0,
   });
   const [isInteracting, setIsInteracting] = useState(false);
+  // CSS size of the 3D canvas. Observed rather than read while drawing, so a
+  // panel resize redraws it and the canvas buffer is only reallocated then.
+  const [size, setSize] = useState({ w: 0, h: 0 });
   // null = all layers; otherwise the 1-based top layer shown.
   const [layerCap, setLayerCap] = useState<number | null>(null);
   const [layerSolo, setLayerSolo] = useState(false);
@@ -155,7 +158,8 @@ export function Preview2D({
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0) return;
 
-    const projected = flatPoints.map(p => project(p.x, p.y, p.z, azimuth, elevation));
+    const proj = makeProjector(azimuth, elevation);
+    const projected = flatPoints.map(p => proj(p.x, p.y, p.z));
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
     const margin = 48;
     // Keep the model clear of the layer slider on the right edge.
@@ -181,11 +185,17 @@ export function Preview2D({
     }
   }, [toolpath.length, fitView]);
 
+  // The canvas unmounts while the G-code tab is open, so observe it per tab.
   useEffect(() => {
-    const h = () => setView(v => ({ ...v }));
-    window.addEventListener('resize', h);
-    return () => window.removeEventListener('resize', h);
-  }, []);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize({ w: width, h: height });
+    });
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [centerTab]);
 
   // ── Draw ─────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -193,20 +203,26 @@ export function Preview2D({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    const { w: W, h: H } = size;
+    if (W === 0 || H === 0) return;
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
-    canvas.width  = rect.width  * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    drawScene(ctx, rect.width, rect.height, {
+    const pw = Math.floor(W * dpr), ph = Math.floor(H * dpr);
+    if (canvas.width !== pw || canvas.height !== ph) {
+      canvas.width  = pw;
+      canvas.height = ph;
+    }
+    // The buffer is kept between draws, so nothing resets the context state;
+    // save/restore keeps one draw's state from leaking into the next.
+    ctx.save();
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawScene(ctx, W, H, {
       view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
       keyframes, selectedKfId, timelineProgress, isInteracting,
       layerCap: Math.min(layerCap ?? toolpath.length, toolpath.length) - 1,
       layerSolo,
     });
-  }, [sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, layerCap, layerSolo]);
+    ctx.restore();
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, layerCap, layerSolo]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
