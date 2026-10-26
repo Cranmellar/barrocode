@@ -35,6 +35,7 @@ export interface SVGViewBox {
 }
 
 export interface ParsedSVG {
+  /** User units, shifted so the viewBox's top-left corner is (0, 0). */
   paths: SampledPath[];
   viewBox: SVGViewBox;
   raw: string;
