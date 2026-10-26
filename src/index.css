@@ -330,7 +330,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .hd-wave  { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
 .hd-dim   { stroke: var(--ink-2); stroke-width: 1; }
 .hd-track { stroke: var(--border-rule); stroke-width: 2; }
-.hd-kf    { fill: var(--card-2); stroke: var(--ink-2); stroke-width: 2; }
 .hd-n, .hd-t { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .hd-n     { stroke: var(--n-axis); }
 .hd-t     { stroke: var(--t-axis); }
@@ -1223,21 +1222,6 @@ input[type="range"]::-moz-range-thumb {
   height: 18px;
   margin: 0 7px 4px;
   cursor: pointer;
-}
-/* Interpolated span between two keyframes; hatched where values are held. */
-.kf-seg {
-  position: absolute;
-  top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
-  background: var(--border);
-}
-.kf-seg--active { background: var(--accent-hi); }
-.kf-seg--hold {
-  background: repeating-linear-gradient(135deg, var(--border) 0 3px, transparent 3px 6px);
-}
-.kf-seg--hold.kf-seg--active {
-  background: repeating-linear-gradient(135deg, var(--accent-hi) 0 3px, transparent 3px 6px);
 }
 .timeline-playhead {
   position: absolute;
