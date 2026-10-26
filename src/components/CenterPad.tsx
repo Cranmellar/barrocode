@@ -9,7 +9,7 @@
  *   - Coords and layer number as micro-labels
  */
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo, useState } from 'react';
 import type { WaveLayer, PrintParams } from '../types';
 import { svgToMM } from '../lib/waveGenerator';
 
@@ -32,8 +32,9 @@ function s2w(sx: number, sy: number, t: T2): [number, number] {
   return [(sx - t.cx) / t.s, (t.cy - sy) / t.s];
 }
 
-function buildTransform(layers: WaveLayer[], params: PrintParams, svgH: number, W: number, H: number): T2 {
-  if (layers.length === 0) return { cx: W / 2, cy: H / 2, s: 1 };
+interface Bounds { mnX: number; mnY: number; mxX: number; mxY: number }
+
+function partBounds(layers: WaveLayer[], params: PrintParams, svgH: number): Bounds | null {
   let mnX = Infinity, mnY = Infinity, mxX = -Infinity, mxY = -Infinity;
   for (const layer of layers) {
     for (const path of layer.paths) {
@@ -44,7 +45,14 @@ function buildTransform(layers: WaveLayer[], params: PrintParams, svgH: number, 
       }
     }
   }
-  const m = 10;
+  return mnX === Infinity ? null : { mnX, mnY, mxX, mxY };
+}
+
+function buildTransform(b: Bounds | null, px: number, py: number, W: number, H: number): T2 {
+  if (!b) return { cx: W / 2, cy: H / 2, s: 1 };
+  const mnX = Math.min(b.mnX, px), mxX = Math.max(b.mxX, px);
+  const mnY = Math.min(b.mnY, py), mxY = Math.max(b.mxY, py);
+  const m = 16;
   const gW = mxX - mnX || 1, gH = mxY - mnY || 1;
   const s = Math.min((W - m * 2) / gW, (H - m * 2) / gH);
   return { cx: W / 2 - ((mnX + mxX) / 2) * s, cy: H / 2 + ((mnY + mxY) / 2) * s, s };
@@ -54,6 +62,22 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tRef      = useRef<T2>({ cx: 36, cy: 36, s: 1 });
   const dragging  = useRef(false);
+  const [size, setSize]       = useState({ w: 0, h: 0 });
+  const [dragEnd, setDragEnd] = useState(0);
+
+  const bounds = useMemo(() => partBounds(layers, params, svgH), [layers, params, svgH]);
+  const aspect = bounds
+    ? Math.min(2, Math.max(0.5, (bounds.mxX - bounds.mnX || 1) / (bounds.mxY - bounds.mnY || 1)))
+    : 1;
+
+  useEffect(() => {
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setSize({ w: width, h: height });
+    });
+    ro.observe(canvasRef.current!);
+    return () => ro.disconnect();
+  }, []);
 
   const layerIdx = layers.length === 0
     ? 0
@@ -65,15 +89,15 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr  = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    const W    = rect.width  || 72;
-    const H    = rect.height || 72;
-    canvas.width  = W * dpr;
-    canvas.height = H * dpr;
+    const { w: W, h: H } = size;
+    if (W === 0 || H === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width  = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
     ctx.scale(dpr, dpr);
 
-    const T = buildTransform(layers, params, svgH, W, H);
+    // Freeze the framing while dragging so the view does not shift under the cursor.
+    const T = dragging.current ? tRef.current : buildTransform(bounds, centerX, centerY, W, H);
     tRef.current = T;
 
     // ── Background ──────────────────────────────────────────────────────────
@@ -150,7 +174,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
 
     // ── Micro-labels ──────────────────────────────────────────────────────────
     ctx.save();
-    ctx.font      = '700 6.5px GSCode, monospace';
+    ctx.font      = '700 9px GSCode, monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(16,14,9,0.38)';
     ctx.fillText(`${centerX.toFixed(1)}, ${centerY.toFixed(1)}`, 3, H - 3);
@@ -159,22 +183,30 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.fillText(`L${layerIdx + 1}`, W - 3, H - 3);
     ctx.restore();
 
-  }, [layers, params, svgH, centerX, centerY, layerIdx]);
+  }, [layers, params, svgH, centerX, centerY, layerIdx, size, bounds, dragEnd]);
 
   // ── Drag interaction ────────────────────────────────────────────────────────
   function hitWorld(e: React.MouseEvent<HTMLCanvasElement>): [number, number] {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return s2w(e.clientX - rect.left, e.clientY - rect.top, tRef.current);
+    const canvas = canvasRef.current!;
+    const rect   = canvas.getBoundingClientRect();
+    return s2w(e.clientX - rect.left - canvas.clientLeft, e.clientY - rect.top - canvas.clientTop, tRef.current);
+  }
+
+  function endDrag() {
+    if (!dragging.current) return;
+    dragging.current = false;
+    setDragEnd(n => n + 1);
   }
 
   return (
     <canvas
       ref={canvasRef}
       className="center-pad-canvas"
+      style={{ aspectRatio: aspect }}
       onMouseDown={e => { dragging.current = true; const [x, y] = hitWorld(e); onChange(x, y); }}
       onMouseMove={e => { if (!dragging.current) return; const [x, y] = hitWorld(e); onChange(x, y); }}
-      onMouseUp={()    => { dragging.current = false; }}
-      onMouseLeave={()  => { dragging.current = false; }}
+      onMouseUp={endDrag}
+      onMouseLeave={endDrag}
     />
   );
 }

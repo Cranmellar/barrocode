@@ -659,7 +659,6 @@ export default function App() {
 
                 <div className="kf-group kf-group-center">
                   <div className="kf-pad-wrap">
-                    <span className="kf-pad-label">Centro</span>
                     <CenterPad
                       layers={layers}
                       params={params}
@@ -674,6 +673,24 @@ export default function App() {
                         ));
                       }}
                     />
+                  </div>
+                  <div className="kf-center-fields">
+                    <div className="kf-field">
+                      <label>Centro X</label>
+                      <div className="kf-field-input-row">
+                        <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={1}
+                          onChange={v => updateKf('centerX', v)} />
+                        <span className="kf-unit">mm</span>
+                      </div>
+                    </div>
+                    <div className="kf-field">
+                      <label>Centro Y</label>
+                      <div className="kf-field-input-row">
+                        <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={1}
+                          onChange={v => updateKf('centerY', v)} />
+                        <span className="kf-unit">mm</span>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
