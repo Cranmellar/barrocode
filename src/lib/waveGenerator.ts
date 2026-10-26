@@ -27,6 +27,9 @@ import type {
 
 const TWO_PI = 2 * Math.PI;
 
+// Thinnest bead the Z wave may leave, as a fraction of layerHeight.
+const MIN_LAYER_GAP = 0.5;
+
 // ── Local params struct ─────────────────────────────────────────────────────
 
 export interface LocalParams {
@@ -237,6 +240,8 @@ export function generateWaveLayers(
   let flatIdx = 0;
 
   const layers: WaveLayer[] = [];
+  // Absolute Z of each point on the previous layer, in sampling order.
+  let prevZ: number[][] = [];
 
   for (let li = 0; li < numLayers; li++) {
     const z = li * params.layerHeight + params.nozzleHeightOffset;
@@ -245,11 +250,17 @@ export function generateWaveLayers(
     const isAlt = params.alternateDirection && li % 2 === 1;
     const reverse = params.reversePath !== isAlt;
 
-    const pathPoints: WavePoint[][] = enabled.map(path => {
+    const layerZ: number[][] = [];
+
+    const pathPoints: WavePoint[][] = enabled.map((path, pi) => {
       const pts = reverse ? [...path.points].reverse() : path.points;
+      const n = pts.length;
+      const below = prevZ[pi];
+      const pathZ: number[] = new Array(n);
+      layerZ.push(pathZ);
       let prevS = 0, cycN = 0, cycT = 0, cycZ = 0;
 
-      const result: WavePoint[] = pts.map(p => {
+      const result: WavePoint[] = pts.map((p, i) => {
         const s = reverse ? path.totalLength - p.arcLength : p.arcLength;
         const ds = s - prevS;
         prevS = s;
@@ -288,6 +299,16 @@ export function generateWaveLayers(
           p, aN, aT, aZ, cycN, cycT, cycZ, lp.delta, lp.phaseZ, phaseBase,
         );
 
+        // The first layer never dips below its set height, and each later
+        // point stays a thin bead above the same sample on the layer below,
+        // so the Z wave can't drive the nozzle into the bed or the part.
+        const si = reverse ? n - 1 - i : i;
+        const floor = below
+          ? below[si] + params.layerHeight * MIN_LAYER_GAP
+          : z;
+        wavePt.zOffset = Math.max(wavePt.zOffset, floor - z);
+        pathZ[si] = z + wavePt.zOffset;
+
         // Apply per-point scale around center (in SVG space)
         return applyScaleSVG(
           wavePt,
@@ -309,6 +330,7 @@ export function generateWaveLayers(
     });
 
     layers.push({ index: li, z, paths: pathPoints });
+    prevZ = layerZ;
   }
 
   return layers;

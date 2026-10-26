@@ -75,6 +75,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. |
 | **Delta** | Diferencia de fase entre N y T. `0°` tiende a línea; `90°` tiende a elipse cuando las longitudes de onda coinciden. |
 | **Offset de fase** | Fase inicial de la onda. |
+| **Amplitud Z** | Oscilación vertical de la boquilla. La primera capa no baja de su altura y cada punto queda al menos media altura de capa sobre la capa anterior: con amplitudes grandes o desfase por capa, los valles se aplanan en vez de chocar. |
 | **Desfase por capa** | Fase extra aplicada por capa para crear torsión o comportamiento helicoidal. |
 
 Los preajustes aplican combinaciones de amplitud, longitud de onda y fase con una miniatura de la figura local resultante.

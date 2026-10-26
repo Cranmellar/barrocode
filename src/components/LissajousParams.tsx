@@ -205,12 +205,12 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
           {params.lissAmpZ > params.layerHeight && (
             <div style={{ fontSize: 9, color: '#c0392b', marginBottom: 4, lineHeight: 1.3 }}>
               ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
-              ({params.layerHeight} mm) — riesgo de colisión de boquilla
+              ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
             </div>
           )}
           <Slider label="Amplitud Z" value={params.lissAmpZ}
             min={0} max={20} step={0.1} unit="mm"
-            hint="Desplazamiento máximo vertical. Valores mayores que la altura de capa pueden causar colisión."
+            hint="Desplazamiento máximo vertical. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa anterior; con amplitudes grandes los valles se aplanan."
             onChange={v => set('lissAmpZ', v)} />
           {params.lissAmpZ > 0 && <>
             <Slider label="Longitud de onda Z" value={params.lissWlZ}

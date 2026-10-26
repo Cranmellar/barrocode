@@ -76,11 +76,38 @@ describe('buildToolpath — order and Z', () => {
 
   it('includes the Z oscillation in every point', () => {
     const path = sampledPath('line', polyline([[0, 0], [100, 0]]));
-    const [layer] = toolpath([path], { lissAmpZ: 1 });
+    const [, layer] = toolpath([path], { lissAmpZ: 1 });
     const offsets = layer.paths[0].map(p => p.z - layer.z);
 
     expect(Math.max(...offsets)).toBeGreaterThan(0.9);
     expect(Math.min(...offsets)).toBeLessThan(-0.9);
     expect(offsets.every(o => Math.abs(o) <= 1 + 1e-9)).toBe(true);
+  });
+});
+
+describe('buildToolpath — Z floor', () => {
+  const line = () => sampledPath('line', polyline([[0, 0], [100, 0]]));
+
+  it('keeps the first layer at or above its set height', () => {
+    const [layer] = toolpath([line()], { lissAmpZ: 3 });
+    expect(layer.paths[0].every(p => p.z >= layer.z)).toBe(true);
+    expect(Math.max(...layer.paths[0].map(p => p.z))).toBeGreaterThan(layer.z + 2.5);
+  });
+
+  it('keeps every point a thin bead above the same spot on the layer below', () => {
+    // Opposite phase on alternate, reversed layers puts crests over troughs.
+    const params = {
+      lissAmpN: 0, lissAmpT: 0, lissAmpZ: 3, numLayers: 5,
+      phaseShiftPerLayer: Math.PI, alternateDirection: true,
+    };
+    const layers = toolpath([line()], params);
+    const minGap = PARAMS.layerHeight / 2 - 1e-9;
+
+    for (let li = 1; li < layers.length; li++) {
+      const below = new Map(layers[li - 1].paths[0].map(p => [p.x.toFixed(3), p.z]));
+      for (const p of layers[li].paths[0]) {
+        expect(p.z - below.get(p.x.toFixed(3))!).toBeGreaterThanOrEqual(minGap);
+      }
+    }
   });
 });
