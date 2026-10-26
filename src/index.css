@@ -61,14 +61,12 @@
   -webkit-font-smoothing: antialiased;
 }
 
-html, body, #root { height: 100%; overflow: hidden; }
+html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 
 /* ── Root layout ─────────────────────────────────────────────────────────── */
 .app-layout {
   display: flex;
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
+  height: 100%;
   overflow: hidden;
   user-select: none;
   background: var(--bg);
