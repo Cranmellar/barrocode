@@ -87,6 +87,7 @@ export function Preview2D({
 
   // ── Keyframe drag refs ────────────────────────────────────────────────────
   const kfDragRef    = useRef<{ id: string; startX: number; moved: boolean } | null>(null);
+  const [draggingKfId, setDraggingKfId] = useState<string | null>(null);
   const trackRef     = useRef<HTMLDivElement>(null);
   // Stable refs so window handlers never capture stale closure values
   const kfsRef          = useRef(keyframes);
@@ -122,8 +123,13 @@ export function Preview2D({
       const d = kfDragRef.current;
       if (!d || !trackRef.current) return;
       if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
-      d.moved = true;
-      document.body.style.cursor = 'ew-resize';
+      if (!d.moved) {
+        d.moved = true;
+        document.body.style.cursor = 'grabbing';
+        setDraggingKfId(d.id);
+        // Dragging a keyframe also opens it, so its editor and the extruder follow along.
+        if (d.id !== selectedKfIdRef.current) onKfSelectRef.current(d.id);
+      }
       const rect = trackRef.current.getBoundingClientRect();
       const newT  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       onKfsRef.current(
@@ -131,14 +137,14 @@ export function Preview2D({
           .map(k => k.id === d.id ? { ...k, t: newT } : k)
           .sort((a, b) => a.t - b.t),
       );
-      // The extruder rides along with the keyframe being edited.
-      if (d.id === selectedKfIdRef.current) onTimelineRef.current(newT);
+      onTimelineRef.current(newT);
     }
     function onUp() {
       const d = kfDragRef.current;
       if (!d) return;
       if (!d.moved) onKfSelectRef.current(d.id);
       kfDragRef.current = null;
+      setDraggingKfId(null);
       document.body.style.cursor = '';
     }
     window.addEventListener('mousemove', onMove);
@@ -391,7 +397,7 @@ export function Preview2D({
             />
 
             {/* Add-keyframe tag floating above the scrub thumb */}
-            {(() => {
+            {!draggingKfId && (() => {
               const atKf = findKeyframeAt(keyframes, timelineProgress);
               const confirm = atKf !== null && atKf.id === selectedKfId;
               return (
@@ -409,18 +415,30 @@ export function Preview2D({
               );
             })()}
 
-            {keyframes.map(kf => (
-              <div
-                key={kf.id}
-                className={`kf-diamond ${kf.id === selectedKfId ? 'kf-selected' : ''}`}
-                style={{ left: `${kf.t * 100}%` }}
-                onMouseDown={e => {
-                  e.preventDefault();
-                  kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
-                }}
-                title={`KF ${(kf.t * 100).toFixed(1)}% — arrastrar para mover`}
-              />
-            ))}
+            {keyframes.map(kf => {
+              const dragging = kf.id === draggingKfId;
+              return (
+                <div
+                  key={kf.id}
+                  className={`kf-diamond${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
+                  style={{ left: `${kf.t * 100}%` }}
+                  onMouseDown={e => {
+                    e.preventDefault();
+                    kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
+                  }}
+                  title={dragging ? undefined : `KF ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
+                />
+              );
+            })}
+
+            {(() => {
+              const kf = keyframes.find(k => k.id === draggingKfId);
+              return kf && (
+                <span className="kf-drag-label" style={{ left: `${kf.t * 100}%` }}>
+                  {(kf.t * 100).toFixed(1)}%
+                </span>
+              );
+            })()}
           </div>
 
           <span className="timeline-label" style={{ minWidth: 36, textAlign: 'right' }}>
