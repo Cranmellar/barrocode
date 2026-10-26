@@ -25,6 +25,7 @@
 
 G21       ; mm units
 G90       ; absolute positioning
+M82       ; absolute extrusion
 G92 E0    ; reset E
 
 G1 Z20.000 F1500  ; safe Z

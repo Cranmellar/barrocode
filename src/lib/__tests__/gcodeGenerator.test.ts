@@ -86,6 +86,13 @@ describe('generateGcode — priming', () => {
   });
 });
 
+describe('generateGcode — program start and end', () => {
+  it('sets absolute extrusion only when E is generated', () => {
+    expect(run(facingPair()).gcode).toContain('\nM82 ');
+    expect(run(facingPair(), { generateE: false }).gcode).not.toContain('M82');
+  });
+});
+
 describe('generateGcode — reference output', () => {
   // Intentional output changes: review the diff, then `npm test -- -u`.
   it('single self-crossing path with wave, Z oscillation, z-hop and soft join', async () => {

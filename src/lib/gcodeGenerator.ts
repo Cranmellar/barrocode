@@ -189,7 +189,13 @@ export function generateGcode(
   const blocks: string[] = [];
   blocks.push(buildHeader(params, layers.length));
 
-  blocks.push('G21       ; mm units\nG90       ; absolute positioning\nG92 E0    ; reset E\n');
+  // M82 guards against a relative-E mode left over from a previous job; it is
+  // skipped for motion-only output, where controllers may reject E-axis codes.
+  blocks.push(
+    'G21       ; mm units\nG90       ; absolute positioning\n' +
+    (params.generateE ? 'M82       ; absolute extrusion\n' : '') +
+    'G92 E0    ; reset E\n',
+  );
   blocks.push(`G1 Z${fmt(params.safeZ)} F${params.travelSpeed}  ; safe Z\n`);
 
   const eRef = { value: 0 };
