@@ -192,55 +192,6 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.restore();
   }
 
-  // Selected-keyframe layer highlight — overdraw in accent so the user
-  // knows which layer the open kf editor is targeting
-  if (!isInteracting && selectedKfId && numLayers > 0) {
-    const selKf = keyframes.find(k => k.id === selectedKfId);
-    const editLi = selKf
-      ? Math.min(numLayers - 1, Math.round(selKf.t * Math.max(0, numLayers - 1)))
-      : -1;
-    if (selKf && shown(editLi)) {
-      const editLayer = toolpath[editLi];
-      const editAllMm = editLayer.paths.flat();
-
-      ctx.save();
-      ctx.strokeStyle = ACCENT;
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
-      ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
-      for (const pts of editLayer.paths) {
-        ctx.beginPath();
-        pts.forEach(({ x, y, z }, i) => {
-          const [sx, sy] = toScreen(x, y, z);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
-        ctx.stroke();
-      }
-      // Horizontal band: bounding-box rectangle at the edited layer's Z
-      if (editAllMm.length > 0) {
-        const { minX: mnX, maxX: mxX, minY: mnY, maxY: mxY } =
-          boundsOf(editAllMm, p => p.x, p => p.y);
-        const corners: [number,number,number][] = [
-          [mnX, mnY, editLayer.z], [mxX, mnY, editLayer.z],
-          [mxX, mxY, editLayer.z], [mnX, mxY, editLayer.z],
-        ];
-        ctx.save();
-        ctx.globalAlpha = 0.38;
-        ctx.strokeStyle = '#4A4E8C';
-        ctx.lineWidth   = 1.8;
-        ctx.setLineDash([9, 5]);
-        ctx.beginPath();
-        corners.forEach(([x, y, z], i) => {
-          const [sx, sy] = toScreen(x, y, z);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
-        ctx.closePath(); ctx.stroke();
-        ctx.restore();
-      }
-      ctx.restore();
-    }
-  }
-
   // Concentric skirt travel arcs — same moves buildSkirtTravel emits
   if (!isInteracting && numLayers > 0) {
     const drawTravel = (from: MM2, to: MM2, centroid: MM2, zFrom: number, zTo: number) => {
