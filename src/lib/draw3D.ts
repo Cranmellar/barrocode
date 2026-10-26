@@ -101,12 +101,15 @@ export interface Scene {
   // in colour and the ones below it as faint context.
   layerCap: number;
   layerSolo: boolean;
+  // false: every layer in one colour instead of the cobalt → terracotta ramp.
+  layerColors: boolean;
+  showDims: boolean;
 }
 
 // What drawGeometry reads. It excludes the timeline, so a scrub can reuse a
 // cached drawing of it.
 export type GeometryScene = Pick<Scene,
-  'view' | 'toolpath' | 'params' | 'isInteracting' | 'layerCap' | 'layerSolo'>;
+  'view' | 'toolpath' | 'params' | 'isInteracting' | 'layerCap' | 'layerSolo' | 'layerColors'>;
 
 function screenMapper(view: View3D): (x: number, y: number, z: number) => [number, number] {
   const { azimuth, elevation, scale, offsetX, offsetY } = view;
@@ -158,7 +161,7 @@ export function drawScene(
 ) {
   const {
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-    keyframes, selectedKfId, timelineProgress, isInteracting, layerCap, layerSolo,
+    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims,
   } = scene;
   const { azimuth, elevation } = view;
 
@@ -232,6 +235,10 @@ export function drawScene(
     ctx.restore();
   } else {
     drawGeometry(ctx, scene);
+  }
+
+  if (showDims && modelBounds && numLayers > 0) {
+    drawDimensions(ctx, view, flat, modelBounds, numLayers * params.layerHeight);
   }
 
   // Virtual extruder
@@ -317,7 +324,7 @@ export function drawScene(
   }
 
   // Layer legend (compact, top-left — freed from gizmo corner)
-  if (numLayers > 1) {
+  if (numLayers > 1 && layerColors) {
     ctx.save();
     ctx.font = '700 8px GSCode, monospace';
     const step = numLayers <= 8 ? 1 : Math.ceil(numLayers / 8);
@@ -408,17 +415,115 @@ export function drawScene(
 
 }
 
+function fmtDim(v: number): string {
+  return `${v >= 100 ? v.toFixed(0) : v.toFixed(1)} mm`;
+}
+
+/**
+ * Length (X), width (Y) and height (Z) of the part's bounding box, drawn as
+ * dimension lines just outside the base edges nearest the camera, and a
+ * vertical one beside the part's leftmost point on screen.
+ */
+function drawDimensions(
+  ctx: CanvasRenderingContext2D, view: View3D, flat: FlatPoint[],
+  b: { minX: number; maxX: number; minY: number; maxY: number }, height: number,
+) {
+  const toScreen = screenMapper(view);
+  const A = view.azimuth * Math.PI / 180;
+  // The base corner nearest the viewer maximises the projector's depth term.
+  const cx = Math.sin(A) >= 0 ? b.maxX : b.minX;
+  const cy = Math.cos(A) >= 0 ? b.minY : b.maxY;
+  const ox = cx === b.maxX ? 1 : -1, oy = cy === b.maxY ? 1 : -1;
+  // A fixed screen gap, so the lines stay inside fitView's margin.
+  const off = 16 / view.scale;
+  const [mx, my] = toScreen((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, 0);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(16,14,9,0.55)';
+  ctx.lineWidth = 1;
+  ctx.font = '700 9px GSCode, monospace';
+  ctx.textBaseline = 'middle';
+
+  const label = (text: string, x: number, y: number, align: CanvasTextAlign) => {
+    ctx.textAlign = align;
+    const w = ctx.measureText(text).width;
+    let left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
+    if (left < 4) { x += 4 - left; left = 4; }
+    ctx.fillStyle = 'rgba(237,237,237,0.85)';
+    ctx.fillRect(left - 3, y - 7, w + 6, 14);
+    ctx.fillStyle = INK;
+    ctx.fillText(text, x, y + 0.5);
+  };
+
+  // A dimension line between two screen points, with end ticks and extension
+  // lines back to the edge it measures.
+  const dimLine = (a: [number, number], c: [number, number], ea: [number, number], ec: [number, number], text: string) => {
+    const dx = c[0] - a[0], dy = c[1] - a[1];
+    const len = Math.hypot(dx, dy);
+    if (len < 24) return;
+    const nx = -dy / len * 4, ny = dx / len * 4;
+    ctx.beginPath();
+    ctx.moveTo(a[0], a[1]); ctx.lineTo(c[0], c[1]);
+    for (const [px, py] of [a, c]) { ctx.moveTo(px - nx, py - ny); ctx.lineTo(px + nx, py + ny); }
+    ctx.stroke();
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(ea[0], ea[1]); ctx.lineTo(a[0], a[1]);
+    ctx.moveTo(ec[0], ec[1]); ctx.lineTo(c[0], c[1]);
+    ctx.stroke();
+    ctx.restore();
+    const lx = (a[0] + c[0]) / 2, ly = (a[1] + c[1]) / 2;
+    const ux = lx - mx, uy = ly - my, ul = Math.hypot(ux, uy) || 1;
+    label(text, lx + ux / ul * 12, ly + uy / ul * 12, 'center');
+  };
+
+  const yLine = cy + oy * off, xLine = cx + ox * off;
+  dimLine(toScreen(b.minX, yLine, 0), toScreen(b.maxX, yLine, 0),
+    toScreen(b.minX, cy, 0), toScreen(b.maxX, cy, 0), fmtDim(b.maxX - b.minX));
+  dimLine(toScreen(xLine, b.minY, 0), toScreen(xLine, b.maxY, 0),
+    toScreen(cx, b.minY, 0), toScreen(cx, b.maxY, 0), fmtDim(b.maxY - b.minY));
+
+  // Z projects straight up on screen, so the height line is a vertical
+  // screen segment left of the part.
+  let left = flat[0], leftX = Infinity;
+  for (const p of flat) {
+    const [sx] = toScreen(p.x, p.y, 0);
+    if (sx < leftX) { leftX = sx; left = p; }
+  }
+  const bot = toScreen(left.x, left.y, 0), top = toScreen(left.x, left.y, height);
+  const zx = bot[0] - 18;
+  if (bot[1] - top[1] >= 4) {
+    ctx.beginPath();
+    ctx.moveTo(zx, bot[1]); ctx.lineTo(zx, top[1]);
+    ctx.moveTo(zx - 4, bot[1]); ctx.lineTo(zx + 4, bot[1]);
+    ctx.moveTo(zx - 4, top[1]); ctx.lineTo(zx + 4, top[1]);
+    ctx.stroke();
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(top[0], top[1]); ctx.lineTo(zx, top[1]);
+    ctx.moveTo(bot[0], bot[1]); ctx.lineTo(zx, bot[1]);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    label(fmtDim(height), zx, top[1] - 10, 'center');
+  }
+  ctx.restore();
+}
+
 /**
  * Layer strokes plus the overlays tied to them: skirt travel and soft-join
  * lines. Draws no text, so it can render into a canvas that isn't in the
  * DOM (see CLAUDE.md on canvas fonts).
  */
 export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene) {
-  const { view, toolpath, params, isInteracting, layerCap, layerSolo } = scene;
+  const { view, toolpath, params, isInteracting, layerCap, layerSolo, layerColors } = scene;
+  const numLayers = toolpath.length;
+  // Single-colour mode uses --accent.
+  const colorOf = (li: number, alpha = 1) =>
+    layerColors ? layerColor(li, numLayers, alpha) : `rgba(74,78,140,${alpha})`;
   const shown = (li: number) => layerSolo ? li === layerCap : li <= layerCap;
   const { scale } = view;
   const toScreen = screenMapper(view);
-  const numLayers = toolpath.length;
 
   // Layer paths — vivid strokes, drawn in print order with final Z.
   // During camera interaction: stride by 4 for responsiveness.
@@ -429,7 +534,7 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
     const alpha = ghost ? 0.14 : 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
 
     ctx.save();
-    ctx.strokeStyle = ghost ? 'rgb(90,90,90)' : layerColor(li, numLayers);
+    ctx.strokeStyle = ghost ? 'rgb(90,90,90)' : colorOf(li);
     ctx.globalAlpha = alpha;
     ctx.lineWidth   = ghost ? 1 : Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
     ctx.lineJoin    = 'round';
@@ -495,7 +600,7 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
       const b = toolpath[li + 1].paths[0];
       if (!a || !b) continue;
       const from = a[a.length - 1], to = b[0];
-      ctx.strokeStyle = layerColor(li, numLayers, 0.7);
+      ctx.strokeStyle = colorOf(li, 0.7);
       ctx.beginPath();
       const [ax, ay] = toScreen(from.x, from.y, from.z);
       const [bx, by] = toScreen(to.x, to.y, to.z);

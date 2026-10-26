@@ -55,6 +55,18 @@ function formatDuration(sec: number): string {
   return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
 }
 
+const VIEW_OPTS_KEY = 'barrocode.viewOptions';
+interface ViewOptions { layerColors: boolean; showDims: boolean }
+const DEFAULT_VIEW_OPTS: ViewOptions = { layerColors: true, showDims: false };
+
+function loadViewOpts(): ViewOptions {
+  try {
+    return { ...DEFAULT_VIEW_OPTS, ...JSON.parse(localStorage.getItem(VIEW_OPTS_KEY) ?? '{}') };
+  } catch {
+    return DEFAULT_VIEW_OPTS;
+  }
+}
+
 function fmtMM(v: number): string {
   return v >= 100 ? v.toFixed(0) : v.toFixed(1);
 }
@@ -83,6 +95,12 @@ export function Preview2D({
   const [layerCap, setLayerCap] = useState<number | null>(null);
   const [layerSolo, setLayerSolo] = useState(false);
   const [overKf, setOverKf] = useState(false);
+  const [viewOpts, setViewOpts] = useState(loadViewOpts);
+  const toggleViewOpt = (k: keyof ViewOptions) => {
+    const next = { ...viewOpts, [k]: !viewOpts[k] };
+    setViewOpts(next);
+    try { localStorage.setItem(VIEW_OPTS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+  };
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragRef = useRef<{
@@ -225,6 +243,7 @@ export function Preview2D({
 
     const geometry = {
       view, toolpath, params, isInteracting, layerCap: visibleCap, layerSolo,
+      layerColors: viewOpts.layerColors,
     };
     const geomDeps = [pw, ph, dpr, ...Object.values(geometry)];
     const same = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -249,10 +268,10 @@ export function Preview2D({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
       ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
-      keyframes, selectedKfId,
+      keyframes, selectedKfId, showDims: viewOpts.showDims,
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -411,6 +430,20 @@ export function Preview2D({
             onContextMenu={onContextMenu}
             onWheel={onWheel}
           />
+          {numLayers > 0 && (
+            <div className="view-opts">
+              {numLayers > 1 && (
+                <label title="Colorear cada capa (azul → terracota) o usar un solo color">
+                  <input type="checkbox" checked={viewOpts.layerColors} onChange={() => toggleViewOpt('layerColors')} />
+                  Color por capa
+                </label>
+              )}
+              <label title="Mostrar largo, ancho y alto de la pieza">
+                <input type="checkbox" checked={viewOpts.showDims} onChange={() => toggleViewOpt('showDims')} />
+                Cotas
+              </label>
+            </div>
+          )}
           {numLayers > 1 && (
             <div className="layer-slider">
               <span className="layer-slider-value" title="Capa superior visible">
