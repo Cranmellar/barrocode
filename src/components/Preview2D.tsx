@@ -13,9 +13,9 @@
  */
 
 import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties } from 'react';
-import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
+import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
-import { buildToolpath } from '../lib/toolpath';
+import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
   type View3D, keyframeColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
@@ -24,7 +24,7 @@ import { GcodeOutput } from './GcodeOutput';
 
 interface Props {
   sampledPaths: SampledPath[];
-  layers: WaveLayer[];
+  toolpath: ToolpathLayer[];
   params: PrintParams;
   viewBox: SVGViewBox | null;
   timelineProgress: number;
@@ -64,7 +64,7 @@ function uid() {
 }
 
 export function Preview2D({
-  sampledPaths, layers, params, viewBox,
+  sampledPaths, toolpath, params, viewBox,
   timelineProgress, onTimelineChange,
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeFilename,
@@ -102,13 +102,6 @@ export function Preview2D({
   useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
   const svgH = viewBox?.height ?? 200;
-
-  // Recomputed only when layers/projection params change, not on every camera move.
-  const toolpath = useMemo(
-    () => buildToolpath(layers, params, svgH),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layers, params.scaleFactor, params.originX, params.originY, params.flipY, params.zHopHeight, params.hopRadius, svgH],
-  );
 
   const flatPoints = useMemo(() => flattenPoints(toolpath), [toolpath]);
 
@@ -166,7 +159,7 @@ export function Preview2D({
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
     const margin = 48;
     // Keep the model clear of the layer slider on the right edge.
-    const width = rect.width - (layers.length > 1 ? LAYER_SLIDER_W : 0);
+    const width = rect.width - (toolpath.length > 1 ? LAYER_SLIDER_W : 0);
     const scale = Math.min(
       (width       - margin * 2) / (maxX - minX || 1),
       (rect.height - margin * 2) / (maxY - minY || 1),
@@ -177,16 +170,16 @@ export function Preview2D({
       offsetX: width       / 2 - ((minX + maxX) / 2) * scale,
       offsetY: rect.height / 2 - ((minY + maxY) / 2) * scale,
     }));
-  }, [flatPoints, layers.length, view.azimuth, view.elevation]);
+  }, [flatPoints, toolpath.length, view.azimuth, view.elevation]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
-    if (layers.length > 0 && layers.length !== prevLayerCount.current) {
-      prevLayerCount.current = layers.length;
+    if (toolpath.length > 0 && toolpath.length !== prevLayerCount.current) {
+      prevLayerCount.current = toolpath.length;
       const t = setTimeout(() => fitView(), 60);
       return () => clearTimeout(t);
     }
-  }, [layers, fitView]);
+  }, [toolpath.length, fitView]);
 
   useEffect(() => {
     const h = () => setView(v => ({ ...v }));
@@ -219,11 +212,11 @@ export function Preview2D({
   useEffect(() => {
     if (centerTab !== 'gcode') return;
     const canvas = topdownRef.current;
-    if (!canvas || layers.length === 0) return;
+    if (!canvas || toolpath.length === 0) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     drawTopDown(ctx, canvas.width, canvas.height, toolpath, flatPoints);
-  }, [centerTab, layers, toolpath, flatPoints]);
+  }, [centerTab, toolpath, flatPoints]);
 
   // ── Mouse interaction ─────────────────────────────────────────────────────
   const stopInteracting = () => {
@@ -276,7 +269,7 @@ export function Preview2D({
     }, 150);
   };
 
-  const numLayers = layers.length;
+  const numLayers = toolpath.length;
   const totalPts = flatPoints.length;
   const shownCap = Math.min(layerCap ?? numLayers, numLayers);
 
@@ -300,7 +293,7 @@ export function Preview2D({
                 </button>
               ))}
             </div>
-            {layers.length > 0 && modelBounds && (
+            {toolpath.length > 0 && modelBounds && (
               <span className="toolbar-info" title={[
                 stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
                 stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
@@ -377,14 +370,14 @@ export function Preview2D({
       {centerTab === 'gcode' && (
         <div className="gcode-tab-view">
           <GcodeOutput gcode={gcode} filename={gcodeFilename} />
-          {layers.length > 0 && (
+          {toolpath.length > 0 && (
             <canvas ref={topdownRef} width={160} height={120} className="gcode-topdown" />
           )}
         </div>
       )}
 
       {/* Timeline row */}
-      {layers.length > 0 && (
+      {toolpath.length > 0 && (
         <div className="timeline-row">
           <span className="timeline-label">Extrusor</span>
 

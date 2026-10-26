@@ -8,11 +8,8 @@ import { PARAMS, VIEWBOX, curve, interpret, polyline, sampledPath } from './fixt
 function run(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
   const params = { ...PARAMS, ...overrides };
   const layers = generateWaveLayers(paths, params, [], VIEWBOX.height);
-  return {
-    params,
-    gcode: generateGcode(layers, params, VIEWBOX),
-    toolpath: buildToolpath(layers, params, VIEWBOX.height),
-  };
+  const toolpath = buildToolpath(layers, params, VIEWBOX.height);
+  return { params, gcode: generateGcode(toolpath, params), toolpath };
 }
 
 const lemniscate = () => sampledPath('lemniscate', curve(u => {

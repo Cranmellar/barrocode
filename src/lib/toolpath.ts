@@ -20,6 +20,11 @@ export interface ToolpathLayer {
   crossings: number;          // self-crossings that received a z-hop
 }
 
+// Every PrintParams field buildToolpath reads; a test pins the list.
+export const TOOLPATH_PARAMS = [
+  'scaleFactor', 'originX', 'originY', 'flipY', 'zHopHeight', 'hopRadius',
+] as const satisfies readonly (keyof PrintParams)[];
+
 function nearestNeighbourOrder<T extends MM2>(paths: T[][], start: MM2): T[][] {
   const remaining = [...paths];
   const ordered: T[][] = [];

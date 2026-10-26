@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect, useRef, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import logoUrl from './assets/logo.png';
-import type { PrintParams, ParsedSVG, WaveLayer, WaveKeyframe, SampledPath } from './types';
+import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT, findKeyframeAt } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt, WAVE_PARAMS } from './lib/waveGenerator';
+import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
 import { keyframeColor } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
@@ -182,7 +183,6 @@ const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
-  const [layers, setLayers] = useState<WaveLayer[]>([]);
   const [gcode, setGcode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [gcodeFilename, setGcodeFilename] = useState('curva.de.barro.gcode');
@@ -199,6 +199,23 @@ export default function App() {
 
   const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
   const svgH = parsedSVG?.viewBox.height ?? 200;
+
+  // Keyed on the fields each stage reads, so G-code-only edits (speeds, E,
+  // travel, priming…) don't rebuild the geometry.
+  const waveKey = WAVE_PARAMS.map(k => params[k]).join('|');
+  const layers = useMemo(
+    () => parsedSVG
+      ? generateWaveLayers(parsedSVG.paths, params, keyframes, parsedSVG.viewBox.height)
+      : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [parsedSVG, keyframes, waveKey],
+  );
+  const toolpathKey = TOOLPATH_PARAMS.map(k => params[k]).join('|');
+  const toolpath = useMemo(
+    () => buildToolpath(layers, params, svgH),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [layers, toolpathKey, svgH],
+  );
 
   // While a keyframe is selected the Lissajous panel shows and edits that
   // keyframe's wave; global values are overridden whenever keyframes exist.
@@ -351,8 +368,6 @@ export default function App() {
     } catch (e) {
       setError((e as Error).message);
       setParsedSVG(null);
-      setLayers([]);
-      setGcode('');
     }
   }, []);
 
@@ -373,24 +388,16 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.sampleSpacing]);
 
-  // Regenerate wave layers on any param/path change (immediate)
-  useEffect(() => {
-    if (!parsedSVG) return;
-    const newLayers = generateWaveLayers(parsedSVG.paths, params, keyframes, parsedSVG.viewBox.height);
-    setLayers(newLayers);
-  }, [parsedSVG, params, keyframes]);
-
   // Regenerate G-code with debounce — avoids freezing UI during slider/kf edits
   useEffect(() => {
     if (gcodeTimerRef.current !== null) clearTimeout(gcodeTimerRef.current);
-    if (layers.length === 0 || !parsedSVG) {
+    if (toolpath.length === 0) {
       setGcode('');
       return;
     }
-    const snapshot = { layers, params, viewBox: parsedSVG.viewBox };
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
-      setGcode(generateGcode(snapshot.layers, snapshot.params, snapshot.viewBox));
+      setGcode(generateGcode(toolpath, params));
     }, 400);
     return () => {
       if (gcodeTimerRef.current !== null) {
@@ -398,7 +405,7 @@ export default function App() {
         gcodeTimerRef.current = null;
       }
     };
-  }, [layers, params, parsedSVG]);
+  }, [toolpath, params]);
 
   function togglePath(id: string) {
     setParsedSVG(prev => prev && {
@@ -452,8 +459,6 @@ export default function App() {
   function clearSVG() {
     try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
     setParsedSVG(null);
-    setLayers([]);
-    setGcode('');
     setError(null);
     lastRawRef.current = null;
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -579,7 +584,7 @@ export default function App() {
         {/* Vista global 3D — ocupa 2/3 superiores */}
         <Preview2D
           sampledPaths={parsedSVG?.paths ?? []}
-          layers={layers}
+          toolpath={toolpath}
           params={params}
           viewBox={parsedSVG?.viewBox ?? null}
           timelineProgress={timelineProgress}

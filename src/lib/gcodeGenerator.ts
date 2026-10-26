@@ -18,8 +18,8 @@
  *   crossing provides clearance without stopping extrusion.
  */
 
-import type { WaveLayer, PrintParams, SVGViewBox } from '../types';
-import { buildToolpath, type ToolpathLayer, type ToolpathPoint } from './toolpath';
+import type { PrintParams } from '../types';
+import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
@@ -37,7 +37,7 @@ function smoothstep(t: number) { return t * t * (3 - 2 * t); }
 
 // ── Header ──────────────────────────────────────────────────────────────────
 
-function buildHeader(params: PrintParams, numLayers: number): string {
+function buildHeader(params: PrintParams): string {
   const eff = params.useNumLayers
     ? params.numLayers
     : Math.max(1, Math.ceil(params.totalHeight / params.layerHeight));
@@ -206,15 +206,13 @@ function pathToGcode(
 // ── Main entry point ─────────────────────────────────────────────────────────
 
 export function generateGcode(
-  layers: WaveLayer[],
+  toolpath: ToolpathLayer[],
   params: PrintParams,
-  viewBox: SVGViewBox,
 ): string {
-  if (layers.length === 0) return '; No layers to generate.\n';
+  if (toolpath.length === 0) return '; No layers to generate.\n';
 
-  const toolpath = buildToolpath(layers, params, viewBox.height);
   const blocks: string[] = [];
-  blocks.push(buildHeader(params, layers.length));
+  blocks.push(buildHeader(params));
 
   // M82 guards against a relative-E mode left over from a previous job; it is
   // skipped for motion-only output, where controllers may reject E-axis codes.
