@@ -22,6 +22,7 @@ import type { WaveLayer, PrintParams, SVGViewBox } from '../types';
 import { buildToolpath, type ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 
+const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
 
 function fmt(n: number, d = 3) { return n.toFixed(d); }
@@ -112,18 +113,21 @@ function buildTransition(
  * G-code lines for a concentric skirt arc from `from` → `to`.
  * Short hops (< skirtThreshold) fall back to a direct lift-travel-descend.
  * Longer hops orbit the layer centroid at radius max(rFrom, rTo).
+ * The lift clears `topZ`, the highest bead printed so far (z-hop bumps and
+ * Z oscillation can sit above the layer's base Z), and the descent lands on
+ * the real Z of the next path's first point.
  */
 function buildSkirtTravel(
   from: MM2,
-  to: MM2,
+  to: ToolpathPoint,
   centroid: MM2,
-  z: number,
+  topZ: number,
   params: PrintParams,
 ): string[] {
   const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
 
   const lines: string[] = [];
-  lines.push(`G1 Z${fmt(z + 2)} F${params.travelSpeed}  ; lift`);
+  lines.push(`G1 Z${fmt(topZ + TRAVEL_CLEARANCE)} F${params.travelSpeed}  ; lift`);
 
   if (!arcPts) {
     // Short hop — direct XY travel
@@ -142,7 +146,7 @@ function buildSkirtTravel(
     }
   }
 
-  lines.push(`G1 Z${fmt(z)} F${params.travelSpeed}  ; descend`);
+  lines.push(`G1 Z${fmt(to.z)} F${params.travelSpeed}  ; descend`);
   return lines;
 }
 
@@ -247,8 +251,8 @@ export function generateGcode(
 
       if (isFirstMove) {
         blocks.push(`G1 X${fmt(start.x)} Y${fmt(start.y)} F${params.travelSpeed}  ; travel to start`);
-        blocks.push(`G1 Z${fmt(layer.z)} F${params.travelSpeed}  ; descend`);
-        zRef.value = layer.z;
+        blocks.push(`G1 Z${fmt(start.z)} F${params.travelSpeed}  ; descend`);
+        zRef.value = start.z;
         if (params.dwellAtStart > 0) {
           blocks.push(`G4 P${params.dwellAtStart}  ; dwell — wait for clay flow`);
         }
@@ -256,10 +260,9 @@ export function generateGcode(
         // Inter-path travel: skirt arc (or short hop).
         // Always needed for pi > 0 even with softJoin; only the layer→layer
         // transition (pi === 0, softJoin) arrives via continuous extrusion.
-        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, layer.z, params);
+        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params);
         blocks.push(skirtLines.join('\n'));
-        // skirt travel lands at layer.z; first point's Z applied on first G1
-        zRef.value = layer.z;
+        zRef.value = start.z;
       }
 
       blocks.push(pathToGcode(pts, params, eRef, zRef).join('\n'));
