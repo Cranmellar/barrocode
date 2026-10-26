@@ -1127,6 +1127,21 @@ input[type="range"]::-moz-range-thumb {
 .right-sidebar-scroll::-webkit-scrollbar       { width: 3px; }
 .right-sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border); }
 
+/* Fade at the foot of a scrolling column while more content sits below */
+.scroll-more::after {
+  content: '';
+  position: sticky;
+  bottom: 0;
+  display: block;
+  flex-shrink: 0;
+  height: 40px;
+  margin-top: -40px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, transparent, var(--fade-bg));
+}
+.left-sidebar        { --fade-bg: var(--card); }
+.right-sidebar-scroll { --fade-bg: var(--panel-r); }
+
 /* ── G-code pane ─────────────────────────────────────────────────────────── */
 .gcode-pane {
   display: flex;

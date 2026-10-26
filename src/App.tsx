@@ -112,6 +112,35 @@ function useResize(
   return { size, onMouseDown };
 }
 
+// True while a scroller has content hidden below its visible area.
+function useScrollMore<T extends HTMLElement>() {
+  const ref = useRef<T>(null);
+  const [more, setMore] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current!;
+    const update = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
+    // Collapsing a group resizes a child, not the scroller, so watch every child too.
+    const ro = new ResizeObserver(update);
+    const observeAll = () => {
+      ro.disconnect();
+      ro.observe(el);
+      for (const child of el.children) ro.observe(child);
+    };
+    const mo = new MutationObserver(observeAll);
+    observeAll();
+    mo.observe(el, { childList: true });
+    el.addEventListener('scroll', update, { passive: true });
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      el.removeEventListener('scroll', update);
+    };
+  }, []);
+
+  return { ref, more };
+}
+
 const HELP_SEEN_KEY = 'barrocode.helpSeen';
 const SESSION_KEY = 'barrocode.session';
 
@@ -310,6 +339,8 @@ export default function App() {
   const rightPanel        = useResize(288, 200, 480, 'x', true);
   const bottomRow         = useResize(200, 120, 480, 'y', true);
   const lissPreviewHeight = useResize(200, 120, 400, 'y');
+  const leftScroll        = useScrollMore<HTMLDivElement>();
+  const rightScroll       = useScrollMore<HTMLDivElement>();
 
   const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = []) => {
     try {
@@ -440,7 +471,8 @@ export default function App() {
     <div className="app-layout">
 
       {/* ── Panel izquierdo ── */}
-      <div className="sidebar left-sidebar" style={{ width: leftPanel.size }}>
+      <div ref={leftScroll.ref} className={`sidebar left-sidebar${leftScroll.more ? ' scroll-more' : ''}`}
+        style={{ width: leftPanel.size }}>
         <div className="app-banner">
           <button
             className="help-btn"
@@ -714,7 +746,7 @@ export default function App() {
           <LissajousPreview params={lissParams} />
         </div>
         <div className="drag-handle-h" onMouseDown={lissPreviewHeight.onMouseDown} />
-        <div className="right-sidebar-scroll">
+        <div ref={rightScroll.ref} className={`right-sidebar-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
           <LissajousParams
             params={lissParams}
             onChange={setLissParams}
