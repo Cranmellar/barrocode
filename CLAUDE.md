@@ -153,7 +153,7 @@ Screen layout (all panels resizable via `useResize` in `App.tsx`):
 │ logo + ?            │ Preview2D toolbar: Ajustar,          │ LissajousPreview     │
 │ session banner      │  Iso/Planta/Frente, summary, tabs    │ ─── drag ───         │
 │ upload, samples     │ 3D canvas + layer slider (right)     │ LissajousParams:     │
-│ PathList            │ timeline + KF diamonds               │  context header      │
+│ PathList            │ timeline: KF lane (+ spans) + slider │  context header      │
 │ PathParams groups:  │ ─── drag ───                         │  (global / KF / lock)│
 │  Pieza (incl.       │ Keyframe strip (in App.tsx):         │  presets, N, T, Z,   │
 │  CenterScaleParams),│  ‹ › nav, Añadir/OK, delete;         │  Delta, Fase         │
@@ -281,7 +281,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - `Preview2D` keeps state and interaction; all canvas drawing lives in `lib/draw3D.ts` (`drawScene`, `drawTopDown`). Orthographic projection: `project(x, y, z, azimuth, elevation)`. Screen coords are `[offsetX + px*scale, offsetY + py*scale]`.
 - While the user drags the camera (`isInteracting`), drawing uses a LOD stride of 4 and skips the keyframe, skirt and join overlays. Keep new expensive overlays behind `!isInteracting`.
 - Layer visibility comes from the layer slider: `drawScene` gets `layerCap` (top visible layer index) and `layerSolo`. New overlays tied to a layer should respect it.
-- Layer colors are an HSL gradient from cobalt to terracotta: `hsl(218→20, 72%→88%, 50%→62%)` (`layerColor`). `kfColor` in `App.tsx` uses the same formula for keyframe chips.
+- Layer colors are an HSL gradient from cobalt to terracotta: `hsl(218→20, 72%→88%, 50%→62%)` (`layerColor`). Keyframes deliberately don't use it: they are hollow `--ink-2` diamonds, filled `--accent` when selected, everywhere (timeline, canvas, keyframe strip, Lissajous header).
 - `LissajousPreview` cancels its `requestAnimationFrame` when both `ampN` and `ampT` are ≈0. Don't remove this — it's a battery and CPU optimization.
 - Auto-fit triggers in `LissajousPreview` are explicit and key off specific param changes (currently `lissAmpN`, `lissAmpT`). Pan/zoom are user-only.
 

@@ -169,10 +169,6 @@ function hasSeenHelp() {
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
-function kfColor(t: number) {
-  return `hsl(${Math.round(218 - 198 * t)},${Math.round(72 + t * 16)}%,${Math.round(50 + t * 12)}%)`;
-}
-
 type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ';
 type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ';
 
@@ -612,7 +608,7 @@ export default function App() {
                     title="Keyframe anterior" aria-label="Keyframe anterior">‹</button>
                   <span className="kf-nav-label">
                     {selectedKf
-                      ? <><span className="kf-chip" style={{ background: kfColor(selectedKf.t) }} />
+                      ? <><span className="kf-chip" />
                           KF {selectedIdx + 1} / {keyframes.length}</>
                       : `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`}
                   </span>
@@ -753,7 +749,6 @@ export default function App() {
             onReset={() => setParams(DEFAULT_PARAMS)}
             editingKf={selectedKf && {
               label: `Keyframe ${Math.round(selectedKf.t * 100)}%`,
-              color: kfColor(selectedKf.t),
               onDone: () => setSelectedKfId(null),
             }}
             waveLocked={keyframes.length > 0 && !selectedKf}

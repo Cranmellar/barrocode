@@ -9,7 +9,7 @@
  *
  * Las capas van de azul pizarra (inferior) a terracota (superior).
  * El extrusor virtual sigue el slider de línea de tiempo.
- * Los keyframes se marcan como diamantes en la barra de tiempo.
+ * Los keyframes se marcan como diamantes en su propio carril, sobre la barra de tiempo.
  */
 
 import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
@@ -18,7 +18,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import { buildToolpath } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, layerColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, project, boundsOf, flattenPoints, drawScene, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -87,6 +87,7 @@ export function Preview2D({
 
   // ── Keyframe drag refs ────────────────────────────────────────────────────
   const kfDragRef    = useRef<{ id: string; startX: number; moved: boolean } | null>(null);
+  const [draggingKfId, setDraggingKfId] = useState<string | null>(null);
   const trackRef     = useRef<HTMLDivElement>(null);
   // Stable refs so window handlers never capture stale closure values
   const kfsRef          = useRef(keyframes);
@@ -122,8 +123,13 @@ export function Preview2D({
       const d = kfDragRef.current;
       if (!d || !trackRef.current) return;
       if (!d.moved && Math.abs(e.clientX - d.startX) < 4) return;
-      d.moved = true;
-      document.body.style.cursor = 'ew-resize';
+      if (!d.moved) {
+        d.moved = true;
+        document.body.style.cursor = 'grabbing';
+        setDraggingKfId(d.id);
+        // Dragging a keyframe also opens it, so its editor and the extruder follow along.
+        if (d.id !== selectedKfIdRef.current) onKfSelectRef.current(d.id);
+      }
       const rect = trackRef.current.getBoundingClientRect();
       const newT  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
       onKfsRef.current(
@@ -131,18 +137,14 @@ export function Preview2D({
           .map(k => k.id === d.id ? { ...k, t: newT } : k)
           .sort((a, b) => a.t - b.t),
       );
-      // The extruder rides along with the keyframe being edited.
-      if (d.id === selectedKfIdRef.current) onTimelineRef.current(newT);
+      onTimelineRef.current(newT);
     }
     function onUp() {
       const d = kfDragRef.current;
       if (!d) return;
-      if (!d.moved) {
-        // Pure click → select / deselect
-        const cur = selectedKfIdRef.current;
-        onKfSelectRef.current(cur === d.id ? null : d.id);
-      }
+      if (!d.moved) onKfSelectRef.current(d.id);
       kfDragRef.current = null;
+      setDraggingKfId(null);
       document.body.style.cursor = '';
     }
     window.addEventListener('mousemove', onMove);
@@ -386,53 +388,96 @@ export function Preview2D({
         <div className="timeline-row">
           <span className="timeline-label">Extrusor</span>
 
-          {/* Track with keyframe diamond markers */}
-          <div className="timeline-track" ref={trackRef}>
+          <div className="timeline-track">
+            {/* Keyframe lane: inset by half the slider thumb so t lines up with the thumb centre */}
+            <div
+              className="kf-lane"
+              ref={trackRef}
+              onMouseDown={e => {
+                const rect = e.currentTarget.getBoundingClientRect();
+                onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+              }}
+            >
+              {(() => {
+                const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+                if (sorted.length === 0) return null;
+                const p = timelineProgress;
+                const first = sorted[0].t;
+                const last = sorted[sorted.length - 1].t;
+                const segClass = (hold: boolean, active: boolean) =>
+                  `kf-seg${hold ? ' kf-seg--hold' : ''}${active ? ' kf-seg--active' : ''}`;
+                return (
+                  <>
+                    <div
+                      className={segClass(true, p < first)}
+                      style={{ left: 0, width: `${first * 100}%` }}
+                      title="Antes del primer keyframe se usan sus valores"
+                    />
+                    {sorted.slice(1).map((b, i) => {
+                      const a = sorted[i];
+                      return (
+                        <div
+                          key={a.id}
+                          className={segClass(false, p >= a.t && p < b.t)}
+                          style={{ left: `${a.t * 100}%`, width: `${(b.t - a.t) * 100}%` }}
+                          title={`Interpolación: KF ${Math.round(a.t * 100)}% → KF ${Math.round(b.t * 100)}%`}
+                        />
+                      );
+                    })}
+                    <div
+                      className={segClass(true, p >= last)}
+                      style={{ left: `${last * 100}%`, right: 0 }}
+                      title="Después del último keyframe se mantienen sus valores"
+                    />
+                  </>
+                );
+              })()}
+
+              <div className="timeline-playhead" style={{ left: `${timelineProgress * 100}%` }} />
+
+              {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
+                <button
+                  className="kf-ghost"
+                  style={{ left: `${timelineProgress * 100}%` }}
+                  onMouseDown={e => e.stopPropagation()}
+                  onClick={onAddKeyframe}
+                  title="Añadir keyframe aquí (K)"
+                  aria-label="Añadir keyframe aquí"
+                >+</button>
+              )}
+
+              {keyframes.map(kf => {
+                const dragging = kf.id === draggingKfId;
+                return (
+                  <div
+                    key={kf.id}
+                    className={`kf-diamond${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
+                    style={{ left: `${kf.t * 100}%` }}
+                    onMouseDown={e => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
+                    }}
+                    title={dragging ? undefined : `KF ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
+                  />
+                );
+              })}
+
+              {(() => {
+                const kf = keyframes.find(k => k.id === draggingKfId);
+                return kf && (
+                  <span className="kf-drag-label" style={{ left: `${kf.t * 100}%` }}>
+                    {(kf.t * 100).toFixed(1)}%
+                  </span>
+                );
+              })()}
+            </div>
+
             <input
               type="range" min={0} max={1} step={0.0005}
               value={timelineProgress}
               onChange={e => onTimelineChange(parseFloat(e.target.value))}
             />
-
-            {/* Add-keyframe tag floating above the scrub thumb */}
-            {(() => {
-              const li = Math.min(numLayers - 1, Math.floor(timelineProgress * numLayers));
-              const dColor = layerColor(li, numLayers);
-              const atKf = findKeyframeAt(keyframes, timelineProgress);
-              const confirm = atKf !== null && atKf.id === selectedKfId;
-              return (
-                <button
-                  className="timeline-thumb-tag"
-                  style={{ left: `calc(${timelineProgress * 100}% + ${((0.5 - timelineProgress) * 14).toFixed(2)}px)` }}
-                  onClick={onAddKeyframe}
-                  title={confirm ? 'Terminar de editar este keyframe'
-                    : atKf ? 'Seleccionar el keyframe de aquí'
-                    : 'Añadir keyframe aquí'}
-                >
-                  <span className="ttt-diamond" style={{ background: dColor }} />
-                  <span className="ttt-plus">{confirm ? '✓' : atKf ? '›' : '+'}</span>
-                </button>
-              );
-            })()}
-
-            {keyframes.map(kf => {
-              const kfLayerIdx = Math.round(kf.t * Math.max(0, numLayers - 1));
-              const kfColor = kf.id === selectedKfId
-                ? 'var(--accent)'
-                : layerColor(kfLayerIdx, numLayers);
-              return (
-                <div
-                  key={kf.id}
-                  className={`kf-diamond ${kf.id === selectedKfId ? 'kf-selected' : ''}`}
-                  style={{ left: `${kf.t * 100}%`, background: kfColor, cursor: 'ew-resize' }}
-                  onMouseDown={e => {
-                    e.preventDefault();
-                    kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
-                  }}
-                  title={`KF ${(kf.t * 100).toFixed(1)}% — arrastrar para mover`}
-                />
-              );
-            })}
           </div>
 
           <span className="timeline-label" style={{ minWidth: 36, textAlign: 'right' }}>

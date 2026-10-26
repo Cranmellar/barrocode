@@ -18,6 +18,10 @@ export interface View3D {
   offsetY: number;
 }
 
+// Mirror --accent / --ink-2 in index.css; canvas can't read CSS variables.
+const ACCENT = '#4A4E8C';
+const INK_2  = '#3A3A3A';
+
 // Vivid palette: cobalt-blue (bottom) → warm terracotta (top)
 export function layerColor(index: number, total: number, alpha = 1): string {
   const t = total <= 1 ? 0 : index / (total - 1);
@@ -200,7 +204,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       const editAllMm = editLayer.paths.flat();
 
       ctx.save();
-      ctx.strokeStyle = '#4A4E8C';
+      ctx.strokeStyle = ACCENT;
       ctx.globalAlpha = 0.55;
       ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
       ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
@@ -303,9 +307,9 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
       const isSelected = kf.id === selectedKfId;
       const kfSize = isSelected ? 7 : 5;
-      const color  = isSelected ? '#6064A6' : layerColor(kfPt.layerIndex, numLayers);
+      const color  = isSelected ? ACCENT : INK_2;
 
-      // Diamond
+      // Hollow when idle, filled when selected — same look as the timeline.
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(kx,          ky - kfSize);
@@ -313,18 +317,18 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       ctx.lineTo(kx,          ky + kfSize);
       ctx.lineTo(kx - kfSize, ky);
       ctx.closePath();
-      ctx.fillStyle   = color;
-      ctx.strokeStyle = '#fff';
+      ctx.fillStyle   = isSelected ? ACCENT : '#fff';
+      ctx.strokeStyle = isSelected ? '#fff' : INK_2;
       ctx.lineWidth   = 2;
       ctx.fill(); ctx.stroke();
       ctx.restore();
 
       // Tag — pentagon pointing left, attached to diamond right tip
-      const TAG_H = 13, TAG_W = 28, TAG_R = 3, NOTCH = 5;
+      const TAG_H = 14, TAG_W = 32, TAG_R = 3, NOTCH = 5;
       const tx = kx + kfSize + 2;
       const ty = ky - TAG_H / 2;
       ctx.save();
-      ctx.globalAlpha = isSelected ? 0.72 : 0.52;
+      ctx.globalAlpha = isSelected ? 0.9 : 0.7;
       ctx.fillStyle   = color;
       ctx.strokeStyle = '#fff';
       ctx.lineWidth   = 1.2;
@@ -339,7 +343,7 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
       ctx.fill();
       ctx.stroke();
       ctx.globalAlpha = 1;
-      ctx.font      = `${isSelected ? 700 : 600} 8px GSCode, monospace`;
+      ctx.font      = `${isSelected ? 700 : 600} 9px GSCode, monospace`;
       ctx.fillStyle = '#fff';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -380,51 +384,6 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.fillStyle = 'rgba(16,14,9,0.5)';
     ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 9, ey + 14);
     ctx.restore();
-
-    // Add-keyframe hint tag — pentagon pointing left, upper-right of extruder
-    {
-      const TAG_H = 16, TAG_W = 34, TAG_R = 4, NOTCH = 6;
-      const tx = ex + 8;
-      const ty = ey - TAG_H - 6;
-      const tcy = ty + TAG_H / 2;
-      ctx.save();
-      ctx.globalAlpha = 0.82;
-      ctx.fillStyle   = 'rgba(16,14,9,0.78)';
-      ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-      ctx.lineWidth   = 1;
-      ctx.beginPath();
-      ctx.moveTo(tx,                 tcy);
-      ctx.lineTo(tx + NOTCH,         ty);
-      ctx.lineTo(tx + TAG_W - TAG_R, ty);
-      ctx.arcTo(tx + TAG_W, ty,          tx + TAG_W, ty + TAG_R,         TAG_R);
-      ctx.arcTo(tx + TAG_W, ty + TAG_H,  tx + TAG_W - TAG_R, ty + TAG_H, TAG_R);
-      ctx.lineTo(tx + NOTCH,         ty + TAG_H);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      // Diamond glyph
-      const mx = tx + NOTCH + 7;
-      const ds = 4;
-      ctx.fillStyle = layerColor(pt.layerIndex, numLayers);
-      ctx.beginPath();
-      ctx.moveTo(mx,      tcy - ds);
-      ctx.lineTo(mx + ds, tcy);
-      ctx.lineTo(mx,      tcy + ds);
-      ctx.lineTo(mx - ds, tcy);
-      ctx.closePath();
-      ctx.fill();
-      // Plus glyph
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth   = 1.6;
-      ctx.lineCap     = 'round';
-      const px2 = tx + NOTCH + 20;
-      ctx.beginPath();
-      ctx.moveTo(px2 - 3.5, tcy); ctx.lineTo(px2 + 3.5, tcy);
-      ctx.moveTo(px2, tcy - 3.5); ctx.lineTo(px2, tcy + 3.5);
-      ctx.stroke();
-      ctx.restore();
-    }
   }
 
   // SVG centerlines (no wave layers yet)
