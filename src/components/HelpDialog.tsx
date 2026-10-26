@@ -123,8 +123,8 @@ function KeyframeDiagram() {
         <line x1="20" y1="38" x2="300" y2="38" className="hd-base" />
         <polyline points={KF_WAVE} className="hd-wave" />
         <line x1="20" y1="76" x2="300" y2="76" className="hd-track" />
-        <rect x="16" y="72" width="8" height="8" transform="rotate(45 20 76)" className="hd-kf" />
-        <rect x="296" y="72" width="8" height="8" transform="rotate(45 300 76)" className="hd-kf" />
+        <rect x="16" y="72" width="8" height="8" transform="rotate(45 20 76)" fill={layerHsl(0)} />
+        <rect x="296" y="72" width="8" height="8" transform="rotate(45 300 76)" fill={layerHsl(1)} />
         <text x="20" y="96" className="hd-label">KF 0% · 2 mm</text>
         <text x="300" y="96" textAnchor="end" className="hd-label">KF 100% · 18 mm</text>
       </svg>
@@ -216,13 +216,12 @@ export function HelpDialog({ open, onClose }: Props) {
             <KeyframeDiagram />
             <p>
               Mueve el <em>Extrusor</em> en la línea de tiempo bajo la vista 3D y pulsa{' '}
-              <kbd>+</kbd> para fijar la onda en ese punto. Los keyframes tienen su propio
-              carril sobre la línea de tiempo. Selecciona uno (clic en su rombo o con{' '}
-              <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel derecho; su
-              posición, escala y centro en la franja inferior. Arrastra su rombo para moverlo.
-              Entre keyframes los valores se interpolan (tramo liso); antes del primero y
-              después del último se mantienen (tramo rayado). Con keyframes activos, los
-              ajustes por trayecto se ignoran.
+              <kbd>+</kbd> para fijar la onda en ese punto. Cada keyframe es un rombo con
+              número y color, iguales en la línea de tiempo, la vista 3D y los paneles.
+              Selecciona uno (clic en su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
+              derecho; su posición, escala y centro en la franja inferior. Arrastra su rombo
+              para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
+              los ajustes por trayecto se ignoran.
             </p>
           </section>
 

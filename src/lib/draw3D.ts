@@ -18,9 +18,8 @@ export interface View3D {
   offsetY: number;
 }
 
-// Mirror --accent / --ink-2 in index.css; canvas can't read CSS variables.
-const ACCENT = '#4A4E8C';
-const INK_2  = '#3A3A3A';
+// Mirrors --ink in index.css; canvas can't read CSS variables.
+const INK = '#1C1C1C';
 
 // Vivid palette: cobalt-blue (bottom) → warm terracotta (top)
 export function layerColor(index: number, total: number, alpha = 1): string {
@@ -29,6 +28,12 @@ export function layerColor(index: number, total: number, alpha = 1): string {
   const sat = 72 + t * 16;                  // 72 % → 88 %
   const lit = 50 + t * 12;                  // 50 % → 62 %
   return `hsla(${hue},${sat.toFixed(0)}%,${lit.toFixed(0)}%,${alpha})`;
+}
+
+// A keyframe takes the layer hue at its position, at a fixed lightness so its
+// dark number stays legible on every hue (the gradient passes through yellow).
+export function keyframeColor(t: number): string {
+  return `hsl(${Math.round(218 - 198 * t)},${Math.round(72 + t * 16)}%,62%)`;
 }
 
 // At az = 0 the camera looks along +Y: X to the right, Y away, Z up.
@@ -192,55 +197,6 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.restore();
   }
 
-  // Selected-keyframe layer highlight — overdraw in accent so the user
-  // knows which layer the open kf editor is targeting
-  if (!isInteracting && selectedKfId && numLayers > 0) {
-    const selKf = keyframes.find(k => k.id === selectedKfId);
-    const editLi = selKf
-      ? Math.min(numLayers - 1, Math.round(selKf.t * Math.max(0, numLayers - 1)))
-      : -1;
-    if (selKf && shown(editLi)) {
-      const editLayer = toolpath[editLi];
-      const editAllMm = editLayer.paths.flat();
-
-      ctx.save();
-      ctx.strokeStyle = ACCENT;
-      ctx.globalAlpha = 0.55;
-      ctx.lineWidth   = Math.max(2, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
-      ctx.lineJoin    = 'round'; ctx.lineCap = 'round';
-      for (const pts of editLayer.paths) {
-        ctx.beginPath();
-        pts.forEach(({ x, y, z }, i) => {
-          const [sx, sy] = toScreen(x, y, z);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
-        ctx.stroke();
-      }
-      // Horizontal band: bounding-box rectangle at the edited layer's Z
-      if (editAllMm.length > 0) {
-        const { minX: mnX, maxX: mxX, minY: mnY, maxY: mxY } =
-          boundsOf(editAllMm, p => p.x, p => p.y);
-        const corners: [number,number,number][] = [
-          [mnX, mnY, editLayer.z], [mxX, mnY, editLayer.z],
-          [mxX, mxY, editLayer.z], [mnX, mxY, editLayer.z],
-        ];
-        ctx.save();
-        ctx.globalAlpha = 0.38;
-        ctx.strokeStyle = '#4A4E8C';
-        ctx.lineWidth   = 1.8;
-        ctx.setLineDash([9, 5]);
-        ctx.beginPath();
-        corners.forEach(([x, y, z], i) => {
-          const [sx, sy] = toScreen(x, y, z);
-          if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
-        });
-        ctx.closePath(); ctx.stroke();
-        ctx.restore();
-      }
-      ctx.restore();
-    }
-  }
-
   // Concentric skirt travel arcs — same moves buildSkirtTravel emits
   if (!isInteracting && numLayers > 0) {
     const drawTravel = (from: MM2, to: MM2, centroid: MM2, zFrom: number, zTo: number) => {
@@ -298,60 +254,6 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.restore();
   }
 
-  // Keyframe position markers on the canvas (subtle vertical tick)
-  if (!isInteracting && flat.length > 0) {
-    for (const kf of keyframes) {
-      const kfIdx = Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)));
-      const kfPt  = flat[kfIdx];
-      if (!shown(kfPt.layerIndex)) continue;
-      const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
-      const isSelected = kf.id === selectedKfId;
-      const kfSize = isSelected ? 7 : 5;
-      const color  = isSelected ? ACCENT : INK_2;
-
-      // Hollow when idle, filled when selected — same look as the timeline.
-      ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(kx,          ky - kfSize);
-      ctx.lineTo(kx + kfSize, ky);
-      ctx.lineTo(kx,          ky + kfSize);
-      ctx.lineTo(kx - kfSize, ky);
-      ctx.closePath();
-      ctx.fillStyle   = isSelected ? ACCENT : '#fff';
-      ctx.strokeStyle = isSelected ? '#fff' : INK_2;
-      ctx.lineWidth   = 2;
-      ctx.fill(); ctx.stroke();
-      ctx.restore();
-
-      // Tag — pentagon pointing left, attached to diamond right tip
-      const TAG_H = 14, TAG_W = 32, TAG_R = 3, NOTCH = 5;
-      const tx = kx + kfSize + 2;
-      const ty = ky - TAG_H / 2;
-      ctx.save();
-      ctx.globalAlpha = isSelected ? 0.9 : 0.7;
-      ctx.fillStyle   = color;
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth   = 1.2;
-      ctx.beginPath();
-      ctx.moveTo(tx,                ky);
-      ctx.lineTo(tx + NOTCH,        ty);
-      ctx.lineTo(tx + TAG_W - TAG_R, ty);
-      ctx.arcTo(tx + TAG_W, ty,          tx + TAG_W, ty + TAG_R,          TAG_R);
-      ctx.arcTo(tx + TAG_W, ty + TAG_H,  tx + TAG_W - TAG_R, ty + TAG_H,  TAG_R);
-      ctx.lineTo(tx + NOTCH,        ty + TAG_H);
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-      ctx.font      = `${isSelected ? 700 : 600} 9px GSCode, monospace`;
-      ctx.fillStyle = '#fff';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(`${Math.round(kf.t * 100)}%`, tx + NOTCH + (TAG_W - NOTCH) / 2, ky);
-      ctx.restore();
-    }
-  }
-
   // Virtual extruder
   if (flat.length > 0 && numLayers > 0) {
     const idx = Math.min(flat.length - 1, Math.floor(timelineProgress * (flat.length - 1)));
@@ -366,23 +268,49 @@ export function drawScene(ctx: CanvasRenderingContext2D, W: number, H: number, s
     ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(fx, fy); ctx.stroke();
     ctx.restore();
 
+    // Dark square like the timeline thumb, so it never reads as a keyframe.
     ctx.save();
-    ctx.beginPath();
-    ctx.moveTo(ex,     ey - 8);
-    ctx.lineTo(ex + 8, ey);
-    ctx.lineTo(ex,     ey + 8);
-    ctx.lineTo(ex - 8, ey);
-    ctx.closePath();
-    ctx.fillStyle   = layerColor(pt.layerIndex, numLayers);
+    ctx.fillStyle   = INK;
     ctx.strokeStyle = '#fff';
     ctx.lineWidth   = 2.5;
+    ctx.beginPath();
+    ctx.rect(ex - 6, ey - 6, 12, 12);
     ctx.fill(); ctx.stroke();
     ctx.restore();
 
+    // Clear of the selected keyframe diamond (radius 14) that sits on the extruder.
     ctx.save();
-    ctx.font = '700 8px GSCode, monospace';
-    ctx.fillStyle = 'rgba(16,14,9,0.5)';
-    ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 9, ey + 14);
+    ctx.font = '700 9px GSCode, monospace';
+    ctx.fillStyle = 'rgba(16,14,9,0.6)';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 19, ey);
+    ctx.restore();
+  }
+
+  // Keyframe markers: numbered diamonds, same colour and number as on the timeline.
+  // Drawn after the extruder, which sits on the selected keyframe.
+  if (!isInteracting && flat.length > 0) {
+    const sorted = [...keyframes].sort((a, b) => a.t - b.t);
+    ctx.save();
+    ctx.font = '700 11px GSCode, monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    sorted.forEach((kf, i) => {
+      const kfPt = flat[Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)))];
+      if (!shown(kfPt.layerIndex)) return;
+      const [kx, ky] = toScreen(kfPt.x, kfPt.y, kfPt.z);
+      const isSelected = kf.id === selectedKfId;
+      const r = isSelected ? 14 : 12;
+      ctx.beginPath();
+      ctx.moveTo(kx, ky - r); ctx.lineTo(kx + r, ky); ctx.lineTo(kx, ky + r); ctx.lineTo(kx - r, ky);
+      ctx.closePath();
+      ctx.fillStyle   = keyframeColor(kf.t);
+      ctx.strokeStyle = isSelected ? INK : '#fff';
+      ctx.lineWidth   = 2;
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = INK;
+      ctx.fillText(String(i + 1), kx, ky + 0.5);
+    });
     ctx.restore();
   }
 

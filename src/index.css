@@ -330,7 +330,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .hd-wave  { fill: none; stroke: var(--accent); stroke-width: 1.8; stroke-linejoin: round; }
 .hd-dim   { stroke: var(--ink-2); stroke-width: 1; }
 .hd-track { stroke: var(--border-rule); stroke-width: 2; }
-.hd-kf    { fill: var(--card-2); stroke: var(--ink-2); stroke-width: 2; }
 .hd-n, .hd-t { fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .hd-n     { stroke: var(--n-axis); }
 .hd-t     { stroke: var(--t-axis); }
@@ -1192,7 +1191,7 @@ input[type="range"]::-moz-range-thumb {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  height: 42px;
+  height: 52px;
   background: var(--card);
   border-top: 1px solid var(--border);
   flex-shrink: 0;
@@ -1220,98 +1219,95 @@ input[type="range"]::-moz-range-thumb {
 /* Inset by half the 14px slider thumb so a keyframe at t sits over the thumb at t. */
 .kf-lane {
   position: relative;
-  height: 18px;
-  margin: 0 7px 4px;
+  height: 32px;
+  margin: 0 7px 2px;
   cursor: pointer;
-}
-/* Interpolated span between two keyframes; hatched where values are held. */
-.kf-seg {
-  position: absolute;
-  top: 50%;
-  height: 4px;
-  transform: translateY(-50%);
-  background: var(--border);
-}
-.kf-seg--active { background: var(--accent-hi); }
-.kf-seg--hold {
-  background: repeating-linear-gradient(135deg, var(--border) 0 3px, transparent 3px 6px);
-}
-.kf-seg--hold.kf-seg--active {
-  background: repeating-linear-gradient(135deg, var(--accent-hi) 0 3px, transparent 3px 6px);
-}
-.timeline-playhead {
-  position: absolute;
-  top: 0;
-  height: calc(100% + 8px);
-  width: 1px;
-  background: var(--ink);
-  transform: translateX(-50%);
-  z-index: 1;
-  pointer-events: none;
 }
 .kf-ghost {
   position: absolute;
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   background: var(--card-2);
-  border: 1px dashed var(--ink-2);
-  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--ink-2);
+  border-radius: var(--radius);
   color: var(--ink-2);
   font: inherit;
-  font-size: 12px;
+  font-size: 16px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
 }
 .kf-ghost:hover {
-  background: var(--accent);
-  border: 1px solid var(--accent);
+  background: var(--ink);
+  border: 1.5px solid var(--ink);
   color: #fff;
 }
-.kf-diamond {
-  position: absolute;
-  width: 10px;
-  height: 10px;
-  background: var(--card-2);
-  border: 2px solid var(--ink-2);
-  border-radius: 2px;
-  transform: translate(-50%, -50%) rotate(45deg);
-  cursor: grab;
-  z-index: 3;
-  top: 50%;
-  transition: background 0.1s, transform 0.12s;
+/* Numbered keyframe diamond. The diamond is a rotated ::before so the number stays upright. */
+.kf-badge {
+  position: relative;
+  z-index: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 700;
+  font-variation-settings: 'wght' 700;
+  line-height: 1;
   user-select: none;
 }
-.kf-diamond:hover,
-.kf-diamond.kf-dragging { transform: translate(-50%, -50%) rotate(45deg) scale(1.3); }
-.kf-diamond.kf-dragging { z-index: 5; cursor: grabbing; }
+.kf-badge::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  z-index: -1;
+  background: var(--kf-c);
+  border: 2px solid var(--card-2);
+  border-radius: 3px;
+  transform: rotate(45deg);
+  transition: transform 0.12s;
+}
+.kf-marker {
+  position: absolute;
+  top: 50%;
+  z-index: 3;
+  width: 30px;
+  height: 30px;
+  font-size: 12px;
+  transform: translate(-50%, -50%);
+  cursor: grab;
+}
+.kf-marker::before { inset: 5px; }
+.kf-marker:hover::before,
+.kf-marker.kf-dragging::before { transform: rotate(45deg) scale(1.15); }
+.kf-marker.kf-dragging { z-index: 5; cursor: grabbing; }
+.kf-badge.kf-selected::before,
+.kf-nav-label .kf-badge::before,
+.liss-context--kf .kf-badge::before { border-color: var(--ink); }
 .kf-drag-label {
   position: absolute;
-  bottom: calc(50% + 11px);
+  bottom: calc(50% + 16px);
   transform: translateX(-50%);
   z-index: 4;
   padding: 2px 6px;
-  background: var(--accent);
+  background: var(--ink);
   color: #fff;
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   font-variation-settings: 'wght' 700;
   white-space: nowrap;
   pointer-events: none;
-}
-.kf-diamond.kf-selected {
-  background: var(--accent);
-  border-color: var(--card-2);
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 .kf-add-btn { color: var(--ok); border-color: var(--ok); font-size: 12px; }
@@ -1321,15 +1317,6 @@ input[type="range"]::-moz-range-thumb {
 .kf-trash-btn { display: flex; align-items: center; justify-content: center; }
 
 /* ── Keyframe navigation ─────────────────────────────────────────────────── */
-.kf-chip {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  background: var(--accent);
-  border-radius: 1px;
-  transform: rotate(45deg);
-  flex-shrink: 0;
-}
 .kf-nav {
   display: flex;
   align-items: center;

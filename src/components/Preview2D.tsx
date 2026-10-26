@@ -12,13 +12,13 @@
  * Los keyframes se marcan como diamantes en su propio carril, sobre la barra de tiempo.
  */
 
-import { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties } from 'react';
 import type { SampledPath, WaveLayer, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import { buildToolpath } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, project, boundsOf, flattenPoints, drawScene, drawTopDown,
+  type View3D, keyframeColor, project, boundsOf, flattenPoints, drawScene, drawTopDown,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -398,43 +398,6 @@ export function Preview2D({
                 onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
               }}
             >
-              {(() => {
-                const sorted = [...keyframes].sort((a, b) => a.t - b.t);
-                if (sorted.length === 0) return null;
-                const p = timelineProgress;
-                const first = sorted[0].t;
-                const last = sorted[sorted.length - 1].t;
-                const segClass = (hold: boolean, active: boolean) =>
-                  `kf-seg${hold ? ' kf-seg--hold' : ''}${active ? ' kf-seg--active' : ''}`;
-                return (
-                  <>
-                    <div
-                      className={segClass(true, p < first)}
-                      style={{ left: 0, width: `${first * 100}%` }}
-                      title="Antes del primer keyframe se usan sus valores"
-                    />
-                    {sorted.slice(1).map((b, i) => {
-                      const a = sorted[i];
-                      return (
-                        <div
-                          key={a.id}
-                          className={segClass(false, p >= a.t && p < b.t)}
-                          style={{ left: `${a.t * 100}%`, width: `${(b.t - a.t) * 100}%` }}
-                          title={`Interpolación: KF ${Math.round(a.t * 100)}% → KF ${Math.round(b.t * 100)}%`}
-                        />
-                      );
-                    })}
-                    <div
-                      className={segClass(true, p >= last)}
-                      style={{ left: `${last * 100}%`, right: 0 }}
-                      title="Después del último keyframe se mantienen sus valores"
-                    />
-                  </>
-                );
-              })()}
-
-              <div className="timeline-playhead" style={{ left: `${timelineProgress * 100}%` }} />
-
               {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
                 <button
                   className="kf-ghost"
@@ -446,20 +409,20 @@ export function Preview2D({
                 >+</button>
               )}
 
-              {keyframes.map(kf => {
+              {[...keyframes].sort((a, b) => a.t - b.t).map((kf, i) => {
                 const dragging = kf.id === draggingKfId;
                 return (
                   <div
                     key={kf.id}
-                    className={`kf-diamond${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
-                    style={{ left: `${kf.t * 100}%` }}
+                    className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
+                    style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}
                     onMouseDown={e => {
                       e.preventDefault();
                       e.stopPropagation();
                       kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
                     }}
-                    title={dragging ? undefined : `KF ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
-                  />
+                    title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
+                  >{i + 1}</div>
                 );
               })}
 
