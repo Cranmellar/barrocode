@@ -64,7 +64,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 ### Correctness (G-code that reaches the printer)
 
 1. **E ignores Z.** `pathToGcode` and `buildTransition` accumulate E from XY distance, and a Z-only move is dropped (`d < 1e-6`). Already wrong with `lissAmpZ > 0`. (`pendientes.md` NP-0a.)
-2. **Z can go below the bed or into the previous layer, and priming can leave the bed.** `zOffset = ampZ·sin(…)` is never clamped (layer 0 sits at `nozzleHeightOffset`, so `lissAmpZ > 1` gives a negative Z by default; the UI only warns). Clamp in `buildToolpath`. Priming runs at `originX − 5, originY − 5`, i.e. (−5, −5) with the default origin, and its line can cross the part; start it outside the first layer's bounding box.
+2. **SVG placement and size.** `viewBox.x/y` are ignored by `svgToMM`, so SVGs with a non-zero viewBox origin print offset; physical units in `width`/`height` (`100mm`, `pt`) are ignored too, so the printed size depends on setting `scaleFactor` by hand.
 3. **"Reiniciar" in the Lissajous panel resets *all* params** (`onReset={() => setParams(DEFAULT_PARAMS)}` in `App.tsx`), wiping layers, speeds and scale, while keeping keyframes. Reset only the Lissajous fields.
 
 ### UX quick wins
@@ -86,7 +86,6 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 - `parseSVG` inserts the raw uploaded SVG with `container.innerHTML`. Event-handler attributes (`onload`, etc.) in a shared SVG could run. Cheap hardening: strip `<script>` and `on*` attributes from the already-parsed `doc` and insert it with `importNode`.
 - `getPointAtLength` works in **element-local** length. For elements under a scaling `transform`, `arcLength`/`totalLength` are not in root SVG units, so wavelengths come out wrong. Fix by accumulating arc length from the transformed points.
-- `viewBox.x/y` are ignored by `svgToMM`; SVGs with a non-zero viewBox origin print offset.
 
 ---
 

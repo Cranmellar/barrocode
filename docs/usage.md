@@ -64,7 +64,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Dirección alternada** | Invierte capas impares para reducir deriva direccional. |
 | **Cerrar trayecto** | Agrega retorno al inicio de cada trayecto. |
 | **Pausa al inicio** | Inserta `G4` en la primera posición para estabilizar el flujo de arcilla. |
-| **Movimiento de cebado** | Extruye una línea corta antes de la impresión principal. |
+| **Movimiento de cebado** | Extruye una línea corta antes de la impresión principal, paralela a X y a 10 mm de la primera capa: por debajo de la pieza, o por encima si por debajo quedaría en Y negativa. |
 
 ## 4. Parámetros De Lissajous
 
