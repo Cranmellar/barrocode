@@ -386,7 +386,7 @@ export function Preview2D({
                 {stats && <>
                   Tiempo estimado ≈ {formatDuration(stats.timeSec)}
                   <span className="toolbar-info-note">
-                    {' '}(F {params.printSpeed} mm/min · {params.generateE ? `flujo E ${params.extrusionMultiplier}/mm` : 'sin E'})
+                    {' '}(F {params.printSpeed} mm/min)
                   </span>
                   {' · '}
                 </>}
