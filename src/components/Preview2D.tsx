@@ -362,9 +362,15 @@ export function Preview2D({
                 stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
                 `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
                 crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
-                'Tiempo a velocidad programada, sin aceleraciones',
+                'Tiempo estimado a la velocidad programada (F), sin aceleraciones',
               ].filter(Boolean).join('\n')}>
-                {stats && <>≈ {formatDuration(stats.timeSec)} · </>}
+                {stats && <>
+                  Tiempo estimado ≈ {formatDuration(stats.timeSec)}
+                  <span className="toolbar-info-note">
+                    {' '}(F {params.printSpeed} mm/min · {params.generateE ? `flujo E ${params.extrusionMultiplier}/mm` : 'sin E'})
+                  </span>
+                  {' · '}
+                </>}
                 {fmtMM(modelBounds.maxX - modelBounds.minX)} × {fmtMM(modelBounds.maxY - modelBounds.minY)} × {fmtMM(numLayers * params.layerHeight)} mm
               </span>
             )}

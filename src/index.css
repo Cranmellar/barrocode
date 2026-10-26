@@ -1179,11 +1179,21 @@ input[type="range"]::-moz-range-thumb {
 }
 .toolbar-info {
   margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
   font-variation-settings: 'wght' 700;
   color: var(--accent);
   letter-spacing: 0.02em;
+}
+.toolbar-info-note {
+  font-size: 10px;
+  font-weight: 450;
+  font-variation-settings: 'wght' 450;
+  color: var(--muted);
 }
 
 /* ── Timeline ────────────────────────────────────────────────────────────── */
