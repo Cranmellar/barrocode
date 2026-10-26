@@ -135,6 +135,7 @@ Más detalle técnico en [docs/architecture.md](docs/architecture.md).
 ; Encabezado con valores de parámetros
 G21        ; unidades en mm
 G90        ; posicionamiento absoluto
+M82        ; extrusión absoluta
 G92 E0     ; resetear extrusión
 G1 Z20     ; Z seguro
 

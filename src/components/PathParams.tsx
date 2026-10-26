@@ -218,7 +218,7 @@ export function PathParams({ params, onChange }: Props) {
             onChange={v => set('nozzleHeightOffset', v)} />
           <Num label="Z de seguridad" value={params.safeZ}
             min={0} step={1} unit="mm"
-            hint="Altura de los desplazamientos al inicio, durante el cebado y al terminar"
+            hint="Altura de los desplazamientos al inicio y durante el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor"
             onChange={v => set('safeZ', v)} />
         </Sec>
 

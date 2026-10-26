@@ -52,7 +52,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Altura de capa** | Incremento Z entre capas apiladas. |
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
-| **Z de seguridad** | Altura de desplazamiento al inicio, tras el cebado y al terminar. |
+| **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor. |
 | **Factor de escala** | Convierte unidades SVG a mm. Usa `1` si el SVG está en mm; usa `0.2645` para píxeles a 96 dpi. |
 | **Origen X / Y** | Desplaza toda la impresión sobre la cama. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |

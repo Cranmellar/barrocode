@@ -23,6 +23,7 @@ const crossingPair = () => [
   sampledPath('a', polyline([[0, 50], [100, 50]])),
   sampledPath('b', polyline([[51, 101], [51, 1]])),
 ];
+const loopThenLine = () => [lemniscate(), sampledPath('line', polyline([[90, 190], [110, 190]]))];
 const facingPair = () => [
   sampledPath('a', polyline([[0, 0], [20, 0]])),
   sampledPath('b', polyline([[100, 0], [80, 0]])),
@@ -31,7 +32,7 @@ const facingPair = () => [
 const WAVE = { lissAmpN: 3, lissAmpT: 1, lissAmpZ: 0.8, lissWlT: 13, lissWlZ: 30, lissDelta: 0.5 };
 const HOP = { zHopHeight: 2.5, hopRadius: 3 };
 
-const GEOMETRIES = { lemniscate: () => [lemniscate()], crossingPair, facingPair };
+const GEOMETRIES = { lemniscate: () => [lemniscate()], crossingPair, facingPair, loopThenLine };
 const CONFIGS: Partial<PrintParams>[] = [];
 for (const softJoin of [true, false]) {
   for (const primingMove of [true, false]) {
@@ -55,6 +56,17 @@ describe('generateGcode — motion invariants', () => {
         for (const m of interpret(body).filter(m => m.extruding)) {
           if (!m.transition) expect(Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y)).toBeLessThan(15);
           expect(Math.abs(m.to.z - m.from.z)).toBeLessThan(maxDz);
+        }
+      });
+
+      it(`travels above everything already printed — ${label}`, () => {
+        const { gcode } = run(geometry(), config);
+        let top = -Infinity;
+        for (const m of interpret(gcode)) {
+          if (m.extruding) { top = Math.max(top, m.from.z, m.to.z); continue; }
+          if (Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y) > 1e-6) {
+            expect(Math.min(m.from.z, m.to.z)).toBeGreaterThan(top);
+          }
         }
       });
 
@@ -83,6 +95,23 @@ describe('generateGcode — priming', () => {
     expect(moves[0]).toBe('G1 X0.000 Y0.000 F1500  ; travel to start');
     expect(moves[1]).toBe('G1 Z1.000 F1500  ; descend');
     expect(moves[2]).toContain(' E');
+  });
+});
+
+describe('generateGcode — program start and end', () => {
+  it('sets absolute extrusion only when E is generated', () => {
+    expect(run(facingPair()).gcode).toContain('\nM82 ');
+    expect(run(facingPair(), { generateE: false }).gcode).not.toContain('M82');
+  });
+
+  it('lifts clear of a part taller than safe Z when finished', () => {
+    const { gcode, params } = run([lemniscate()], { ...WAVE, ...HOP, numLayers: 12 });
+    const moves = interpret(gcode);
+    let last = 0, top = -Infinity;
+    moves.forEach((m, i) => { if (m.extruding) { last = i; top = Math.max(top, m.to.z); } });
+
+    expect(top).toBeGreaterThan(params.safeZ);
+    for (const m of moves.slice(last + 1)) expect(m.to.z).toBeGreaterThan(top);
   });
 });
 

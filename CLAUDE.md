@@ -64,7 +64,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 ### Correctness (G-code that reaches the printer)
 
 1. **E ignores Z.** `pathToGcode` and `buildTransition` accumulate E from XY distance, and a Z-only move is dropped (`d < 1e-6`). Already wrong with `lissAmpZ > 0`. (`pendientes.md` NP-0a.)
-2. **Skirt travel can drag through the part.** `buildSkirtTravel` lifts a hardcoded `z + 2` mm above the layer's *base* Z and descends to it; with Z oscillation or z-hop the printed bead can be higher. Lift to the layer's real max Z plus a margin and descend to `start.z`. (NP-0b.)
+2. **Z can go below the bed or into the previous layer, and priming can leave the bed.** `zOffset = ampZ·sin(…)` is never clamped (layer 0 sits at `nozzleHeightOffset`, so `lissAmpZ > 1` gives a negative Z by default; the UI only warns). Clamp in `buildToolpath`. Priming runs at `originX − 5, originY − 5`, i.e. (−5, −5) with the default origin, and its line can cross the part; start it outside the first layer's bounding box.
 3. **"Reiniciar" in the Lissajous panel resets *all* params** (`onReset={() => setParams(DEFAULT_PARAMS)}` in `App.tsx`), wiping layers, speeds and scale, while keeping keyframes. Reset only the Lissajous fields.
 
 ### UX quick wins

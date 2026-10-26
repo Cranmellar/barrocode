@@ -25,6 +25,7 @@
 
 G21       ; mm units
 G90       ; absolute positioning
+M82       ; absolute extrusion
 G92 E0    ; reset E
 
 G1 Z20.000 F1500  ; safe Z
@@ -86,7 +87,7 @@ G1 X96.000 Y48.098 E5.225 F600
 G1 X98.000 Y48.824 E5.332 F600
 G1 X100.000 Y50.000 E5.448 F600
 ; --- Layer 1, Path 2 ---
-G1 Z3.000 F1500  ; lift
+G1 Z5.500 F1500  ; lift
 ; ↻ Skirt arc r=50.5 mm ~79.3 mm
 G1 X101.000 Y49.990 F1500
 G1 X100.981 Y51.973 F1500
@@ -251,7 +252,7 @@ G1 X96.000 Y48.098 E19.657 F600
 G1 X98.000 Y48.824 E19.764 F600
 G1 X100.000 Y50.000 E19.880 F600
 ; --- Layer 2, Path 2 ---
-G1 Z5.500 F1500  ; lift
+G1 Z8.000 F1500  ; lift
 ; ↻ Skirt arc r=50.5 mm ~79.3 mm
 G1 X101.000 Y49.990 F1500
 G1 X100.981 Y51.973 F1500
