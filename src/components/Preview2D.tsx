@@ -137,11 +137,7 @@ export function Preview2D({
     function onUp() {
       const d = kfDragRef.current;
       if (!d) return;
-      if (!d.moved) {
-        // Pure click → select / deselect
-        const cur = selectedKfIdRef.current;
-        onKfSelectRef.current(cur === d.id ? null : d.id);
-      }
+      if (!d.moved) onKfSelectRef.current(d.id);
       kfDragRef.current = null;
       document.body.style.cursor = '';
     }
