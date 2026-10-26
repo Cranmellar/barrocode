@@ -996,6 +996,29 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
 }
 
+/* View toggles, bottom-left of the 3D view above the AZ/EL caption */
+.view-opts {
+  position: absolute;
+  left: 8px;
+  bottom: 18px;
+  display: flex;
+  gap: 10px;
+  font-size: 9px;
+  font-weight: 700;
+  font-variation-settings: 'wght' 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+.view-opts label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.view-opts label:hover { color: var(--ink); }
+.view-opts input { margin: 0; width: 11px; height: 11px; accent-color: var(--accent); cursor: pointer; }
+
 /* Vertical layer range over the right edge of the 3D view (bottom = layer 1) */
 .layer-slider {
   position: absolute;
@@ -1179,11 +1202,21 @@ input[type="range"]::-moz-range-thumb {
 }
 .toolbar-info {
   margin-left: auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 12px;
   font-weight: 700;
   font-variation-settings: 'wght' 700;
   color: var(--accent);
   letter-spacing: 0.02em;
+}
+.toolbar-info-note {
+  font-size: 10px;
+  font-weight: 450;
+  font-variation-settings: 'wght' 450;
+  color: var(--muted);
 }
 
 /* ── Timeline ────────────────────────────────────────────────────────────── */

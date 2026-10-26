@@ -18,7 +18,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown,
+  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 
@@ -55,6 +55,18 @@ function formatDuration(sec: number): string {
   return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')} min`;
 }
 
+const VIEW_OPTS_KEY = 'barrocode.viewOptions';
+interface ViewOptions { layerColors: boolean; showDims: boolean }
+const DEFAULT_VIEW_OPTS: ViewOptions = { layerColors: true, showDims: false };
+
+function loadViewOpts(): ViewOptions {
+  try {
+    return { ...DEFAULT_VIEW_OPTS, ...JSON.parse(localStorage.getItem(VIEW_OPTS_KEY) ?? '{}') };
+  } catch {
+    return DEFAULT_VIEW_OPTS;
+  }
+}
+
 function fmtMM(v: number): string {
   return v >= 100 ? v.toFixed(0) : v.toFixed(1);
 }
@@ -82,6 +94,13 @@ export function Preview2D({
   // null = all layers; otherwise the 1-based top layer shown.
   const [layerCap, setLayerCap] = useState<number | null>(null);
   const [layerSolo, setLayerSolo] = useState(false);
+  const [overKf, setOverKf] = useState(false);
+  const [viewOpts, setViewOpts] = useState(loadViewOpts);
+  const toggleViewOpt = (k: keyof ViewOptions) => {
+    const next = { ...viewOpts, [k]: !viewOpts[k] };
+    setViewOpts(next);
+    try { localStorage.setItem(VIEW_OPTS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+  };
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dragRef = useRef<{
@@ -224,6 +243,7 @@ export function Preview2D({
 
     const geometry = {
       view, toolpath, params, isInteracting, layerCap: visibleCap, layerSolo,
+      layerColors: viewOpts.layerColors,
     };
     const geomDeps = [pw, ph, dpr, ...Object.values(geometry)];
     const same = (a: unknown[], b: unknown[]) => a.length === b.length && a.every((v, i) => v === b[i]);
@@ -248,10 +268,10 @@ export function Preview2D({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
       ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
-      keyframes, selectedKfId,
+      keyframes, selectedKfId, showDims: viewOpts.showDims,
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -272,15 +292,32 @@ export function Preview2D({
       setIsInteracting(false);
     }, 150);
   };
+  const kfUnder = (e: React.MouseEvent) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return keyframeAt(
+      { view, flatPoints, keyframes, selectedKfId, layerCap: visibleCap, layerSolo },
+      e.clientX - rect.left, e.clientY - rect.top,
+    );
+  };
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (e.button === 0) {
+      const kf = kfUnder(e);
+      if (kf) {
+        onKfSelect(kf.id);
+        return;
+      }
+    }
     dragRef.current = { button: e.button, startX: e.clientX, startY: e.clientY, startView: { ...view } };
     if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     setIsInteracting(true);
   };
   const onMouseMove = (e: React.MouseEvent) => {
     const d = dragRef.current;
-    if (!d) return;
+    if (!d) {
+      setOverKf(kfUnder(e) !== null);
+      return;
+    }
     const dx = e.clientX - d.startX, dy = e.clientY - d.startY;
     if (d.button === 0) {
       setView(v => ({ ...v, offsetX: d.startView.offsetX + dx, offsetY: d.startView.offsetY + dy }));
@@ -344,9 +381,15 @@ export function Preview2D({
                 stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
                 `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
                 crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
-                'Tiempo a velocidad programada, sin aceleraciones',
+                'Tiempo estimado a la velocidad programada (F), sin aceleraciones',
               ].filter(Boolean).join('\n')}>
-                {stats && <>≈ {formatDuration(stats.timeSec)} · </>}
+                {stats && <>
+                  Tiempo estimado ≈ {formatDuration(stats.timeSec)}
+                  <span className="toolbar-info-note">
+                    {' '}(F {params.printSpeed} mm/min)
+                  </span>
+                  {' · '}
+                </>}
                 {fmtMM(modelBounds.maxX - modelBounds.minX)} × {fmtMM(modelBounds.maxY - modelBounds.minY)} × {fmtMM(numLayers * params.layerHeight)} mm
               </span>
             )}
@@ -376,8 +419,10 @@ export function Preview2D({
           <canvas
             ref={canvasRef}
             className="preview-canvas"
-            title="Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom"
-            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : 'grab' }}
+            title={overKf
+              ? 'Clic para editar este keyframe'
+              : 'Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom · Clic en un keyframe = editarlo'}
+            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : overKf && !dragRef.current ? 'pointer' : 'grab' }}
             onMouseDown={onMouseDown}
             onMouseMove={onMouseMove}
             onMouseUp={onMouseUp}
@@ -385,6 +430,20 @@ export function Preview2D({
             onContextMenu={onContextMenu}
             onWheel={onWheel}
           />
+          {numLayers > 0 && (
+            <div className="view-opts">
+              {numLayers > 1 && (
+                <label title="Colorear cada capa (azul → terracota) o usar un solo color">
+                  <input type="checkbox" checked={viewOpts.layerColors} onChange={() => toggleViewOpt('layerColors')} />
+                  Color por capa
+                </label>
+              )}
+              <label title="Mostrar largo, ancho y alto de la pieza">
+                <input type="checkbox" checked={viewOpts.showDims} onChange={() => toggleViewOpt('showDims')} />
+                Cotas
+              </label>
+            </div>
+          )}
           {numLayers > 1 && (
             <div className="layer-slider">
               <span className="layer-slider-value" title="Capa superior visible">
