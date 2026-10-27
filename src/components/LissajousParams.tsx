@@ -136,7 +136,10 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
     <div className="lissajous-params">
       <div className="panel-header">
         <span>Lissajous</span>
-        <button className="btn-reset" onClick={onReset}>Reiniciar</button>
+        <button className="btn-reset" onClick={onReset} disabled={waveLocked}
+          title={editingKf
+            ? 'Restablece la onda de este keyframe y la fase'
+            : 'Restablece solo los parámetros de la onda'}>Reiniciar</button>
       </div>
       {editingKf ? (
         <div className="liss-context liss-context--kf">
