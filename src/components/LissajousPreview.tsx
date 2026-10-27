@@ -11,6 +11,7 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { computeLissajousFigure } from '../lib/waveGenerator';
 import type { PrintParams } from '../types';
+import { palette, withAlpha } from '../lib/palette';
 
 interface Props { params: PrintParams }
 
@@ -102,7 +103,7 @@ export function LissajousPreview({ params }: Props) {
         ctx.beginPath();
         ctx.moveTo(dx, dy);
         ctx.lineTo(dx + (vx / vlen) * L, dy + (vy / vlen) * L);
-        ctx.strokeStyle = '#4A4E8C';
+        ctx.strokeStyle = palette.ink;
         ctx.lineWidth = 2;
         ctx.stroke();
       }
@@ -111,8 +112,8 @@ export function LissajousPreview({ params }: Props) {
     ctx.save();
     ctx.translate(dx, dy);
     ctx.rotate(Math.PI / 4);
-    ctx.fillStyle   = '#4A4E8C';
-    ctx.strokeStyle = '#fff';
+    ctx.fillStyle   = palette.ink;
+    ctx.strokeStyle = palette.surface;
     ctx.lineWidth   = 2;
     ctx.beginPath();
     ctx.rect(-4, -4, 8, 8);
@@ -141,7 +142,7 @@ export function LissajousPreview({ params }: Props) {
     const view = { ...viewRef.current };
     const { offsetX, offsetY, scale } = view;
 
-    ctx.fillStyle = '#F5F5F5';
+    ctx.fillStyle = palette.surface;
     ctx.fillRect(0, 0, W, H);
 
     function toCanvas(t: number, n: number): [number, number] {
@@ -150,7 +151,7 @@ export function LissajousPreview({ params }: Props) {
 
     // Axes only — no grid
     ctx.save();
-    ctx.strokeStyle = 'rgba(15,15,20,0.20)';
+    ctx.strokeStyle = palette.border;
     ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, offsetY);  ctx.lineTo(W, offsetY);  ctx.stroke(); // T
     ctx.beginPath(); ctx.moveTo(offsetX, 0);  ctx.lineTo(offsetX, H);  ctx.stroke(); // N
@@ -159,7 +160,7 @@ export function LissajousPreview({ params }: Props) {
     // Axis labels
     ctx.save();
     ctx.font = '700 8px GSCode, monospace';
-    ctx.fillStyle = 'rgba(15,15,20,0.35)';
+    ctx.fillStyle = palette.muted;
     ctx.textAlign = 'right';
     ctx.fillText('T', W - 6, offsetY - 5);
     ctx.textAlign = 'center';
@@ -178,7 +179,7 @@ export function LissajousPreview({ params }: Props) {
       for (let i = 1; i < pts.length; i++) {
         const frac  = i / pts.length;
         const alpha = 0.06 + frac * 0.80;
-        ctx.strokeStyle = `rgba(74,78,140,${alpha.toFixed(2)})`;
+        ctx.strokeStyle = withAlpha(palette.ink2, alpha);
         const [x0, y0] = toCanvas(pts[i - 1].t, pts[i - 1].n);
         const [x1, y1] = toCanvas(pts[i].t,     pts[i].n);
         ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
@@ -188,16 +189,16 @@ export function LissajousPreview({ params }: Props) {
 
     // Empty state
     if (lissAmpN < 0.01 && lissAmpT < 0.01) {
-      ctx.fillStyle = 'rgba(15,15,20,0.25)';
-      ctx.font = '700 9px GSCode, monospace';
+      ctx.fillStyle = palette.muted;
+      ctx.font = '11px GSCode, monospace';
       ctx.textAlign = 'center';
-      ctx.fillText('AMPLITUDES = 0', W / 2, H / 2 + 4);
+      ctx.fillText('Amplitudes en 0', W / 2, H / 2 + 4);
     }
 
     // Metrics caption
     ctx.save();
-    ctx.font = '700 12px GSCode, monospace';
-    ctx.fillStyle = 'rgba(15,15,20,0.45)';
+    ctx.font = '11px GSCode, monospace';
+    ctx.fillStyle = palette.muted;
     ctx.textAlign = 'left';
     ctx.fillText(
       `N ${lissAmpN.toFixed(1)}mm  λ${lissWlN}mm   T ${lissAmpT.toFixed(1)}mm  λ${lissWlT}mm   δ${(lissDelta * 180 / Math.PI).toFixed(0)}°`,

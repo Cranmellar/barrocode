@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { rampColor } from '../lib/palette';
 
 interface Props {
   open: boolean;
@@ -11,10 +12,6 @@ function polyline(n: number, f: (i: number) => [number, number]) {
   return Array.from({ length: n + 1 }, (_, i) => f(i).map(v => v.toFixed(1)).join(',')).join(' ');
 }
 
-// Same cobalt→terracotta ramp the 3D preview uses for layers.
-function layerHsl(t: number) {
-  return `hsl(${218 - 198 * t},${72 + 16 * t}%,${50 + 12 * t}%)`;
-}
 
 const CIRCLE_WAVE = polyline(160, i => {
   const a = (i / 160) * TAU;
@@ -50,7 +47,7 @@ function FlowStrip() {
               {k === 0 && <circle cx="32" cy="32" r="19" className="hf-ink" />}
               {k === 1 && [0, 1, 2, 3, 4].map(j => (
                 <ellipse key={j} cx="32" cy={47 - j * 7} rx="20" ry="7"
-                  fill="none" stroke={layerHsl(j / 4)} strokeWidth="1.5" />
+                  fill="none" stroke={rampColor(j / 4)} strokeWidth="1.5" />
               ))}
               {k === 2 && <polyline points={CIRCLE_WAVE} className="hf-accent" />}
               {k === 3 && (
@@ -123,8 +120,8 @@ function KeyframeDiagram() {
         <line x1="20" y1="38" x2="300" y2="38" className="hd-base" />
         <polyline points={KF_WAVE} className="hd-wave" />
         <line x1="20" y1="76" x2="300" y2="76" className="hd-track" />
-        <rect x="16" y="72" width="8" height="8" transform="rotate(45 20 76)" fill={layerHsl(0)} />
-        <rect x="296" y="72" width="8" height="8" transform="rotate(45 300 76)" fill={layerHsl(1)} />
+        <rect x="16" y="72" width="8" height="8" transform="rotate(45 20 76)" fill={rampColor(0)} />
+        <rect x="296" y="72" width="8" height="8" transform="rotate(45 300 76)" fill={rampColor(1)} />
         <text x="20" y="96" className="hd-label">KF 0% · 2 mm</text>
         <text x="300" y="96" textAnchor="end" className="hd-label">KF 100% · 18 mm</text>
       </svg>
