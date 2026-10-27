@@ -193,6 +193,23 @@ function stripActiveContent(doc: Document): void {
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
+// Geometry under these is only referenced (clip shapes, symbols), never drawn.
+const NON_RENDERED = 'defs, clipPath, mask, symbol, marker, pattern';
+
+/**
+ * Whether the element is drawn: not inside a reference-only container and
+ * not hidden by display:none on itself or an ancestor (e.g. a hidden
+ * Inkscape layer). visibility can't be checked: the measuring container is
+ * visibility:hidden.
+ */
+function isRendered(el: Element, root: Element): boolean {
+  if (el.closest(NON_RENDERED)) return false;
+  for (let n: Element | null = el; n && n !== root.parentElement; n = n.parentElement) {
+    if (getComputedStyle(n).display === 'none') return false;
+  }
+  return true;
+}
+
 function parseXML(svgString: string): Document {
   const parser = new DOMParser();
   const xml = sanitizeXmlEntities(svgString);
@@ -254,7 +271,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const paths: SampledPath[] = [];
 
   elements.forEach((el, idx) => {
-    if (!(el instanceof SVGGeometryElement)) return;
+    if (!(el instanceof SVGGeometryElement) || !isRendered(el, liveSvgEl)) return;
 
     let totalLen = 0;
     try {
