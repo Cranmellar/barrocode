@@ -21,6 +21,7 @@ const crossingPair = () => [
   sampledPath('b', polyline([[51, 101], [51, 1]])),
 ];
 const loopThenLine = () => [lemniscate(), sampledPath('line', polyline([[90, 190], [110, 190]]))];
+const openLine = () => [sampledPath('line', polyline([[20, 100], [180, 100]]))];
 const facingPair = () => [
   sampledPath('a', polyline([[0, 0], [20, 0]])),
   sampledPath('b', polyline([[100, 0], [80, 0]])),
@@ -29,7 +30,7 @@ const facingPair = () => [
 const WAVE = { lissAmpN: 3, lissAmpT: 1, lissAmpZ: 0.8, lissWlT: 13, lissWlZ: 30, lissDelta: 0.5 };
 const HOP = { zHopHeight: 2.5, hopRadius: 3 };
 
-const GEOMETRIES = { lemniscate: () => [lemniscate()], crossingPair, facingPair, loopThenLine };
+const GEOMETRIES = { lemniscate: () => [lemniscate()], crossingPair, facingPair, loopThenLine, openLine };
 const CONFIGS: Partial<PrintParams>[] = [];
 for (const softJoin of [true, false]) {
   for (const primingMove of [true, false]) {
@@ -44,14 +45,18 @@ describe('generateGcode — motion invariants', () => {
     for (const config of CONFIGS) {
       const label = `${name} softJoin=${config.softJoin} priming=${config.primingMove} alt=${config.alternateDirection}`;
 
-      // Soft-join transitions may span the gap between layers by design.
+      // A soft-join transition is split into short steps, so its span is
+      // checked as a whole against transitionLength.
       it(`never extrudes a long or plunging move — ${label}`, () => {
         const { gcode, params } = run(geometry(), config);
         const body = gcode.slice(gcode.indexOf('; ===== Layer 1'));
         const maxDz = params.layerHeight + params.zHopHeight + 2 * params.lissAmpZ + 0.01;
 
+        let span = 0;
         for (const m of interpret(body).filter(m => m.extruding)) {
-          if (!m.transition) expect(Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y)).toBeLessThan(15);
+          const d = Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y);
+          span = m.transition ? span + d : 0;
+          expect(m.transition ? span : d).toBeLessThan(m.transition ? params.transitionLength + 1e-6 : 15);
           expect(Math.abs(m.to.z - m.from.z)).toBeLessThan(maxDz);
         }
       });
