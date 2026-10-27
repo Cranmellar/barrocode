@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
+import { MAX_LAYERS, layerCount } from '../lib/waveGenerator';
 
 interface Props { params: PrintParams; onChange: (p: PrintParams) => void; svgMmPerUnit: number | null }
 
@@ -83,9 +84,7 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
     try { localStorage.setItem(GROUPS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
   }
 
-  const effLayers = params.useNumLayers
-    ? params.numLayers
-    : Math.max(1, Math.ceil(params.totalHeight / params.layerHeight));
+  const effLayers = layerCount(params);
   const height = +(effLayers * params.layerHeight).toFixed(1);
 
   return (
@@ -109,13 +108,16 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
             </label>
           </div>
           {params.useNumLayers
-            ? <Num label="Núm. de capas" value={params.numLayers} min={1} step={1}
+            ? <Num label="Núm. de capas" value={params.numLayers} min={1} max={MAX_LAYERS} step={1}
+                hint={`Máximo ${MAX_LAYERS} capas`}
                 onChange={v => set('numLayers', Math.max(1, Math.round(v)))} />
             : <>
                 <Num label="Altura total" value={params.totalHeight}
                   min={0.1} step={1} unit="mm"
                   onChange={v => set('totalHeight', v)} />
-                <div className="param-info">→ {effLayers} capas</div>
+                <div className="param-info">
+                  → {effLayers} capas{effLayers === MAX_LAYERS && ` (máximo)`}
+                </div>
               </>}
         </Sec>
 

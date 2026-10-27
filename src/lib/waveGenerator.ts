@@ -222,6 +222,16 @@ export const WAVE_PARAMS = [
   'scaleFactor', 'originX', 'originY', 'flipY',
 ] as const satisfies readonly (keyof PrintParams)[];
 
+// Past this the pipeline takes seconds per edit and the G-code tens of MB.
+export const MAX_LAYERS = 500;
+
+export function layerCount(params: PrintParams): number {
+  const n = params.useNumLayers
+    ? params.numLayers
+    : Math.ceil(params.totalHeight / params.layerHeight);
+  return Math.min(MAX_LAYERS, Math.max(1, n));
+}
+
 export function generateWaveLayers(
   sampledPaths: SampledPath[],
   params: PrintParams,
@@ -231,9 +241,7 @@ export function generateWaveLayers(
   const enabled = sampledPaths.filter(p => p.enabled);
   if (enabled.length === 0) return [];
 
-  const numLayers = params.useNumLayers
-    ? params.numLayers
-    : Math.max(1, Math.ceil(params.totalHeight / params.layerHeight));
+  const numLayers = layerCount(params);
 
   const sf = params.scaleFactor > 0 ? params.scaleFactor : 1;
 
