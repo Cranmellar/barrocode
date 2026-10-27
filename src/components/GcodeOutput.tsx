@@ -51,7 +51,7 @@ export function GcodeOutput({ gcode, filename = 'barrocode.gcode' }: Props) {
               <button className="btn-small" onClick={handleCopy}>
                 {copied ? '✓ Copiado' : 'Copiar'}
               </button>
-              <button className="btn-primary"
+              <button className="btn-primary btn-signal"
                 onClick={() => downloadGcode(gcode, filename)}
                 disabled={!gcode}>
                 ↓ .gcode

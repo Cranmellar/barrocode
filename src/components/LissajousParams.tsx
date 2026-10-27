@@ -208,7 +208,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         {/* ── Eje Z ── */}
         <Sec title="Z · Vertical">
           {params.lissAmpZ > params.layerHeight && (
-            <div style={{ fontSize: 9, color: '#c0392b', marginBottom: 4, lineHeight: 1.3 }}>
+            <div className="warn-note">
               ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
               ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
             </div>
