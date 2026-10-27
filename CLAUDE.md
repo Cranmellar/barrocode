@@ -42,13 +42,14 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 ---
 
-## Current state (verified 2026-10-26 on branch `claude/youthful-edison-ug2j0c`, on top of `main` @ `29ad9a1`)
+## Current state (verified 2026-10-27 on branch `claude/modest-gauss-ety6d2`, on top of `main` @ `883e209`)
 
 - `npm test` (116 tests) and `npm run build` pass (≈87 kB app JS + 141 kB vendor; gzip ≈75 kB).
 - Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
+- **Seam ramp (soft join).** The layer→layer join used to be a Z-only move in place on closed paths (end = start XY), with no E. Now `buildToolpath` spreads the rise over the last `transitionLength` mm of every closed path, so the climb happens while printing and the preview shows it. Each ramp sits on the one below; only layer 0's tail lifts off the bed by up to one layer height (accepted; flow compensation belongs with NP-0a). Open paths and `alternateDirection` keep the old transition.
 - **Machine-safety pass (Oct 2026)** — the G-code can no longer drive the nozzle into the bed or the part:
   - `M82` (absolute E) in the preamble when `generateE` is on.
   - Final lift goes to `max(safeZ, highest printed Z) + 10`; it used to be an absolute `safeZ + 10`, which plunged through parts taller than 30 mm.
@@ -56,6 +57,13 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Z floor in `generateWaveLayers`: layer 0 never dips below its set height; every later point stays ≥ `layerHeight · MIN_LAYER_GAP` (0.5) above the same sample on the layer below. Only acts downward.
   - Priming runs along +X 10 mm beside the first layer's bounding box (below it, or above when below would turn Y negative), not at `origin − 5`.
 - **SVG placement and size** — sampled points are shifted so the viewBox's top-left corner is (0, 0) (a centred `viewBox="-100 -100 200 200"` used to print 100 mm off). A physical root `width`/`height` (`mm`, `cm`, `in`, `pt`, `pc`, `Q`) sets `ParsedSVG.mmPerUnit`; loading such a file adopts it as `scaleFactor`, and `PathParams` offers *Usar tamaño real* when they differ. Unitless/px SVGs keep 1 unit = 1 mm. Verified in Chromium; `svgParser` still has no automated test.
+- **Critical review (Oct 2026)**, recorded in `pendientes.md` → *Revisión crítica*. Fixed:
+  - "Reiniciar" in the Lissajous panel restores only the fields that panel edits (`LISS_PANEL_FIELDS` in `App.tsx`), through `setLissParams`, so with a keyframe selected it resets that keyframe. It is disabled while keyframes lock the global wave.
+  - The layer count is computed once by `layerCount()` (`waveGenerator.ts`), capped at `MAX_LAYERS` (500); use it instead of re-deriving `numLayers` / `totalHeight / layerHeight`.
+  - Default G-code filename is `barrocode.gcode`.
+  - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
+  - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
+  - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
 - **Some `pendientes.md` tickets are ticked `[x]` but not implemented** — treat them as open:
   - NumInput refresh while focused during wheel (`NumInput.tsx` still guards `setRaw` with `!focusedRef.current`).
   - Shift = fine adjust on wheel (no `shiftKey` handling anywhere).
@@ -72,27 +80,28 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 1. **E ignores Z.** `pathToGcode` and `buildTransition` accumulate E from XY distance, and a Z-only move is dropped (`d < 1e-6`). Already wrong with `lissAmpZ > 0`. (`pendientes.md` NP-0a.)
 2. **A bead can lose its support.** The Z floor only acts downward. With `phaseShiftPerLayer`, a crest over the trough of the layer below leaves a gap up to `layerHeight + 2·lissAmpZ`, so the bead prints in the air. Warn in the viewer, or cap the gap upward the same way the floor works (`waveGenerator.ts`, next to `MIN_LAYER_GAP`).
-3. **"Reiniciar" in the Lissajous panel resets *all* params** (`onReset={() => setParams(DEFAULT_PARAMS)}` in `App.tsx`), wiping layers, speeds and scale, while keeping keyframes. Reset only the Lissajous fields.
+3. **Arc length ignores scaling transforms.** `getPointAtLength` works in **element-local** length, so under `<g transform="scale(2)">` sample spacing and wavelengths come out 2× in root units. Accumulate arc length from the transformed points (`svgParser.ts`).
+4. **Z-hop probably stacks clay at crossings** (inferred, confirm with a test print). Only the later pass hops, so a crossing gets two beads per layer and the next layer's first pass crosses at the height of that double bead with no gap. Reduce or zero E inside the hop window.
 
 ### UX quick wins
 
-4. Fix the NumInput-while-focused wheel refresh and add Shift = fine step (both in `NumInput.tsx`, one handler; covers every numeric field).
-5. Coarser wheel step for the pivot fields in `CenterScaleParams.tsx` (5 or 10 mm; Shift keeps it fine once #4 lands).
-6. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
-7. Default G-code filename is still `curva.de.barro.gcode` (`App.tsx`) — rename to `barrocode.gcode`.
+5. Fix the NumInput-while-focused wheel refresh and add Shift = fine step (both in `NumInput.tsx`, one handler; covers every numeric field).
+6. Coarser wheel step for the pivot fields in `CenterScaleParams.tsx` (5 or 10 mm; Shift keeps it fine once #5 lands).
+7. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
 8. Warn when the part leaves the bed; needs a bed-size parameter first (UI-3 leftover).
 
 ### Hygiene (only when touching the area)
 
-9. `lib/draw3D.ts` and `CenterPad.tsx` still hardcode colours in canvas code; canvas can't read CSS variables directly, so read them once with `getComputedStyle` or keep a small palette constant.
-10. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
-11. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
-12. Fix the stale `pendientes.md` checkmarks listed in "Current state".
+9. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
+10. `lib/draw3D.ts` and `CenterPad.tsx` still hardcode colours in canvas code; canvas can't read CSS variables directly, so read them once with `getComputedStyle` or keep a small palette constant.
+11. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
+12. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
+13. Fix the stale `pendientes.md` checkmarks listed in "Current state".
 
 ### Lower priority / needs a decision
 
-- `parseSVG` inserts the raw uploaded SVG with `container.innerHTML`. Event-handler attributes (`onload`, etc.) in a shared SVG could run. Cheap hardening: strip `<script>` and `on*` attributes from the already-parsed `doc` and insert it with `importNode`.
-- `getPointAtLength` works in **element-local** length. For elements under a scaling `transform`, `arcLength`/`totalLength` are not in root SVG units, so wavelengths come out wrong. Fix by accumulating arc length from the transformed points.
+- E ignores the real bead thickness: with the Z wave the gap to the layer below ranges from 0.5× to ≈ 1.6× `layerHeight`, but E only follows XY distance. Scale E by the local gap (extends NP-0a).
+- `parseSVG` can't detect `visibility:hidden`: the measuring container is itself `visibility:hidden`.
 
 ---
 
@@ -139,8 +148,10 @@ SVG string
        • DOMParser to validate; viewBox read from the attribute (no viewBox →
          physical width/height converted to CSS px)
        • mmPerUnit from a physical width/height (mm, cm, in, pt…), else null
-       • inserts raw SVG into a hidden 1000×1000 DOM div
-       • queries path / polyline / polygon / line / circle / ellipse / rect
+       • strips scripts, foreignObject, on* and javascript: links; imports
+         the parsed doc into a hidden 1000×1000 DOM div
+       • queries path / polyline / polygon / line / circle / ellipse / rect,
+         skipping defs/clipPath/mask/symbol/marker/pattern and display:none
        • arc-length sampling via getTotalLength + getPointAtLength
        • finite-difference tangent/normal per sample
        • getScreenCTM() for transforms
@@ -174,6 +185,10 @@ WaveLayer[] + PrintParams + svgH
          hopSampleArcs inserts points across each hop window so the parabola
          is resolved even when hopRadius < sample spacing
        • z = layer.z + zOffset + hop per point; centroid per layer
+       • softJoin seam ramp: each closed path (WaveLayer.closed) rises one
+         layer step over its last transitionLength mm (smoothstep), so it
+         ends at the next layer's start; off with alternateDirection or
+         a single layer
      → ToolpathLayer[] { index, z, paths: {x,y,z}[][] (mm), centroid, crossings }
 
 ToolpathLayer[] consumed by BOTH:
@@ -182,7 +197,8 @@ ToolpathLayer[] consumed by BOTH:
   │      first layer's bounding box
   │    • skirtArcPoints for inter-path travel: lift to highest printed Z + 2,
   │      descend to the path's real start Z
-  │    • buildTransition for softJoin: smoothstep XY + linear Z, no retract
+  │    • buildTransition for softJoin: smoothstep XY + linear Z, no retract;
+  │      skipped when the seam ramp already reached the next start
   │    • E accumulates: E += dist * extrusionMultiplier
   │    • final lift to max(safeZ, highest printed Z) + 10
   │  → string
@@ -319,7 +335,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
 - Run `npm test`. `src/lib/__tests__/gcodeGenerator.test.ts` checks motion invariants (no long or plunging extrusion, no XY travel at or below anything already printed, G-code matches the preview toolpath) across soft join / priming / alternate-direction combinations, plus reference `.gcode` files in `__snapshots__/`. When output changes on purpose, read the snapshot diff before accepting it with `npm test -- -u`.
 - Generate a sample with a 2- or 3-path SVG and read the output. The header comment block lists every parameter — use it to sanity-check. (It doesn't list the Z oscillation fields yet; see `pendientes.md` NP-0c.)
-- Inter-path travel logic depends on three conditions: `isFirstMove`, `params.softJoin`, and `pi > 0` (path index within the layer). Layer→layer transitions only happen on the **last** path of a layer when `softJoin` is true.
+- Inter-path travel logic depends on `isFirstMove` and `joined` (set when the previous path ended in a soft-join transition). Layer→layer transitions only happen on the **last** path of a layer when `softJoin` is true and the next layer's first point is within `transitionLength` in XY; otherwise the next path arrives by skirt travel (`joined` tracks which).
 - Coordinate conversion via `svgToMM()` happens in `buildToolpath`. Never pre-convert `WaveLayer.paths` to mm; downstream code expects SVG units there.
 - Path order, Z oscillation and z-hop belong in `lib/toolpath.ts`, not in the emitter: the preview draws the same toolpath, so anything computed only in `gcodeGenerator.ts` makes the two disagree.
 - E accumulates monotonically (`E += dist * extrusionMultiplier`). If you add new motion, account for E unless `params.generateE` is false.

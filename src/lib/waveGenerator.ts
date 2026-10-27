@@ -239,6 +239,16 @@ export const WAVE_PARAMS = [
   'scaleFactor', 'originX', 'originY', 'flipY',
 ] as const satisfies readonly (keyof PrintParams)[];
 
+// Past this the pipeline takes seconds per edit and the G-code tens of MB.
+export const MAX_LAYERS = 500;
+
+export function layerCount(params: PrintParams): number {
+  const n = params.useNumLayers
+    ? params.numLayers
+    : Math.ceil(params.totalHeight / params.layerHeight);
+  return Math.min(MAX_LAYERS, Math.max(1, n));
+}
+
 export function generateWaveLayers(
   sampledPaths: SampledPath[],
   params: PrintParams,
@@ -248,9 +258,7 @@ export function generateWaveLayers(
   const enabled = sampledPaths.filter(p => p.enabled);
   if (enabled.length === 0) return [];
 
-  const numLayers = params.useNumLayers
-    ? params.numLayers
-    : Math.max(1, Math.ceil(params.totalHeight / params.layerHeight));
+  const numLayers = layerCount(params);
 
   const sf = params.scaleFactor > 0 ? params.scaleFactor : 1;
 
@@ -266,6 +274,12 @@ export function generateWaveLayers(
   const useKeyframes = keyframes.length > 0;
   const kfSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
   let flatIdx = 0;
+
+  // getPointAtLength works in float32, so a closed source can miss its start
+  // by a little more than 0.001 units on large coordinates.
+  const closed = enabled.map(({ points: pts, totalLength }) => pts.length > 1 && (params.closePath ||
+    Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y)
+      <= Math.max(0.001, totalLength * 1e-5)));
 
   const layers: WaveLayer[] = [];
   // Absolute Z of each point on the previous layer, in sampling order.
@@ -357,7 +371,7 @@ export function generateWaveLayers(
       return result;
     });
 
-    layers.push({ index: li, z, paths: pathPoints });
+    layers.push({ index: li, z, paths: pathPoints, closed });
     prevZ = layerZ;
   }
 

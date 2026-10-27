@@ -181,12 +181,17 @@ const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
   ['lissDelta', 'delta'], ['lissPhaseZ', 'phaseZ'],
 ];
 
+// Everything the Lissajous panel edits; its "Reiniciar" restores only these.
+const LISS_PANEL_FIELDS: Array<LissKey | 'lissPhaseOffset' | 'phaseShiftPerLayer'> = [
+  ...KF_LISS_FIELDS.map(([pk]) => pk), 'lissPhaseOffset', 'phaseShiftPerLayer',
+];
+
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
   const [gcode, setGcode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [gcodeFilename, setGcodeFilename] = useState('curva.de.barro.gcode');
+  const [gcodeFilename, setGcodeFilename] = useState('barrocode.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
   const [keyframes, setKeyframes] = useState<WaveKeyframe[]>([]);
   const [centerTab, setCenterTab] = useState<'preview' | 'gcode'>('preview');
@@ -237,6 +242,12 @@ export default function App() {
     }
     setParams(globalNext);
     setKeyframes(keyframes.map(k => k.id === selectedKf.id ? { ...k, ...kfPatch } : k));
+  }
+
+  function resetLissParams() {
+    const next = { ...lissParams };
+    for (const k of LISS_PANEL_FIELDS) next[k] = DEFAULT_PARAMS[k];
+    setLissParams(next);
   }
 
   const sortedKfs = [...keyframes].sort((a, b) => a.t - b.t);
@@ -763,7 +774,7 @@ export default function App() {
           <LissajousParams
             params={lissParams}
             onChange={setLissParams}
-            onReset={() => setParams(DEFAULT_PARAMS)}
+            onReset={resetLissParams}
             editingKf={selectedKf && {
               number: selectedIdx + 1,
               label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,

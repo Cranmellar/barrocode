@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath } from '../../types';
 import { generateWaveLayers } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, polyline, sampledPath } from './fixtures';
+import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
 
+// The seam ramp is off unless a test asks for it, so flat-Z checks hold.
 function toolpath(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
-  const params = { ...PARAMS, ...overrides };
+  const params = { ...PARAMS, softJoin: false, ...overrides };
   const layers = generateWaveLayers(paths, params, [], VIEWBOX.height);
   return buildToolpath(layers, params, VIEWBOX.height);
 }
@@ -109,5 +110,59 @@ describe('buildToolpath — Z floor', () => {
         expect(p.z - below.get(p.x.toFixed(3))!).toBeGreaterThanOrEqual(minGap);
       }
     }
+  });
+});
+
+describe('buildToolpath — seam ramp', () => {
+  // 2 mm samples on an 80 mm circle, ending where it starts.
+  const circle = () => sampledPath('circle', curve(u => {
+    const t = 2 * Math.PI * u;
+    return [100 + 40 * Math.cos(t), 100 + 40 * Math.sin(t)];
+  }, 126));
+  const RAMP = { softJoin: true, transitionLength: 10, numLayers: 4 };
+
+  it('climbs over the last transitionLength mm and ends at the next layer start', () => {
+    const layers = toolpath([circle()], RAMP);
+    for (const [li, layer] of layers.entries()) {
+      const pts = layer.paths[0];
+      const end = pts[pts.length - 1];
+      expect(end.z).toBeCloseTo(layer.z + PARAMS.layerHeight, 9);
+      if (layers[li + 1]) expect(end.z).toBeCloseTo(layers[li + 1].paths[0][0].z, 9);
+
+      let arc = 0;
+      const fromEnd = pts.map((p, i) => i > 0 ? (arc += Math.hypot(p.x - pts[i - 1].x, p.y - pts[i - 1].y)) : 0)
+        .map(a => arc - a);
+      pts.forEach((p, i) => {
+        if (fromEnd[i] >= 10) expect(p.z).toBe(layer.z);
+        if (i > 0) expect(p.z).toBeGreaterThanOrEqual(pts[i - 1].z);
+      });
+    }
+  });
+
+  it('keeps one layer height between each point and the same point below', () => {
+    const layers = toolpath([circle()], { ...RAMP, transitionLength: 1000 });
+    for (let li = 1; li < layers.length; li++) {
+      layers[li].paths[0].forEach((p, i) => {
+        expect(p.z - layers[li - 1].paths[0][i].z).toBeCloseTo(PARAMS.layerHeight, 9);
+      });
+    }
+  });
+
+  it('stays flat on open paths, with alternateDirection or with a single layer', () => {
+    const open = () => sampledPath('line', polyline([[0, 0], [100, 0]]));
+    const cases: [SampledPath, Partial<PrintParams>][] = [
+      [open(), {}], [circle(), { alternateDirection: true }], [circle(), { numLayers: 1 }],
+    ];
+    for (const [path, overrides] of cases) {
+      for (const layer of toolpath([path], { ...RAMP, ...overrides })) {
+        expect(layer.paths[0].every(p => p.z === layer.z)).toBe(true);
+      }
+    }
+  });
+
+  it('ramps an open path closed by closePath', () => {
+    const open = sampledPath('line', polyline([[0, 0], [100, 0], [100, 50]]));
+    const [layer] = toolpath([open], { ...RAMP, closePath: true });
+    expect(layer.paths[0][layer.paths[0].length - 1].z).toBeCloseTo(layer.z + PARAMS.layerHeight, 9);
   });
 });

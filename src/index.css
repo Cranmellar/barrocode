@@ -694,7 +694,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
-.btn-reset:hover { border-color: var(--err); color: var(--err); background: rgba(170,42,42,0.05); }
+.btn-reset:hover:not(:disabled) { border-color: var(--err); color: var(--err); background: rgba(170,42,42,0.05); }
+.btn-reset:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .liss-context {
   display: flex;
