@@ -13,6 +13,20 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 - [X] **Drag-and-drop de SVG no resuelve** — actualmente no funciona; el `onDrop` está cableado en `App.tsx` pero hay un comportamiento que lo está rompiendo.
 - [x] **Scrollwheel no actualiza el valor numérico visible** — al tener un field seleccionado y mover la rueda, los parámetros cambian en el visualizador, pero el número en el `NumInput` no se refresca mientras se gira.
 
+### Revisión crítica (oct. 2026)
+
+Hallazgos de una revisión del pipeline SVG → G-code. Los marcados `[x]` están corregidos en la rama `claude/modest-gauss-ety6d2`; el resto queda abierto, en orden de prioridad.
+
+- [x] **Transición suave en trayectos abiertos extruía un cordón a través de la pieza.** Un trayecto abierto termina en el extremo opuesto a donde empieza la capa siguiente; con `softJoin` (activo por defecto) `buildTransition` unía ambos puntos extruyendo: 160 mm de arcilla por cambio de capa en una línea de 160 mm. Ahora la transición solo se hace si el inicio de la capa siguiente está a ≤ `transitionLength` en XY; si no, viaje elevado normal. El test de invariantes acota el largo de cada transición y cubre una línea abierta.
+- [x] **El parser imprimía geometría que no se dibuja.** Se muestreaban las formas de `<clipPath>` y `<mask>`, el contenido de `<defs>` / `<symbol>` / `<marker>` / `<pattern>` y los elementos con `display:none` (capas ocultas de Inkscape). Illustrator exporta a menudo un `clipPath` del tamaño de la mesa de trabajo, que salía impreso como un cuadrado extra. Ahora se omiten. Limitación: `visibility:hidden` no se detecta (el contenedor de medición ya es `visibility:hidden`).
+- [x] **Un SVG compartido podía ejecutar código.** `parseSVG` insertaba el texto con `innerHTML`, y los atributos `onerror` / `onload` se ejecutaban al cargar (comprobado en Chromium). Ahora se inserta el documento ya parseado, sin `<script>`, `<foreignObject>`, atributos `on*` ni enlaces `javascript:`, con `importNode`. Los SVG sin `xmlns` se reparsean con el namespace SVG; la salida de las muestras no cambia.
+- [ ] **Bajo un `transform` con escala, el muestreo y las longitudes de onda salen mal.** `getTotalLength` / `getPointAtLength` trabajan en longitud local del elemento: dentro de `<g transform="scale(2)">` un trazo de 20 unidades mide 10, así que el espaciado de muestra y las longitudes de onda quedan al doble. Recalcular `arcLength` y `totalLength` a partir de los puntos ya transformados (`svgParser.ts`).
+- [ ] **Z-hop: probable acumulación de arcilla en los cruces** (deducido del código; confirmar con una impresión de prueba). El salto solo se aplica en la segunda pasada de cada cruce. En la capa 0 el cruce recibe un cordón a Z 1.0 y otro a Z 3.5; la primera pasada de la capa 1 cruza a Z 3.5, sin hueco sobre ese cordón doble. Cada capa deja un cordón de más en el cruce. Propuesta: reducir o anular E dentro de la ventana del salto en vez de solo levantar la boquilla (`toolpath.ts` / `gcodeGenerator.ts`).
+- [ ] **"Reiniciar" del panel Lissajous borra todos los parámetros** (`App.tsx`, `onReset={() => setParams(DEFAULT_PARAMS)}`): capas, velocidades y escala incluidas. Restablecer solo los campos de la onda.
+- [ ] **Los pull requests no pasan por CI.** `deploy.yml` solo corre en `main`, así que un fallo se descubre al desplegar. Añadir un workflow `pull_request` con `npm test` y `npm run build`.
+- [ ] **E no compensa el grosor real del cordón con onda Z.** El hueco con la capa inferior varía entre 0.5× y ≈ 1.6× la altura de capa (con 0.8 mm de amplitud Z), pero E depende solo de la distancia XY. Escalar E por el hueco local (amplía NP-0a). El error por ignorar la componente Z de la distancia es menor (≈ 1.4 %).
+- [ ] **Menores:** mensajes de error del parser en inglés; "Núm. de capas" sin máximo (escribir 10000 congela la pestaña); nombre por defecto `curva.de.barro.gcode` (y `clay-wave.gcode` en `downloadGcode`).
+
 ### UX — controles
 
 - [x] **Pivot drag en el visualizador** — permitir que el punto que corresponde al centro de escala se pueda desplazar arrastrando con el mouse en el viewport 3D.
