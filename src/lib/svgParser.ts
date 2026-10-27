@@ -176,9 +176,38 @@ function sanitizeXmlEntities(svg: string): string {
   });
 }
 
-export function parseSVG(svgString: string, spacing: number): ParsedSVG {
+/**
+ * Remove what could run code once the SVG is in the page: scripts, embedded
+ * HTML, event-handler attributes and javascript: links. Shared files are
+ * untrusted.
+ */
+function stripActiveContent(doc: Document): void {
+  doc.querySelectorAll('script, foreignObject').forEach(el => el.remove());
+  for (const el of Array.from(doc.querySelectorAll('*'))) {
+    for (const attr of Array.from(el.attributes)) {
+      const isLink = attr.localName === 'href' && /^\s*javascript:/i.test(attr.value);
+      if (attr.name.toLowerCase().startsWith('on') || isLink) el.removeAttributeNode(attr);
+    }
+  }
+}
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function parseXML(svgString: string): Document {
   const parser = new DOMParser();
-  const doc = parser.parseFromString(sanitizeXmlEntities(svgString), 'image/svg+xml');
+  const xml = sanitizeXmlEntities(svgString);
+  const doc = parser.parseFromString(xml, 'image/svg+xml');
+  // SVG copied out of an HTML page often has no xmlns: HTML accepts that,
+  // but as XML its elements land in no namespace and can't be measured.
+  const root = doc.documentElement;
+  if (root.localName === 'svg' && !root.namespaceURI) {
+    return parser.parseFromString(xml.replace(/<svg\b/, `<svg xmlns="${SVG_NS}"`), 'image/svg+xml');
+  }
+  return doc;
+}
+
+export function parseSVG(svgString: string, spacing: number): ParsedSVG {
+  const doc = parseXML(svgString);
 
   // Detect parser errors (malformed XML).
   const parseError = doc.querySelector('parsererror');
@@ -205,8 +234,9 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
     : null;
 
   // Insert SVG into hidden container so the browser can measure it.
+  stripActiveContent(doc);
   const container = getHiddenContainer();
-  container.innerHTML = svgString;
+  container.replaceChildren(document.importNode(sourceSvgEl, true));
   const liveSvgEl = container.querySelector('svg') as SVGSVGElement | null;
 
   if (!liveSvgEl) {
