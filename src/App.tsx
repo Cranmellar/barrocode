@@ -190,7 +190,7 @@ export default function App() {
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
   const [gcode, setGcode] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [gcodeFilename, setGcodeFilename] = useState('curva.de.barro.gcode');
+  const [gcodeFilename, setGcodeFilename] = useState('barrocode.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
   const [keyframes, setKeyframes] = useState<WaveKeyframe[]>([]);
   const [centerTab, setCenterTab] = useState<'preview' | 'gcode'>('preview');

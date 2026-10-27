@@ -311,7 +311,7 @@ export function generateGcode(
 
 // ── Download helper ──────────────────────────────────────────────────────────
 
-export function downloadGcode(gcode: string, filename = 'clay-wave.gcode'): void {
+export function downloadGcode(gcode: string, filename = 'barrocode.gcode'): void {
   const blob = new Blob([gcode], { type: 'text/plain' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
