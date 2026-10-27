@@ -7,6 +7,9 @@
  *   next layer's start.  Any gap left (open paths, Z wave, per-layer phase)
  *   is bridged by a continuous print move that interpolates XY to the first
  *   point of layer N+1 while raising Z linearly.  No retract or lift.
+ *   When the next layer starts more than transitionLength away in XY (open
+ *   paths end at the far end), the join would extrude a chord across the
+ *   part, so a normal lift-and-travel is used instead.
  *
  * Extrusion model:
  *   E is cumulative.  Each move of distance d:   E += d * extrusionMultiplier
@@ -288,13 +291,16 @@ export function generateGcode(
 
       if (params.softJoin && nextLayer !== null && pi === layer.paths.length - 1) {
         const next = nextLayer.paths[0]?.[0];
-        if (next && Math.hypot(next.x - cur.x, next.y - cur.y, next.z - zRef.value) > 0.001) {
-          const tLines = buildTransition(
-            cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
-          );
-          zRef.value = next.z;
+        const gap = next ? dist(cur.x, cur.y, next.x, next.y) : Infinity;
+        if (next && gap <= params.transitionLength) {
+          if (Math.hypot(gap, next.z - zRef.value) > 0.001) {
+            const tLines = buildTransition(
+              cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
+            );
+            zRef.value = next.z;
+            blocks.push(tLines.join('\n'));
+          }
           joined = true;
-          blocks.push(tLines.join('\n'));
         }
       }
     }
