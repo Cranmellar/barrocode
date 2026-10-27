@@ -24,6 +24,7 @@
 import type { PrintParams } from '../types';
 import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
+import { layerCount } from './waveGenerator';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
@@ -41,9 +42,6 @@ function smoothstep(t: number) { return t * t * (3 - 2 * t); }
 // ── Header ──────────────────────────────────────────────────────────────────
 
 function buildHeader(params: PrintParams): string {
-  const eff = params.useNumLayers
-    ? params.numLayers
-    : Math.max(1, Math.ceil(params.totalHeight / params.layerHeight));
   return [
     '; ============================================================',
     '; BarroCode — Lissajous G-code Generator',
@@ -54,7 +52,7 @@ function buildHeader(params: PrintParams): string {
     `; Phase offset           : ${(params.lissPhaseOffset * 180 / Math.PI).toFixed(1)}°`,
     `; Phase shift / layer    : ${(params.phaseShiftPerLayer * 180 / Math.PI).toFixed(1)}°`,
     `; Layer height           : ${params.layerHeight} mm`,
-    `; Number of layers       : ${eff}`,
+    `; Number of layers       : ${layerCount(params)}`,
     `; Nozzle Z offset        : ${params.nozzleHeightOffset} mm`,
     `; Soft join              : ${params.softJoin} (transition ${params.transitionLength} mm)`,
     `; Scale factor           : ${params.scaleFactor}`,
