@@ -91,6 +91,7 @@ export interface WaveKeyframe {
   centerY?: number; // mm
   scaleX?:  number; // multiplier
   scaleY?:  number; // multiplier
+  rotation?: number; // degrees, CCW seen from above, around the same pivot
 }
 
 // ── Parameters ──────────────────────────────────────────────────────────────
@@ -135,6 +136,7 @@ export interface PrintParams {
   scaleX: number;                // independent X scale (1 = no change)
   scaleY: number;                // independent Y scale (1 = no change)
   scaleUniform: boolean;         // UI lock: keep scaleX === scaleY
+  rotation: number;              // degrees, CCW seen from above, around the pivot (after scale)
 
   // ── Z-hop ──
   zHopHeight: number;            // mm — nozzle lifts over path crossings (0 = off)

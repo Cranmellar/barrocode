@@ -68,6 +68,7 @@ const DEFAULT_PARAMS: PrintParams = {
   scaleX: 1,
   scaleY: 1,
   scaleUniform: true,
+  rotation: 0,
   // Z-hop
   zHopHeight: 2.5,
   hopRadius: 1.0,
@@ -271,6 +272,7 @@ export default function App() {
       delta: lp.delta, phaseZ: lp.phaseZ,
       centerX: lp.centerX, centerY: lp.centerY,
       scaleX: lp.scaleX, scaleY: lp.scaleY,
+      rotation: lp.rotation,
     };
     const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
     setKeyframes(updated);
@@ -673,8 +675,13 @@ export default function App() {
                       <span className="kf-unit">%</span>
                     </div>
                   </div>
-                  <div className="kf-field kf-field-note">
-                    Onda: panel derecho
+                  <div className="kf-field" title="Giro alrededor del centro, antihorario visto desde arriba. Entre keyframes se interpola: 0° → 360° da una vuelta completa.">
+                    <label>Giro</label>
+                    <div className="kf-field-input-row">
+                      <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
+                        onChange={v => updateKf('rotation', v)} />
+                      <span className="kf-unit">°</span>
+                    </div>
                   </div>
                 </div>
 
@@ -736,7 +743,7 @@ export default function App() {
               <div className="kf-empty">
                 {keyframes.length === 0
                   ? 'Mueve el extrusor en la línea de tiempo y pulsa «Añadir» para fijar la onda en ese punto. Entre keyframes los valores se interpolan.'
-                  : 'Selecciona un keyframe en la línea de tiempo o con ‹ › para editarlo: su onda en el panel derecho, su posición, escala y centro aquí.'}
+                  : 'Selecciona un keyframe en la línea de tiempo o con ‹ › para editarlo: su onda en el panel derecho, su posición, giro, escala y centro aquí.'}
               </div>
             )}
           </div>

@@ -12,7 +12,7 @@ export const PARAMS: PrintParams = {
   nozzleHeightOffset: 1, safeZ: 20,
   softJoin: true, transitionLength: 10,
   scaleFactor: 1, originX: 0, originY: 0, flipY: false,
-  centerX: 0, centerY: 0, scaleX: 1, scaleY: 1, scaleUniform: true,
+  centerX: 0, centerY: 0, scaleX: 1, scaleY: 1, scaleUniform: true, rotation: 0,
   zHopHeight: 0, hopRadius: 3,
   skirtThreshold: 15,
   printSpeed: 600, travelSpeed: 1500,

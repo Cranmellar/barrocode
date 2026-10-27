@@ -13,6 +13,7 @@
 ; Scale factor           : 1
 ; Center (X/Y)           : 0 / 0 mm
 ; Scale X / Y            : 1 / 1
+; Rotation               : 0°
 ; Origin X / Y           : 0 / 0 mm
 ; Flip Y                 : false
 ; Z-hop height / radius  : 2.5 / 3 mm

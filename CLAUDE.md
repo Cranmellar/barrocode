@@ -45,7 +45,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 ## Current state (verified 2026-10-26 on branch `claude/youthful-edison-ug2j0c`, on top of `main` @ `29ad9a1`)
 
 - `npm test` (116 tests) and `npm run build` pass (≈87 kB app JS + 141 kB vendor; gzip ≈75 kB).
-- Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
+- Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
@@ -159,7 +159,7 @@ SampledPath[] + PrintParams + WaveKeyframe[]
                            zOffset = ampZ*sin(cycZ + phaseZ + phase)   (mm)
        • Z floor: layer 0 ≥ its base Z; later points ≥ same sample on the
          layer below + layerHeight·MIN_LAYER_GAP (0.5)
-       • applyScaleSVG: scale around pivot in SVG space
+       • applyTransformSVG: scale, then rotate, around pivot in SVG space
        • alternateDirection: reverse every other layer
        • closePath: append first point if not closed
      → WaveLayer[] { index, z (mm), paths: WavePoint[][] (SVG units + zOffset mm) }
@@ -250,7 +250,7 @@ pendientes.md               Prioritised backlog (some checkmarks stale — see "
 
 `PrintParams` is a single **flat** object with ≈50 fields covering sampling, Lissajous wave (N/T/Z), layers, soft-join, SVG→mm transform, shape transform, z-hop, travel, speeds, extrusion, path options, and clay-specific behaviour. Defaults are `DEFAULT_PARAMS` in `App.tsx`. **Do not nest it, do not split it into multiple stores.**
 
-Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale fields at given `t ∈ [0,1]` (fraction of all flattened points across all layers). Optional keyframe fields fall back to `PrintParams`; new keyframes snapshot every field from the wave shown at that `t`. Between keyframes, all fields are linearly interpolated (`wlN/wlT/wlZ` floor-clamped at 0.1). When `keyframes.length > 0`, the per-path overrides (`ampNOverride` etc. on `SampledPath`) are **silently ignored by `waveGenerator`** — the UI disables them in this case (see `PathList.tsx`).
+Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale/rotation fields at given `t ∈ [0,1]` (fraction of all flattened points across all layers). Optional keyframe fields fall back to `PrintParams`; new keyframes snapshot every field from the wave shown at that `t`. Between keyframes, all fields are linearly interpolated (`wlN/wlT/wlZ` floor-clamped at 0.1; `rotation` is not wrapped, so 0° → 360° is a full twist). When `keyframes.length > 0`, the per-path overrides (`ampNOverride` etc. on `SampledPath`) are **silently ignored by `waveGenerator`** — the UI disables them in this case (see `PathList.tsx`).
 
 `App.tsx` state:
 - `params: PrintParams` — the print config
@@ -280,7 +280,8 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 - `WaveLayer.paths` stores XY in **SVG user units**, measured from the viewBox's top-left corner; `WavePoint.zOffset` is already in **mm**.
 - `svgToMM()` (in `waveGenerator.ts`) converts XY to **mm** only in `buildToolpath`.
 - `lissAmpN/T` and `lissWlN/T/Z` are in **mm** and divided by `scaleFactor` inside the wave math (so the visual amplitude tracks the real-world mm regardless of SVG unit scale); `lissAmpZ` is not (Z is always mm).
-- Transform order: `scaleFactor` (SVG→mm) is separate from `scaleX/Y` (shape scale around pivot). `applyScaleSVG` handles `scaleX/Y` in SVG space before `svgToMM` converts.
+- Transform order: `scaleFactor` (SVG→mm) is separate from `scaleX/Y` (shape scale around pivot) and `rotation` (degrees, counter-clockwise seen from above, around the same pivot). `applyTransformSVG` scales and then rotates in SVG space before `svgToMM` converts; with `flipY` the angle's sign flips there so the bed always sees counter-clockwise. `rotation.test.ts` pins this.
+- Twisting a part shifts each layer by `r · Δθ` at distance `r` from the pivot, so steep twists overhang. That is the user's call; the app doesn't warn or limit it.
 - `flipY`: most printers want Y growing upward; SVG Y grows downward.
 - Preview projection is right-handed: at azimuth 0 the camera looks along +Y (X right, Z up), and the top view shows Y up. `src/lib/__tests__/draw3D.test.ts` pins this; the preview once drew the part mirrored.
 
