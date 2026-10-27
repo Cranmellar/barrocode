@@ -12,8 +12,8 @@ const BASE: PrintParams = {
   ...PARAMS,
   lissAmpN: 3, lissAmpT: 2, lissAmpZ: 0.8, lissWlT: 13, lissWlZ: 30,
   lissDelta: 0.5, lissPhaseZ: 0.3, lissPhaseOffset: 0.2, phaseShiftPerLayer: 0.4,
-  numLayers: 3, closePath: true,
-  centerX: 40, centerY: 30, scaleX: 1.2, scaleY: 0.9,
+  numLayers: 3, alternateDirection: true, closePath: true,
+  centerX: 40, centerY: 30, scaleX: 1.2, scaleY: 0.9, rotation: 25,
   scaleFactor: 0.8, originX: 5, originY: 7, flipY: true,
   zHopHeight: 2.5, hopRadius: 3,
 };

@@ -1,6 +1,7 @@
 /**
- * Panel de escala y centro — permite escalar el trayecto alrededor de un
- * punto de pivote en mm, con control independiente por eje o uniforme.
+ * Panel de escala, giro y centro — permite escalar y girar el trayecto
+ * alrededor de un punto de pivote en mm, con escala independiente por eje o
+ * uniforme.
  *
  * La escala se aplica después de la conversión SVG → mm, por lo que el
  * centro se especifica en coordenadas del lecho de impresión.
@@ -174,6 +175,28 @@ export function CenterScaleParams({ params, onChange }: Props) {
           onClick={() => onChange({ ...params, scaleX: 1, scaleY: 1 })}
         >
           Resetear escala
+        </button>
+      </div>
+
+      {/* ── Giro ── */}
+      <div className="section">
+        <div className="section-title">Giro</div>
+
+        <div className="param-row" title="Antihorario visto desde arriba, alrededor del centro de pivote. Se aplica después de la escala.">
+          <label>Ángulo<span className="unit"> °</span></label>
+          <NumInput
+            value={params.rotation}
+            step={1}
+            onChange={v => setVal('rotation', v)}
+          />
+        </div>
+
+        <button
+          className="btn-reset"
+          style={{ margin: '4px 12px 8px' }}
+          onClick={() => setVal('rotation', 0)}
+        >
+          Resetear giro
         </button>
       </div>
     </>

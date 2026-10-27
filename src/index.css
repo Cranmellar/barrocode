@@ -1398,12 +1398,6 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.5;
   background: var(--card-2);
 }
-.kf-field-note {
-  font-size: 10px;
-  color: var(--muted);
-  letter-spacing: 0.04em;
-}
-
 /* ── Keyframe editor panel ───────────────────────────────────────────────── */
 .kf-editor {
   display: flex;

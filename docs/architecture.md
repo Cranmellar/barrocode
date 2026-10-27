@@ -81,7 +81,7 @@ También aplica:
 - dirección alternada por capa;
 - cierre opcional de trayectos;
 - interpolación de keyframes;
-- centro y escala por keyframe;
+- centro, escala y giro por keyframe (escala primero, luego giro, alrededor del centro);
 - conversión de SVG a mm mediante `svgToMM`.
 
 ## Trayectoria Final

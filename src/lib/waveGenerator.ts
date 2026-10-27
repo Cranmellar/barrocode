@@ -12,9 +12,10 @@
  *   offset_T   = ampT * sin( cyc_T(s)              +  phase_base )
  *   point      = centerline(s) + N(s)·offset_N + T(s)·offset_T
  *
- * If keyframes are provided, ampN/ampT/wlN/wlT/delta/centerX/Y/scaleX/Y are
- * interpolated along the flattened trajectory (t ∈ [0,1] across all layers).
- * Scale is applied per-point in SVG space around the interpolated center.
+ * If keyframes are provided, ampN/ampT/wlN/wlT/delta/centerX/Y/scaleX/Y/rotation
+ * are interpolated along the flattened trajectory (t ∈ [0,1] across all layers).
+ * Scale, then rotation, is applied per-point in SVG space around the
+ * interpolated center.
  *
  * The phase is integrated rather than computed as 2π·s/wl: with a wavelength
  * that varies along the path, 2π·s/wl(s) has derivative 2π(1/wl − s·wl'/wl²),
@@ -39,6 +40,7 @@ export interface LocalParams {
   phaseZ: number;
   centerX: number; centerY: number;  // mm
   scaleX:  number; scaleY:  number;  // multipliers
+  rotation: number;                  // degrees
 }
 
 // ── Keyframe interpolation ──────────────────────────────────────────────────
@@ -51,6 +53,7 @@ function baseToLocal(base: PrintParams): LocalParams {
     phaseZ: base.lissPhaseZ,
     centerX: base.centerX, centerY: base.centerY,
     scaleX:  base.scaleX,  scaleY:  base.scaleY,
+    rotation: base.rotation,
   };
 }
 
@@ -64,6 +67,7 @@ function kfToLocal(k: WaveKeyframe, base: PrintParams): LocalParams {
     centerY: k.centerY ?? base.centerY,
     scaleX:  k.scaleX  ?? base.scaleX,
     scaleY:  k.scaleY  ?? base.scaleY,
+    rotation: k.rotation ?? base.rotation,
   };
 }
 
@@ -82,6 +86,8 @@ function lerpLocal(loF: LocalParams, hiF: LocalParams, alpha: number): LocalPara
     centerY: lerp(loF.centerY, hiF.centerY),
     scaleX:  lerp(loF.scaleX,  hiF.scaleX),
     scaleY:  lerp(loF.scaleY,  hiF.scaleY),
+    // Plain lerp, no wrap to ±180°: 0° → 360° is a full twist.
+    rotation: lerp(loF.rotation, hiF.rotation),
   };
 }
 
@@ -174,7 +180,7 @@ function lissajousPoint(
   };
 }
 
-// ── Scale-around-center in SVG space ────────────────────────────────────────
+// ── Scale + rotation around center in SVG space ─────────────────────────────
 //
 // The center is given in mm; we convert to SVG units then apply the scale.
 // This correctly round-trips through svgToMM(pt, sf, ox, oy, flipY, svgH).
@@ -184,27 +190,38 @@ function lissajousPoint(
 //
 // Proof: applying scaleX around svgCX and then svgToMM gives
 //   x_out_mm = centerX_mm + (x_in_mm - centerX_mm) * scaleX   ✓
+//
+// Scale goes first so scaleX/Y stay on the shape's own axes: an oval turns
+// rigidly instead of shearing.
 
-function applyScaleSVG(
+function applyTransformSVG(
   pt: WavePoint,
   centerX: number,   // mm
   centerY: number,   // mm
   scaleX: number,
   scaleY: number,
+  rotation: number,  // degrees
   sf: number,        // scaleFactor
   originX: number,
   originY: number,
   flipY: boolean,
   svgH: number,
 ): WavePoint {
-  if (scaleX === 1 && scaleY === 1) return pt;
+  if (scaleX === 1 && scaleY === 1 && rotation === 0) return pt;
   const cxSVG = (centerX - originX) / sf;
   const cySVG = flipY
     ? svgH - (centerY - originY) / sf
     : (centerY - originY) / sf;
+  const dx = (pt.x - cxSVG) * scaleX;
+  const dy = (pt.y - cySVG) * scaleY;
+  if (rotation === 0) return { x: cxSVG + dx, y: cySVG + dy, zOffset: pt.zOffset };
+  // With flipY the SVG's Y runs opposite to the bed's, so CCW on the bed
+  // is CW in SVG space.
+  const a = (flipY ? -rotation : rotation) * Math.PI / 180;
+  const c = Math.cos(a), s = Math.sin(a);
   return {
-    x: cxSVG + (pt.x - cxSVG) * scaleX,
-    y: cySVG + (pt.y - cySVG) * scaleY,
+    x: cxSVG + dx * c - dy * s,
+    y: cySVG + dx * s + dy * c,
     zOffset: pt.zOffset,
   };
 }
@@ -218,7 +235,7 @@ export const WAVE_PARAMS = [
   'lissDelta', 'lissPhaseZ', 'lissPhaseOffset', 'phaseShiftPerLayer',
   'layerHeight', 'numLayers', 'useNumLayers', 'totalHeight', 'nozzleHeightOffset',
   'reversePath', 'alternateDirection', 'closePath',
-  'centerX', 'centerY', 'scaleX', 'scaleY',
+  'centerX', 'centerY', 'scaleX', 'scaleY', 'rotation',
   'scaleFactor', 'originX', 'originY', 'flipY',
 ] as const satisfies readonly (keyof PrintParams)[];
 
@@ -305,6 +322,7 @@ export function generateWaveLayers(
             phaseZ: params.lissPhaseZ,
             centerX: params.centerX, centerY: params.centerY,
             scaleX:  params.scaleX,  scaleY:  params.scaleY,
+            rotation: params.rotation,
           };
         }
         flatIdx++;
@@ -334,11 +352,10 @@ export function generateWaveLayers(
         wavePt.zOffset = Math.max(wavePt.zOffset, floor - z);
         pathZ[si] = z + wavePt.zOffset;
 
-        // Apply per-point scale around center (in SVG space)
-        return applyScaleSVG(
+        return applyTransformSVG(
           wavePt,
           lp.centerX, lp.centerY,
-          lp.scaleX,  lp.scaleY,
+          lp.scaleX,  lp.scaleY, lp.rotation,
           sf, params.originX, params.originY, params.flipY, svgHeight,
         );
       });
