@@ -9,6 +9,9 @@ interface Props {
   editingKf: { number: number; label: string; color: string; onDone: () => void } | null;
   // Keyframes exist but none is selected: the wave fields have no effect.
   waveLocked: boolean;
+  // Small figure of the wave, shown under the header.
+  figure?: React.ReactNode;
+  headerExtra?: React.ReactNode;
 }
 
 function Slider({ label, value, min, max, step, unit, hint, onChange }: {
@@ -124,7 +127,7 @@ const PRESETS = [
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function LissajousParams({ params, onChange, onReset, editingKf, waveLocked }: Props) {
+export function LissajousParams({ params, onChange, onReset, editingKf, waveLocked, figure, headerExtra }: Props) {
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
@@ -135,12 +138,16 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
   return (
     <div className="lissajous-params">
       <div className="panel-header">
-        <span>Lissajous</span>
-        <button className="btn-reset" onClick={onReset} disabled={waveLocked}
-          title={editingKf
-            ? 'Restablece la onda de este keyframe y la fase'
-            : 'Restablece solo los parámetros de la onda'}>Reiniciar</button>
+        <span>Onda</span>
+        <span className="panel-header-actions">
+          <button className="btn-reset" onClick={onReset} disabled={waveLocked}
+            title={editingKf
+              ? 'Restablece la onda de este keyframe y la fase'
+              : 'Restablece solo los parámetros de la onda'}>Restablecer</button>
+          {headerExtra}
+        </span>
       </div>
+      {figure}
       {editingKf ? (
         <div className="liss-context liss-context--kf">
           <span className="kf-badge" style={{ '--kf-c': editingKf.color } as React.CSSProperties}>
@@ -155,7 +162,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
           La onda la definen los keyframes. Selecciona uno en la línea de tiempo para editarla.
         </div>
       ) : (
-        <div className="liss-context">Onda global · se aplica a toda la pieza</div>
+        <div className="liss-context">Onda global: se aplica a toda la pieza</div>
       )}
 
       <fieldset className="liss-fieldset" disabled={waveLocked}>

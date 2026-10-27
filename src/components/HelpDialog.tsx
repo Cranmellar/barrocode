@@ -173,23 +173,23 @@ export function HelpDialog({ open, onClose }: Props) {
             <FlowStrip />
             <ol className="help-steps">
               <li>
-                <strong>Carga un SVG</strong> — clic o arrastra un archivo al área de carga,
-                o elige una muestra con <kbd>‹</kbd> <kbd>›</kbd> y haz clic para cargarla.
+                <strong>Carga un SVG</strong> — arrástralo a cualquier parte de la ventana o usa
+                <em>Cargar SVG</em>; también puedes elegir una muestra con <kbd>‹</kbd> <kbd>›</kbd> y hacer clic para cargarla.
                 Puedes activar o desactivar cada trayecto en la lista.
               </li>
               <li>
-                <strong>Configura la impresión</strong> (panel izquierdo) — capas, altura de capa,
+                <strong>Configura la impresión</strong> (panel izquierdo: Pieza, Trayecto, Máquina) — capas, altura de capa,
                 velocidades y <em>Factor de escala</em>: usa <code>1</code> si el SVG está en mm
                 o <code>0.2645</code> si está en píxeles.
               </li>
               <li>
                 <strong>Da forma a la onda</strong> (panel derecho) — parte de un preajuste y
-                ajusta amplitud, longitud de onda y fase. La vista inferior derecha muestra la
-                figura local resultante.
+                ajusta amplitud, longitud de onda y fase. La figura pequeña de arriba muestra la
+                onda resultante.
               </li>
               <li>
-                <strong>Revisa y exporta</strong> — inspecciona la trayectoria en 3D y, en la
-                pestaña <em>G-code</em>, pulsa <em>Descargar .gcode</em>.
+                <strong>Revisa y exporta</strong> — inspecciona la trayectoria en 3D y pulsa
+                <em>Descargar</em> arriba a la derecha (<em>G-code</em> muestra el programa).
               </li>
             </ol>
           </section>
@@ -212,11 +212,11 @@ export function HelpDialog({ open, onClose }: Props) {
             <h3 id="help-kf">Keyframes</h3>
             <KeyframeDiagram />
             <p>
-              Mueve el <em>Extrusor</em> en la línea de tiempo bajo la vista 3D y pulsa{' '}
-              <kbd>+</kbd> para fijar la onda en ese punto. Cada keyframe es un rombo con
+              Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>+ Keyframe</em>{' '}
+              (o <kbd>K</kbd>) para fijar la onda en ese punto. Cada keyframe es un rombo con
               número y color, iguales en la línea de tiempo, la vista 3D y los paneles.
               Selecciona uno (clic en su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
-              derecho; su posición, escala y centro en la franja inferior. Arrastra su rombo
+              derecho; su posición, giro, escala y centro sobre la línea de tiempo. Arrastra su rombo
               para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
               los ajustes por trayecto se ignoran.
             </p>
@@ -232,12 +232,12 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Iso · Planta · Frente</th><td>vistas predefinidas</td></tr>
                 <tr><th scope="row">Slider de capas</th><td>ver hasta una capa · <em>Sola</em>: solo esa capa</td></tr>
                 <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor</td></tr>
-                <tr><th scope="row">Arrastrar divisores</th><td>redimensionar paneles</td></tr>
+                <tr><th scope="row"><kbd>‹</kbd> <kbd>›</kbd> en un panel</th><td>ocultar o mostrar el panel</td></tr>
                 <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>
                 <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd></th><td>mover el extrusor 1 % (con <kbd>Shift</kbd>, 0,1 %)</td></tr>
                 <tr><th scope="row"><kbd>K</kbd></th><td>añadir keyframe en el extrusor (o seleccionar el que ya está ahí)</td></tr>
                 <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
-                <tr><th scope="row"><kbd>G</kbd></th><td>alternar Trayectoria / G-code</td></tr>
+                <tr><th scope="row"><kbd>G</kbd></th><td>mostrar u ocultar el G-code</td></tr>
               </tbody>
             </table>
           </section>

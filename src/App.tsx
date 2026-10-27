@@ -9,7 +9,7 @@ import { keyframeColor } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
-import { Preview2D } from './components/Preview2D';
+import { Preview2D, STAGE_GAP } from './components/Preview2D';
 import { PathList } from './components/PathList';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
@@ -76,52 +76,42 @@ const DEFAULT_PARAMS: PrintParams = {
   skirtThreshold: 15,
 };
 
-// ── Resizable panel hook ────────────────────────────────────────────────────
-function useResize(
-  initial: number,
-  min: number,
-  max: number,
-  axis: 'x' | 'y',
-  invert = false,
-) {
-  const [size, setSize] = useState(initial);
-  const startRef = useRef<{ mouse: number; size: number } | null>(null);
+// ── Floating panels ─────────────────────────────────────────────────────────
+const LEFT_W  = 300;
+const RIGHT_W = 296;
+const RAIL_W  = 44;
+const BAR_H   = 40;
+const NARROW_W = 1280;
 
-  function onMouseDown(e: React.MouseEvent) {
-    e.preventDefault();
-    startRef.current = { mouse: axis === 'x' ? e.clientX : e.clientY, size };
-    document.body.classList.add(axis === 'x' ? 'dragging-h' : 'dragging-v');
+const PANELS_KEY = 'barrocode.panels';
+interface PanelsOpen { left: boolean; right: boolean }
+
+function loadPanels(): PanelsOpen {
+  try {
+    return { left: true, right: true, ...JSON.parse(localStorage.getItem(PANELS_KEY) ?? '{}') };
+  } catch {
+    return { left: true, right: true };
   }
+}
 
-  useEffect(() => {
-    function onMove(e: MouseEvent) {
-      if (!startRef.current) return;
-      const delta = (axis === 'x' ? e.clientX : e.clientY) - startRef.current.mouse;
-      const newSize = Math.max(min, Math.min(max, startRef.current.size + (invert ? -delta : delta)));
-      setSize(newSize);
-    }
-    function onUp() {
-      startRef.current = null;
-      document.body.classList.remove('dragging-h', 'dragging-v');
-    }
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [axis, min, max, invert]);
-
-  return { size, onMouseDown };
+function Chevron({ dir }: { dir: 'left' | 'right' }) {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={dir === 'left' ? 'M7.5 2.5 4 6l3.5 3.5' : 'M4.5 2.5 8 6l-3.5 3.5'} />
+    </svg>
+  );
 }
 
 // True while a scroller has content hidden below its visible area.
-function useScrollMore<T extends HTMLElement>() {
+// `active` follows whether the scroller is mounted (its panel can be hidden).
+function useScrollMore<T extends HTMLElement>(active: boolean) {
   const ref = useRef<T>(null);
   const [more, setMore] = useState(false);
 
   useEffect(() => {
-    const el = ref.current!;
+    const el = ref.current;
+    if (!el) return;
     const update = () => setMore(el.scrollTop + el.clientHeight < el.scrollHeight - 1);
     // Collapsing a group resizes a child, not the scroller, so watch every child too.
     const ro = new ResizeObserver(update);
@@ -139,7 +129,7 @@ function useScrollMore<T extends HTMLElement>() {
       mo.disconnect();
       el.removeEventListener('scroll', update);
     };
-  }, []);
+  }, [active]);
 
   return { ref, more };
 }
@@ -361,13 +351,33 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  // Resizable panels
-  const leftPanel         = useResize(272, 200, 480, 'x');
-  const rightPanel        = useResize(288, 200, 480, 'x', true);
-  const bottomRow         = useResize(200, 120, 480, 'y', true);
-  const lissPreviewHeight = useResize(200, 120, 400, 'y');
-  const leftScroll        = useScrollMore<HTMLDivElement>();
-  const rightScroll       = useScrollMore<HTMLDivElement>();
+  const [panels, setPanels] = useState(loadPanels);
+  const [dropping, setDropping] = useState(false);
+
+  // Below NARROW_W both panels would squeeze the view, so only one stays open.
+  const [narrow, setNarrow] = useState(() => window.innerWidth < NARROW_W);
+  useEffect(() => {
+    const onResize = () => setNarrow(window.innerWidth < NARROW_W);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+  const shown = narrow && panels.left && panels.right ? { left: true, right: false } : panels;
+  const leftScroll  = useScrollMore<HTMLDivElement>(shown.left);
+  const rightScroll = useScrollMore<HTMLDivElement>(shown.right);
+
+  function togglePanel(side: keyof PanelsOpen) {
+    const other = side === 'left' ? 'right' : 'left';
+    const opening = !shown[side];
+    const next = { ...shown, [side]: opening, ...(opening && narrow ? { [other]: false } : {}) };
+    setPanels(next);
+    try { localStorage.setItem(PANELS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+  }
+
+  const insets = {
+    left:  STAGE_GAP * 2 + (shown.left ? LEFT_W : RAIL_W),
+    right: STAGE_GAP * 2 + (shown.right ? RIGHT_W : RAIL_W),
+    top:   STAGE_GAP * 2 + BAR_H,
+  };
 
   const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = [], adoptScale = false) => {
     try {
@@ -484,307 +494,302 @@ export default function App() {
     doParse(s.raw, params.sampleSpacing);
   }
 
-  return (
-    <div className="app-layout">
+  const kfNav = keyframes.length > 0 && (
+    <div className="kf-nav">
+      <button className="btn-icon" disabled={!prevKf}
+        onClick={() => prevKf && selectKf(prevKf.id)}
+        title="Keyframe anterior (←)" aria-label="Keyframe anterior"><Chevron dir="left" /></button>
+      <span className="kf-nav-label">
+        {selectedKf
+          ? <><span className="kf-badge" style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
+                {selectedIdx + 1}
+              </span>
+              de {keyframes.length}</>
+          : `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`}
+      </span>
+      <button className="btn-icon" disabled={!nextKf}
+        onClick={() => nextKf && selectKf(nextKf.id)}
+        title="Keyframe siguiente (→)" aria-label="Keyframe siguiente"><Chevron dir="right" /></button>
+    </div>
+  );
 
-      {/* ── Panel izquierdo ── */}
-      <div ref={leftScroll.ref} className={`sidebar left-sidebar${leftScroll.more ? ' scroll-more' : ''}`}
-        style={{ width: leftPanel.size }}>
-        <div className="app-banner">
-          <button
-            className="help-btn"
-            onClick={() => setHelpOpen(true)}
-            aria-label="Ayuda: cómo usar BarroCode"
-            aria-haspopup="dialog"
-            aria-expanded={helpOpen}
-            title="Ayuda (?)"
-          >?</button>
-          <img src={logoUrl} alt="BarroCode" />
-          <div className="banner-sub">SVG → Lissajous → G-code</div>
-        </div>
+  const kfActions = (
+    <div className="kf-actions">
+      <button
+        className={`btn-small kf-add-btn${kfAtCursor ? ' kf-add-btn--on' : ''}`}
+        onClick={addKeyframe}
+        title={kfAtCursor
+          ? kfAtCursor.id === selectedKfId
+            ? 'Terminar de editar este keyframe (Esc)'
+            : 'Ya hay un keyframe aquí: seleccionarlo'
+          : `Fijar la onda en ${Math.round(timelineProgress * 100)} % del recorrido (K). Entre keyframes los valores se interpolan.`}
+      >
+        {kfAtCursor
+          ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${sortedKfs.indexOf(kfAtCursor) + 1}`
+          : '+ Keyframe'}
+      </button>
+      {selectedKf && (
+        <button className="btn-icon kf-del-btn" onClick={deleteKeyframe}
+          title="Eliminar este keyframe (Supr)" aria-label="Eliminar keyframe seleccionado">
+          <svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor"
+            strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 3h9M3.5 3V2h4v1M2 3l.8 7h5.4l.8-7"/>
+            <line x1="4.2" y1="5.5" x2="4" y2="8.5"/>
+            <line x1="6.8" y1="5.5" x2="7" y2="8.5"/>
+          </svg>
+        </button>
+      )}
+      {!selectedKf && keyframes.length > 0 && (
+        <button className="btn-reset kf-clear-btn" onClick={clearAllKeyframes}
+          title="Eliminar todos los keyframes">
+          Borrar todos
+        </button>
+      )}
+    </div>
+  );
 
-        {savedSession && !parsedSVG && (
-          <div className="session-banner" role="status">
-            <span className="session-banner-text">
-              Sesión anterior: <strong>{savedSession.filename.replace(/\.gcode$/i, '')}</strong>
-              {savedSession.keyframes.length > 0 && ` · ${savedSession.keyframes.length} keyframe${savedSession.keyframes.length !== 1 ? 's' : ''}`}
-            </span>
-            <div className="session-banner-actions">
-              <button className="btn-small btn-primary" onClick={restoreSession}>Restaurar</button>
-              <button className="btn-small" onClick={discardSession}>Descartar</button>
-            </div>
+  const kfEditor = selectedKf && (
+    <div className="kf-editor">
+      <div className="kf-group">
+        <div className="kf-field">
+          <label>Posición</label>
+          <div className="kf-field-input-row">
+            <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
+              onChange={v => moveSelectedKf(v / 100)} />
+            <span className="kf-unit">%</span>
           </div>
-        )}
-
-        <div className="upload-area-row">
-          <div
-            className="upload-area"
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={e => e.preventDefault()}
-            onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleFile(f); }}
-          >
-            <div className="upload-icon">↑</div>
-            <div className="upload-label">
-              {parsedSVG ? `${parsedSVG.paths.length} ruta(s) cargadas` : 'Carga un SVG…'}
-            </div>
-            <div className="upload-hint">clic o arrastra y suelta</div>
-            <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
-              style={{ display: 'none' }}
-              onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+        </div>
+        <div className="kf-field" title="Giro alrededor del centro, antihorario visto desde arriba. Entre keyframes se interpola: 0° → 360° da una vuelta completa.">
+          <label>Giro</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
+              onChange={v => updateKf('rotation', v)} />
+            <span className="kf-unit">°</span>
           </div>
-          {parsedSVG && (
-            <button
-              className="btn-clear-svg"
-              title="Descartar SVG importado"
-              onClick={clearSVG}
-            >
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
-                <line x1="2" y1="2" x2="10" y2="10" />
-                <line x1="10" y1="2" x2="2" y2="10" />
-              </svg>
-            </button>
-          )}
         </div>
-
-        <div className="sample-nav">
-          <button
-            className="sample-nav-arrow"
-            onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
-            aria-label="Muestra anterior"
-          >‹</button>
-          <button
-            className="sample-nav-load"
-            onClick={loadSample}
-            title={`Cargar muestra ${sampleIndex + 1}`}
-          >
-            <img src={SAMPLES[sampleIndex].uri} width={48} height={48} alt="" />
-            <span className="sample-nav-text">
-              <span className="sample-nav-title">Muestra {sampleIndex + 1}</span>
-              <span className="sample-nav-sub">de {SAMPLES.length} · clic para cargar</span>
-            </span>
-          </button>
-          <button
-            className="sample-nav-arrow"
-            onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
-            aria-label="Muestra siguiente"
-          >›</button>
-        </div>
-
-        {error && <div className="error-msg">⚠ {error}</div>}
-
-        {parsedSVG && (
-          <PathList
-            paths={parsedSVG.paths}
-            params={params}
-            hasKeyframes={keyframes.length > 0}
-            onToggle={togglePath}
-            onOverride={setOverride}
-          />
-        )}
-
-        <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null} />
       </div>
 
-      {/* Divisor izquierdo */}
-      <div
-        className="drag-handle-v"
-        onMouseDown={leftPanel.onMouseDown}
+      <div className="kf-group">
+        <div className="kf-field">
+          <label>Escala X</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
+              onChange={v => updateKf('scaleX', v)} />
+          </div>
+        </div>
+        <div className="kf-field">
+          <label>Escala Y</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
+              onChange={v => updateKf('scaleY', v)} />
+          </div>
+        </div>
+      </div>
+
+      <div className="kf-group kf-group-center">
+        <div className="kf-pad-wrap">
+          <CenterPad
+            layers={layers}
+            params={params}
+            svgH={svgH}
+            centerX={selectedKf.centerX ?? params.centerX}
+            centerY={selectedKf.centerY ?? params.centerY}
+            kfT={selectedKf.t}
+            onChange={(x, y) => {
+              if (!selectedKfId) return;
+              setKeyframes(keyframes.map(k =>
+                k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
+              ));
+            }}
+          />
+        </div>
+        <div className="kf-center-fields">
+          <div className="kf-field">
+            <label>Centro X</label>
+            <div className="kf-field-input-row">
+              <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={1}
+                onChange={v => updateKf('centerX', v)} />
+              <span className="kf-unit">mm</span>
+            </div>
+          </div>
+          <div className="kf-field">
+            <label>Centro Y</label>
+            <div className="kf-field-input-row">
+              <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={1}
+                onChange={v => updateKf('centerY', v)} />
+              <span className="kf-unit">mm</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      className={`app-stage${dropping ? ' app-stage--drop' : ''}`}
+      onDragOver={e => { e.preventDefault(); if (!dropping) setDropping(true); }}
+      onDragLeave={e => { if (e.currentTarget === e.target || !e.relatedTarget) setDropping(false); }}
+      onDrop={e => {
+        e.preventDefault();
+        setDropping(false);
+        const f = e.dataTransfer.files[0];
+        if (f) handleFile(f);
+      }}
+    >
+      <Preview2D
+        sampledPaths={parsedSVG?.paths ?? []}
+        toolpath={toolpath}
+        params={params}
+        viewBox={parsedSVG?.viewBox ?? null}
+        timelineProgress={timelineProgress}
+        onTimelineChange={setTimelineProgress}
+        keyframes={keyframes}
+        onKeyframesChange={setKeyframes}
+        centerTab={centerTab}
+        onTabChange={setCenterTab}
+        gcode={gcode}
+        gcodeFilename={gcodeFilename}
+        selectedKfId={selectedKfId}
+        onKfSelect={selectKf}
+        onAddKeyframe={addKeyframe}
+        insets={insets}
+        timelineLead={kfNav}
+        timelineActions={kfActions}
+        timelineEditor={kfEditor}
       />
 
-      {/* ── Panel central ── */}
-      <div className="main-content">
+      {/* ── Panel izquierdo ── */}
+      {shown.left ? (
+        <aside className="float-panel panel-left" style={{ width: LEFT_W }}>
+          <div className="panel-top">
+            <img className="panel-logo" src={logoUrl} alt="BarroCode" />
+            <span className="panel-top-actions">
+              <button
+                className="btn-icon"
+                onClick={() => setHelpOpen(true)}
+                aria-label="Ayuda: cómo usar BarroCode"
+                aria-haspopup="dialog"
+                aria-expanded={helpOpen}
+                title="Ayuda (?)"
+              >?</button>
+              <button className="btn-icon" onClick={() => togglePanel('left')}
+                title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
+            </span>
+          </div>
 
-        {/* Vista global 3D — ocupa 2/3 superiores */}
-        <Preview2D
-          sampledPaths={parsedSVG?.paths ?? []}
-          toolpath={toolpath}
-          params={params}
-          viewBox={parsedSVG?.viewBox ?? null}
-          timelineProgress={timelineProgress}
-          onTimelineChange={setTimelineProgress}
-          keyframes={keyframes}
-          onKeyframesChange={setKeyframes}
-          centerTab={centerTab}
-          onTabChange={setCenterTab}
-          gcode={gcode}
-          gcodeFilename={gcodeFilename}
-          selectedKfId={selectedKfId}
-          onKfSelect={selectKf}
-          onAddKeyframe={addKeyframe}
-        />
-
-        {/* Divisor horizontal redimensionable */}
-        <div className="drag-handle-h" onMouseDown={bottomRow.onMouseDown} />
-
-        {/* Fila inferior — Keyframe seleccionado */}
-        <div className="bottom-row" style={{ height: bottomRow.size }}>
-          <div className="kf-panel">
-            <div className="toolbar">
-              <span className="toolbar-title">Keyframes</span>
-
-              {keyframes.length > 0 && (
-                <div className="kf-nav">
-                  <button className="btn-small kf-nav-btn" disabled={!prevKf}
-                    onClick={() => prevKf && selectKf(prevKf.id)}
-                    title="Keyframe anterior" aria-label="Keyframe anterior">‹</button>
-                  <span className="kf-nav-label">
-                    {selectedKf
-                      ? <><span className="kf-badge" style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
-                            {selectedIdx + 1}
-                          </span>
-                          de {keyframes.length}</>
-                      : `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`}
-                  </span>
-                  <button className="btn-small kf-nav-btn" disabled={!nextKf}
-                    onClick={() => nextKf && selectKf(nextKf.id)}
-                    title="Keyframe siguiente" aria-label="Keyframe siguiente">›</button>
+          <div ref={leftScroll.ref} className={`panel-scroll${leftScroll.more ? ' scroll-more' : ''}`}>
+            {savedSession && !parsedSVG && (
+              <div className="session-banner" role="status">
+                <span className="session-banner-text">
+                  Sesión anterior: <strong>{savedSession.filename.replace(/\.gcode$/i, '')}</strong>
+                  {savedSession.keyframes.length > 0 && ` · ${savedSession.keyframes.length} keyframe${savedSession.keyframes.length !== 1 ? 's' : ''}`}
+                </span>
+                <div className="session-banner-actions">
+                  <button className="btn-primary" onClick={restoreSession}>Restaurar</button>
+                  <button className="btn-small" onClick={discardSession}>Descartar</button>
                 </div>
-              )}
+              </div>
+            )}
 
-              <div className="kf-actions">
-                <button
-                  className={`btn-small kf-add-btn${kfAtCursor ? ' kf-add-btn--on' : ''}`}
-                  onClick={addKeyframe}
-                  title={kfAtCursor
-                    ? kfAtCursor.id === selectedKfId
-                      ? 'Terminar de editar este keyframe (Esc)'
-                      : 'Ya hay un keyframe aquí: seleccionarlo'
-                    : 'Fijar la onda en la posición del extrusor'}
-                >
-                  {kfAtCursor
-                    ? kfAtCursor.id === selectedKfId ? '✓ OK' : `Editar keyframe ${sortedKfs.indexOf(kfAtCursor) + 1}`
-                    : `⊕ Añadir en ${Math.round(timelineProgress * 100)}%`}
+            <div className="file-block">
+              <div className="file-row">
+                <button className="btn-small file-load" onClick={() => fileInputRef.current?.click()}
+                  title="Cargar un SVG. También puedes arrastrarlo a cualquier parte de la ventana.">
+                  {parsedSVG ? 'Cambiar SVG' : 'Cargar SVG'}
                 </button>
-                {selectedKf && (
-                  <button className="btn-small kf-del-btn kf-trash-btn" onClick={deleteKeyframe}
-                    title="Eliminar este keyframe (Supr)" aria-label="Eliminar keyframe seleccionado">
-                    <svg width="11" height="12" viewBox="0 0 11 12" fill="none" stroke="currentColor"
-                      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M1 3h9M3.5 3V2h4v1M2 3l.8 7h5.4l.8-7"/>
-                      <line x1="4.2" y1="5.5" x2="4" y2="8.5"/>
-                      <line x1="6.8" y1="5.5" x2="7" y2="8.5"/>
+                {parsedSVG && (
+                  <span className="file-name" title={gcodeFilename.replace(/\.gcode$/i, '')}>
+                    {gcodeFilename.replace(/\.gcode$/i, '')}
+                  </span>
+                )}
+                {parsedSVG && (
+                  <button className="btn-icon" title="Descartar el SVG" aria-label="Descartar el SVG" onClick={clearSVG}>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                      <line x1="2" y1="2" x2="10" y2="10" /><line x1="10" y1="2" x2="2" y2="10" />
                     </svg>
                   </button>
                 )}
-                {!selectedKf && keyframes.length > 0 && (
-                  <button className="btn-small kf-del-btn" onClick={clearAllKeyframes}
-                    title="Eliminar todos los keyframes">
-                    Eliminar todos
-                  </button>
-                )}
+                <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
+                  style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
               </div>
+
+              <div className="sample-nav">
+                <button
+                  className="btn-icon"
+                  onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
+                  aria-label="Muestra anterior"
+                ><Chevron dir="left" /></button>
+                <button
+                  className="sample-nav-load"
+                  onClick={loadSample}
+                  title={`Cargar muestra ${sampleIndex + 1}`}
+                >
+                  <img src={SAMPLES[sampleIndex].uri} width={28} height={28} alt="" />
+                  <span className="sample-nav-title">Muestra {sampleIndex + 1}</span>
+                  <span className="sample-nav-sub">de {SAMPLES.length}</span>
+                </button>
+                <button
+                  className="btn-icon"
+                  onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
+                  aria-label="Muestra siguiente"
+                ><Chevron dir="right" /></button>
+              </div>
+
+              {error && <div className="error-msg">{error}</div>}
             </div>
 
-            {selectedKf ? (
-              <div className="kf-editor">
-                <div className="kf-group">
-                  <div className="kf-field">
-                    <label>Posición</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
-                        onChange={v => moveSelectedKf(v / 100)} />
-                      <span className="kf-unit">%</span>
-                    </div>
-                  </div>
-                  <div className="kf-field" title="Giro alrededor del centro, antihorario visto desde arriba. Entre keyframes se interpola: 0° → 360° da una vuelta completa.">
-                    <label>Giro</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
-                        onChange={v => updateKf('rotation', v)} />
-                      <span className="kf-unit">°</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="kf-group">
-                  <div className="kf-field">
-                    <label>Escala X</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
-                        onChange={v => updateKf('scaleX', v)} />
-                    </div>
-                  </div>
-                  <div className="kf-field">
-                    <label>Escala Y</label>
-                    <div className="kf-field-input-row">
-                      <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
-                        onChange={v => updateKf('scaleY', v)} />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="kf-group kf-group-center">
-                  <div className="kf-pad-wrap">
-                    <CenterPad
-                      layers={layers}
-                      params={params}
-                      svgH={svgH}
-                      centerX={selectedKf.centerX ?? params.centerX}
-                      centerY={selectedKf.centerY ?? params.centerY}
-                      kfT={selectedKf.t}
-                      onChange={(x, y) => {
-                        if (!selectedKfId) return;
-                        setKeyframes(keyframes.map(k =>
-                          k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
-                        ));
-                      }}
-                    />
-                  </div>
-                  <div className="kf-center-fields">
-                    <div className="kf-field">
-                      <label>Centro X</label>
-                      <div className="kf-field-input-row">
-                        <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={1}
-                          onChange={v => updateKf('centerX', v)} />
-                        <span className="kf-unit">mm</span>
-                      </div>
-                    </div>
-                    <div className="kf-field">
-                      <label>Centro Y</label>
-                      <div className="kf-field-input-row">
-                        <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={1}
-                          onChange={v => updateKf('centerY', v)} />
-                        <span className="kf-unit">mm</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="kf-empty">
-                {keyframes.length === 0
-                  ? 'Mueve el extrusor en la línea de tiempo y pulsa «Añadir» para fijar la onda en ese punto. Entre keyframes los valores se interpolan.'
-                  : 'Selecciona un keyframe en la línea de tiempo o con ‹ › para editarlo: su onda en el panel derecho, su posición, giro, escala y centro aquí.'}
-              </div>
+            {parsedSVG && (
+              <PathList
+                paths={parsedSVG.paths}
+                params={params}
+                hasKeyframes={keyframes.length > 0}
+                onToggle={togglePath}
+                onOverride={setOverride}
+              />
             )}
-          </div>
-        </div>
-      </div>
 
-      {/* Divisor derecho */}
-      <div className="drag-handle-v" onMouseDown={rightPanel.onMouseDown} />
+            <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null} />
+          </div>
+        </aside>
+      ) : (
+        <aside className="float-panel panel-rail panel-rail--left" style={{ width: RAIL_W }}>
+          <button className="btn-icon" onClick={() => togglePanel('left')}
+            title="Mostrar panel de pieza" aria-label="Mostrar panel izquierdo"><Chevron dir="right" /></button>
+          <button className="btn-icon" onClick={() => setHelpOpen(true)} title="Ayuda (?)" aria-label="Ayuda">?</button>
+        </aside>
+      )}
 
       {/* ── Panel derecho ── */}
-      <div className="sidebar right-sidebar" style={{ width: rightPanel.size }}>
-        <div className="liss-preview-panel" style={{ height: lissPreviewHeight.size }}>
-          <LissajousPreview params={lissParams} />
-        </div>
-        <div className="drag-handle-h" onMouseDown={lissPreviewHeight.onMouseDown} />
-        <div ref={rightScroll.ref} className={`right-sidebar-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
-          <LissajousParams
-            params={lissParams}
-            onChange={setLissParams}
-            onReset={resetLissParams}
-            editingKf={selectedKf && {
-              number: selectedIdx + 1,
-              label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
-              color: keyframeColor(selectedKf.t),
-              onDone: () => setSelectedKfId(null),
-            }}
-            waveLocked={keyframes.length > 0 && !selectedKf}
-          />
-        </div>
-      </div>
+      {shown.right ? (
+        <aside className="float-panel panel-right" style={{ width: RIGHT_W }}>
+          <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
+            <LissajousParams
+              params={lissParams}
+              onChange={setLissParams}
+              onReset={resetLissParams}
+              editingKf={selectedKf && {
+                number: selectedIdx + 1,
+                label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
+                color: keyframeColor(selectedKf.t),
+                onDone: () => setSelectedKfId(null),
+              }}
+              waveLocked={keyframes.length > 0 && !selectedKf}
+              figure={<div className="liss-figure"><LissajousPreview params={lissParams} /></div>}
+              headerExtra={
+                <button className="btn-icon" onClick={() => togglePanel('right')}
+                  title="Ocultar panel" aria-label="Ocultar panel de onda"><Chevron dir="right" /></button>
+              }
+            />
+          </div>
+        </aside>
+      ) : (
+        <aside className="float-panel panel-rail panel-rail--right" style={{ width: RAIL_W }}>
+          <button className="btn-icon" onClick={() => togglePanel('right')}
+            title="Mostrar panel de onda" aria-label="Mostrar panel de onda"><Chevron dir="left" /></button>
+        </aside>
+      )}
 
       <HelpDialog open={helpOpen} onClose={closeHelp} />
     </div>

@@ -176,7 +176,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
 
     // ── Micro-labels ──────────────────────────────────────────────────────────
     ctx.save();
-    ctx.font      = '700 9px GSCode, monospace';
+    ctx.font      = '10px GSCode, monospace';
     ctx.textAlign = 'left';
     ctx.fillStyle = palette.muted;
     ctx.fillText(`${centerX.toFixed(1)}, ${centerY.toFixed(1)}`, 3, H - 3);

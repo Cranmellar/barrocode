@@ -59,7 +59,7 @@ export function LissajousPreview({ params }: Props) {
     const rect = canvas.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
     const maxAmp = Math.max(lissAmpN, lissAmpT, 0.5);
-    const margin = 20;
+    const margin = 10;
     const scale = Math.min(
       (rect.width  - margin * 2) / (maxAmp * 2 || 1),
       (rect.height - margin * 2) / (maxAmp * 2 || 1),
@@ -159,7 +159,7 @@ export function LissajousPreview({ params }: Props) {
 
     // Axis labels
     ctx.save();
-    ctx.font = '700 8px GSCode, monospace';
+    ctx.font = '10px GSCode, monospace';
     ctx.fillStyle = palette.muted;
     ctx.textAlign = 'right';
     ctx.fillText('T', W - 6, offsetY - 5);
@@ -194,17 +194,6 @@ export function LissajousPreview({ params }: Props) {
       ctx.textAlign = 'center';
       ctx.fillText('Amplitudes en 0', W / 2, H / 2 + 4);
     }
-
-    // Metrics caption
-    ctx.save();
-    ctx.font = '11px GSCode, monospace';
-    ctx.fillStyle = palette.muted;
-    ctx.textAlign = 'left';
-    ctx.fillText(
-      `N ${lissAmpN.toFixed(1)}mm  λ${lissWlN}mm   T ${lissAmpT.toFixed(1)}mm  λ${lissWlT}mm   δ${(lissDelta * 180 / Math.PI).toFixed(0)}°`,
-      10, H - 9,
-    );
-    ctx.restore();
 
     figureRef.current = { dpr, view, pts };
     drawDot();

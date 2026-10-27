@@ -86,6 +86,8 @@ export interface Scene {
   sampledPaths: SampledPath[];
   params: PrintParams;
   svgH: number;
+  // Screen margins covered by the floating panels; overlays stay inside them.
+  inset: { left: number; right: number; top: number; bottom: number };
   keyframes: WaveKeyframe[];
   selectedKfId: string | null;
   timelineProgress: number;
@@ -154,7 +156,7 @@ export function drawScene(
 ) {
   const {
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims,
+    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims, inset,
   } = scene;
   const { azimuth, elevation } = view;
 
@@ -213,10 +215,10 @@ export function drawScene(
     ctx.moveTo(cx0, cy0 - 6); ctx.lineTo(cx0, cy0 + 6);
     ctx.stroke();
     // Label
-    ctx.font = '700 8px GSCode, monospace';
+    ctx.font = '10px GSCode, monospace';
     ctx.fillStyle = palette.muted;
     ctx.textAlign = 'left';
-    ctx.fillText(`C (${cxMM.toFixed(1)}, ${cyMM.toFixed(1)})`, cx0 + 8, cy0 - 4);
+    ctx.fillText(`centro ${cxMM.toFixed(1)}, ${cyMM.toFixed(1)}`, cx0 + 9, cy0 - 5);
     ctx.restore();
   }
 
@@ -260,10 +262,10 @@ export function drawScene(
 
     // Clear of the selected keyframe diamond (radius 14) that sits on the extruder.
     ctx.save();
-    ctx.font = '700 9px GSCode, monospace';
+    ctx.font = '11px GSCode, monospace';
     ctx.fillStyle = palette.ink2;
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 19, ey);
+    ctx.fillText(`z ${pt.z.toFixed(1)}`, ex + 19, ey);
     ctx.restore();
   }
 
@@ -310,42 +312,21 @@ export function drawScene(
 
   // Empty state
   if (sampledPaths.length === 0 && numLayers === 0) {
+    const mx = (inset.left + W - inset.right) / 2, my = (inset.top + H - inset.bottom) / 2;
+    ctx.textAlign = 'center';
+    ctx.fillStyle = palette.ink2;
+    ctx.font = '14px GSCode, monospace';
+    ctx.fillText('Arrastra un SVG aquí', mx, my - 10);
     ctx.fillStyle = palette.muted;
     ctx.font = '12px GSCode, monospace';
-    ctx.textAlign = 'center';
-    ctx.fillText('Carga un SVG para empezar', W / 2, H / 2);
+    ctx.fillText('o elige una muestra en el panel izquierdo', mx, my + 12);
   }
-
-  // Layer legend (compact, top-left — freed from gizmo corner)
-  if (numLayers > 1 && layerColors) {
-    ctx.save();
-    ctx.font = '700 8px GSCode, monospace';
-    const step = numLayers <= 8 ? 1 : Math.ceil(numLayers / 8);
-    let ly = 12;
-    for (let li = 0; li < numLayers; li += step) {
-      ctx.fillStyle = layerColor(li, numLayers);
-      ctx.fillRect(10, ly, 6, 6);
-      ctx.fillStyle = palette.muted;
-      ctx.textAlign = 'left';
-      ctx.fillText(`${li + 1}`, 20, ly + 5.5);
-      ly += 11;
-    }
-    ctx.restore();
-  }
-
-  // Rotation info — Swiss caption
-  ctx.save();
-  ctx.font = '700 8px GSCode, monospace';
-  ctx.fillStyle = palette.muted;
-  ctx.textAlign = 'left';
-  ctx.fillText(`AZ ${view.azimuth.toFixed(0)}°  EL ${view.elevation.toFixed(0)}°`, 10, H - 8);
-  ctx.restore();
 
   // ── Orientation gizmo (bottom-right) ───────────────────────────────────
   {
     // GR = circle radius; GL = axis arm length (must be < GR so labels stay inside)
-    const GR = 20, GL = 11;
-    const GX = W - GR - 8, GY = H - GR - 8;
+    const GR = 24, GL = 13;
+    const GX = inset.left + GR + 4, GY = H - inset.bottom - GR - 4;
 
     // Frosted circle background
     ctx.save();
@@ -394,7 +375,7 @@ export function drawScene(
       // Label — placed at GL * 1.45 so it stays within GR
       const [lx2, ly2] = project(wx * GL * 1.45, wy * GL * 1.45, wz * GL * 1.45, azimuth, elevation);
       ctx.globalAlpha = 0.92;
-      ctx.font = 'bold 7px GSCode, monospace';
+      ctx.font = '10px GSCode, monospace';
       ctx.fillStyle = color;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -434,7 +415,7 @@ function drawDimensions(
   ctx.save();
   ctx.strokeStyle = withAlpha(palette.ink, 0.55);
   ctx.lineWidth = 1;
-  ctx.font = '700 9px GSCode, monospace';
+  ctx.font = '11px GSCode, monospace';
   ctx.textBaseline = 'middle';
 
   const label = (text: string, x: number, y: number, align: CanvasTextAlign) => {

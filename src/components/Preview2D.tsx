@@ -7,12 +7,13 @@
  *   Rueda del ratón            → zoom
  *   Botón "Ajustar"            → encuadre automático
  *
- * Las capas van de azul pizarra (inferior) a terracota (superior).
- * El extrusor virtual sigue el slider de línea de tiempo.
- * Los keyframes se marcan como diamantes en su propio carril, sobre la barra de tiempo.
+ * The canvas fills the whole window; the floating panels cover its edges
+ * (`insets`), so framing and overlays keep to the area between them.
+ * The virtual extruder follows the timeline; keyframes are diamonds on their
+ * own lane above it.
  */
 
-import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties } from 'react';
+import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties, type ReactNode } from 'react';
 import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
@@ -21,6 +22,8 @@ import {
   type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
+import { downloadGcode } from '../lib/gcodeGenerator';
+import { rampColor } from '../lib/palette';
 
 interface Props {
   sampledPaths: SampledPath[];
@@ -38,9 +41,19 @@ interface Props {
   selectedKfId: string | null;
   onKfSelect: (id: string | null) => void;
   onAddKeyframe: () => void;
+  // Screen space taken by the floating side panels and the top bar.
+  insets: { left: number; right: number; top: number };
+  // Keyframe controls placed in the timeline dock: before the track, after
+  // it, and an editor that opens above the row.
+  timelineLead?: ReactNode;
+  timelineActions?: ReactNode;
+  timelineEditor?: ReactNode;
 }
 
-const LAYER_SLIDER_W = 56;
+export const STAGE_GAP = 12;
+const LAYER_SLIDER_W = 44 + STAGE_GAP;
+
+const RAMP_GRADIENT = `linear-gradient(to top, ${[0, 0.25, 0.5, 0.75, 1].map(t => rampColor(t)).join(', ')})`;
 
 const VIEW_PRESETS = [
   { label: 'Iso',    azimuth: 325, elevation: 28, title: 'Vista isométrica' },
@@ -81,6 +94,7 @@ export function Preview2D({
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeFilename,
   selectedKfId, onKfSelect, onAddKeyframe,
+  insets, timelineLead, timelineActions, timelineEditor,
 }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const topdownRef  = useRef<HTMLCanvasElement>(null);
@@ -102,6 +116,8 @@ export function Preview2D({
     try { localStorage.setItem(VIEW_OPTS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
   };
   const interactTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dockRef = useRef<HTMLDivElement>(null);
+  const [dockH, setDockH] = useState(0);
 
   const dragRef = useRef<{
     button: number; startX: number; startY: number; startView: View3D;
@@ -180,20 +196,27 @@ export function Preview2D({
     const proj = makeProjector(azimuth, elevation);
     const projected = flatPoints.map(p => proj(p.x, p.y, p.z));
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
-    const margin = 48;
-    // Keep the model clear of the layer slider on the right edge.
-    const width = rect.width - (toolpath.length > 1 ? LAYER_SLIDER_W : 0);
+    const margin = 40;
+    // Frame the part in the space left between the panels and the layer slider.
+    const left   = insets.left;
+    const width  = rect.width - left - insets.right - (toolpath.length > 1 ? LAYER_SLIDER_W : 0);
+    const height = rect.height - insets.top - (dockRef.current ? dockRef.current.offsetHeight + STAGE_GAP * 2 : STAGE_GAP);
     const scale = Math.min(
-      (width       - margin * 2) / (maxX - minX || 1),
-      (rect.height - margin * 2) / (maxY - minY || 1),
+      (width  - margin * 2) / (maxX - minX || 1),
+      (height - margin * 2) / (maxY - minY || 1),
       20,
     );
     setView(v => ({
       ...v, azimuth, elevation, scale,
-      offsetX: width       / 2 - ((minX + maxX) / 2) * scale,
-      offsetY: rect.height / 2 - ((minY + maxY) / 2) * scale,
+      offsetX: left + width / 2 - ((minX + maxX) / 2) * scale,
+      offsetY: insets.top + height / 2 - ((minY + maxY) / 2) * scale,
     }));
-  }, [flatPoints, toolpath.length, view.azimuth, view.elevation]);
+  }, [flatPoints, toolpath.length, view.azimuth, view.elevation, insets.left, insets.right, insets.top]);
+
+  // Opening or closing a side panel reframes the part in the new free area.
+  const fitRef = useRef(fitView);
+  useEffect(() => { fitRef.current = fitView; }, [fitView]);
+  useEffect(() => { fitRef.current(); }, [insets.left, insets.right]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
@@ -204,7 +227,6 @@ export function Preview2D({
     }
   }, [toolpath.length, fitView]);
 
-  // The canvas unmounts while the G-code tab is open, so observe it per tab.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -214,7 +236,18 @@ export function Preview2D({
     });
     ro.observe(canvas);
     return () => ro.disconnect();
-  }, [centerTab]);
+  }, []);
+
+  const hasDock = toolpath.length > 0;
+  useEffect(() => {
+    const dock = dockRef.current;
+    if (!dock) { setDockH(0); return; }
+    const ro = new ResizeObserver(() => setDockH(dock.offsetHeight));
+    ro.observe(dock);
+    return () => ro.disconnect();
+  }, [hasDock]);
+  const bottomInset = dockH > 0 ? dockH + STAGE_GAP * 2 : STAGE_GAP;
+  const sliderInset = toolpath.length > 1 ? LAYER_SLIDER_W : 0;
 
   const visibleCap = Math.min(layerCap ?? toolpath.length, toolpath.length) - 1;
 
@@ -269,9 +302,10 @@ export function Preview2D({
     drawScene(ctx, W, H, {
       ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
       keyframes, selectedKfId, showDims: viewOpts.showDims,
+      inset: { left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset },
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -301,6 +335,9 @@ export function Preview2D({
   };
   const onMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    // preventDefault keeps focus where it was; drop it so keyboard shortcuts
+    // don't light up the focus ring of the last button clicked.
+    (document.activeElement as HTMLElement | null)?.blur();
     if (e.button === 0) {
       const kf = kfUnder(e);
       if (kf) {
@@ -359,193 +396,177 @@ export function Preview2D({
   const crossings = toolpath.reduce((n, l) => n + l.crossings, 0);
 
   return (
-    <div className="preview-container">
-      <div className="toolbar">
-        {centerTab === 'preview' && (
-          <>
-            <span className="toolbar-title">Trayectoria</span>
-            <button className="btn-small" onClick={() => fitView()} title="Encuadrar la pieza">Ajustar</button>
-            <div className="view-presets" role="group" aria-label="Vistas">
-              {VIEW_PRESETS.map(v => (
-                <button key={v.label}
-                  className={`view-preset${view.azimuth === v.azimuth && view.elevation === v.elevation ? ' view-preset--on' : ''}`}
-                  onClick={() => fitView(v.azimuth, v.elevation)}
-                  title={v.title}>
-                  {v.label}
-                </button>
-              ))}
-            </div>
-            {toolpath.length > 0 && modelBounds && (
-              <span className="toolbar-info" title={[
-                stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
-                stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
-                `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
-                crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
-                'Tiempo estimado a la velocidad programada (F), sin aceleraciones',
-              ].filter(Boolean).join('\n')}>
-                {stats && <>
-                  Tiempo estimado ≈ {formatDuration(stats.timeSec)}
-                  <span className="toolbar-info-note">
-                    {' '}(F {params.printSpeed} mm/min)
-                  </span>
-                  {' · '}
-                </>}
-                {fmtMM(modelBounds.maxX - modelBounds.minX)} × {fmtMM(modelBounds.maxY - modelBounds.minY)} × {fmtMM(numLayers * params.layerHeight)} mm
-              </span>
-            )}
-          </>
-        )}
-        {centerTab === 'gcode' && (
-          <span className="toolbar-title">G-code</span>
-        )}
-        <div className="seg-switch">
-          <button
-            className={`seg-btn ${centerTab === 'preview' ? 'seg-btn--active' : ''}`}
-            onClick={() => onTabChange('preview')}
-          >
-            Trayectoria
+    <div className="stage-view">
+      <canvas
+        ref={canvasRef}
+        className="preview-canvas"
+        title={overKf ? 'Clic para editar este keyframe' : undefined}
+        style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : overKf && !dragRef.current ? 'pointer' : 'grab' }}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={onMouseUp}
+        onMouseLeave={onMouseUp}
+        onContextMenu={onContextMenu}
+        onWheel={onWheel}
+      />
+
+      <div className="stage-bar" style={{ left: insets.left, right: insets.right, top: STAGE_GAP }}>
+        <div className="bar-group">
+          <button className="btn-icon" onClick={() => fitView()} aria-label="Encuadrar la pieza"
+            title="Encuadrar la pieza. En la vista: arrastrar = desplazar · clic derecho = rotar · rueda = zoom">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M1.5 5V1.5H5M9 1.5h3.5V5M12.5 9v3.5H9M5 12.5H1.5V9" />
+            </svg>
           </button>
-          <button
-            className={`seg-btn ${centerTab === 'gcode' ? 'seg-btn--active' : ''}`}
-            onClick={() => onTabChange('gcode')}
-          >
-            G-code
-          </button>
+          <div className="view-presets" role="group" aria-label="Vistas">
+            {VIEW_PRESETS.map(v => (
+              <button key={v.label}
+                className={`view-preset${view.azimuth === v.azimuth && view.elevation === v.elevation ? ' view-preset--on' : ''}`}
+                onClick={() => fitView(v.azimuth, v.elevation)}
+                title={v.title}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+          {numLayers > 1 && (
+            <button className={`btn-toggle${viewOpts.layerColors ? ' btn-toggle--on' : ''}`}
+              aria-pressed={viewOpts.layerColors} onClick={() => toggleViewOpt('layerColors')}
+              title="Colorear cada capa o usar un solo color">Color</button>
+          )}
+          {numLayers > 0 && (
+            <button className={`btn-toggle${viewOpts.showDims ? ' btn-toggle--on' : ''}`}
+              aria-pressed={viewOpts.showDims} onClick={() => toggleViewOpt('showDims')}
+              title="Mostrar largo, ancho y alto de la pieza">Cotas</button>
+          )}
+        </div>
+
+        <div className="bar-group bar-group--end">
+          {toolpath.length > 0 && modelBounds && (
+            <span className="stage-summary" title={[
+              stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
+              stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
+              `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
+              crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
+              `Tiempo estimado a ${params.printSpeed} mm/min, sin aceleraciones`,
+            ].filter(Boolean).join('\n')}>
+              {stats && <>{formatDuration(stats.timeSec)}<span className="stage-summary-sep"> · </span></>}
+              {fmtMM(modelBounds.maxX - modelBounds.minX)}×{fmtMM(modelBounds.maxY - modelBounds.minY)}×{fmtMM(numLayers * params.layerHeight)} mm
+            </span>
+          )}
+          <button className={`btn-small${centerTab === 'gcode' ? ' btn-small--on' : ''}`}
+            aria-pressed={centerTab === 'gcode'} disabled={!gcode}
+            onClick={() => onTabChange(centerTab === 'gcode' ? 'preview' : 'gcode')}
+            title="Ver el G-code (G)">G-code</button>
+          <button className="btn-primary btn-signal" disabled={!gcode}
+            onClick={() => downloadGcode(gcode, gcodeFilename)}
+            title={`Descargar ${gcodeFilename}`}>↓ Descargar</button>
         </div>
       </div>
 
-      {centerTab === 'preview' && (
-        <div className="preview-stage">
-          <canvas
-            ref={canvasRef}
-            className="preview-canvas"
-            title={overKf
-              ? 'Clic para editar este keyframe'
-              : 'Arrastrar = desplazar · Clic derecho = rotar · Rueda = zoom · Clic en un keyframe = editarlo'}
-            style={{ cursor: dragRef.current?.button === 2 ? 'crosshair' : overKf && !dragRef.current ? 'pointer' : 'grab' }}
-            onMouseDown={onMouseDown}
-            onMouseMove={onMouseMove}
-            onMouseUp={onMouseUp}
-            onMouseLeave={onMouseUp}
-            onContextMenu={onContextMenu}
-            onWheel={onWheel}
-          />
-          {numLayers > 0 && (
-            <div className="view-opts">
-              {numLayers > 1 && (
-                <label title="Colorear cada capa (azul → terracota) o usar un solo color">
-                  <input type="checkbox" checked={viewOpts.layerColors} onChange={() => toggleViewOpt('layerColors')} />
-                  Color por capa
-                </label>
-              )}
-              <label title="Mostrar largo, ancho y alto de la pieza">
-                <input type="checkbox" checked={viewOpts.showDims} onChange={() => toggleViewOpt('showDims')} />
-                Cotas
-              </label>
-            </div>
-          )}
-          {numLayers > 1 && (
-            <div className="layer-slider">
-              <span className="layer-slider-value" title="Capa superior visible">
-                {shownCap}<span className="layer-slider-total">/{numLayers}</span>
-              </span>
-              <input
-                type="range" min={1} max={numLayers} step={1}
-                value={shownCap}
-                aria-label="Capas visibles"
-                onChange={e => {
-                  const v = parseInt(e.target.value, 10);
-                  setLayerCap(v >= numLayers ? null : v);
-                }}
-              />
-              <button
-                className={`layer-solo${layerSolo ? ' layer-solo--on' : ''}`}
-                aria-pressed={layerSolo}
-                onClick={() => setLayerSolo(!layerSolo)}
-                title="Mostrar solo esta capa (las inferiores quedan en gris)"
-              >
-                Sola
-              </button>
-            </div>
-          )}
+      {numLayers > 1 && (
+        <div className="layer-slider" style={{ right: insets.right, top: insets.top, bottom: bottomInset }}>
+          <span className="layer-slider-value" title="Capa superior visible">
+            {shownCap}<span className="layer-slider-total">/{numLayers}</span>
+          </span>
+          <div className="layer-slider-track">
+            {viewOpts.layerColors && <span className="layer-ramp" style={{ background: RAMP_GRADIENT }} />}
+            <input
+              type="range" min={1} max={numLayers} step={1}
+              value={shownCap}
+              aria-label="Capas visibles"
+              onChange={e => {
+                const v = parseInt(e.target.value, 10);
+                setLayerCap(v >= numLayers ? null : v);
+              }}
+            />
+          </div>
+          <button
+            className={`layer-solo${layerSolo ? ' layer-solo--on' : ''}`}
+            aria-pressed={layerSolo}
+            onClick={() => setLayerSolo(!layerSolo)}
+            title="Mostrar solo esta capa (las inferiores quedan en gris)"
+          >
+            Sola
+          </button>
         </div>
       )}
 
       {centerTab === 'gcode' && (
-        <div className="gcode-tab-view">
-          <GcodeOutput gcode={gcode} filename={gcodeFilename} />
+        <div className="gcode-drawer"
+          style={{ left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset }}>
+          <GcodeOutput gcode={gcode} onClose={() => onTabChange('preview')} />
           {toolpath.length > 0 && (
             <canvas ref={topdownRef} width={160} height={120} className="gcode-topdown" />
           )}
         </div>
       )}
 
-      {/* Timeline row */}
-      {toolpath.length > 0 && (
-        <div className="timeline-row">
-          <span className="timeline-label">Extrusor</span>
+      {hasDock && (
+        <div className="dock" ref={dockRef} style={{ left: insets.left, right: insets.right, bottom: STAGE_GAP }}>
+          {timelineEditor}
+          <div className="dock-row">
+            {timelineLead}
+            <div className="timeline-track">
+              {/* Keyframe lane: inset by half the slider thumb so t lines up with the thumb centre */}
+              <div
+                className="kf-lane"
+                ref={trackRef}
+                onMouseDown={e => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+                }}
+              >
+                {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
+                  <button
+                    className="kf-ghost"
+                    style={{ left: `${timelineProgress * 100}%` }}
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={onAddKeyframe}
+                    title="Añadir keyframe aquí (K)"
+                    aria-label="Añadir keyframe aquí"
+                  >+</button>
+                )}
 
-          <div className="timeline-track">
-            {/* Keyframe lane: inset by half the slider thumb so t lines up with the thumb centre */}
-            <div
-              className="kf-lane"
-              ref={trackRef}
-              onMouseDown={e => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
-              }}
-            >
-              {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
-                <button
-                  className="kf-ghost"
-                  style={{ left: `${timelineProgress * 100}%` }}
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={onAddKeyframe}
-                  title="Añadir keyframe aquí (K)"
-                  aria-label="Añadir keyframe aquí"
-                >+</button>
-              )}
+                {[...keyframes].sort((a, b) => a.t - b.t).map((kf, i) => {
+                  const dragging = kf.id === draggingKfId;
+                  return (
+                    <div
+                      key={kf.id}
+                      className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
+                      style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}
+                      onMouseDown={e => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
+                      }}
+                      title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
+                    >{i + 1}</div>
+                  );
+                })}
 
-              {[...keyframes].sort((a, b) => a.t - b.t).map((kf, i) => {
-                const dragging = kf.id === draggingKfId;
-                return (
-                  <div
-                    key={kf.id}
-                    className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
-                    style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}
-                    onMouseDown={e => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
-                    }}
-                    title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
-                  >{i + 1}</div>
-                );
-              })}
+                {(() => {
+                  const kf = keyframes.find(k => k.id === draggingKfId);
+                  return kf && (
+                    <span className="kf-drag-label" style={{ left: `${kf.t * 100}%` }}>
+                      {(kf.t * 100).toFixed(1)}%
+                    </span>
+                  );
+                })()}
+              </div>
 
-              {(() => {
-                const kf = keyframes.find(k => k.id === draggingKfId);
-                return kf && (
-                  <span className="kf-drag-label" style={{ left: `${kf.t * 100}%` }}>
-                    {(kf.t * 100).toFixed(1)}%
-                  </span>
-                );
-              })()}
+              <input
+                type="range" min={0} max={1} step={0.0005}
+                value={timelineProgress}
+                aria-label="Posición del extrusor"
+                onChange={e => onTimelineChange(parseFloat(e.target.value))}
+              />
             </div>
-
-            <input
-              type="range" min={0} max={1} step={0.0005}
-              value={timelineProgress}
-              onChange={e => onTimelineChange(parseFloat(e.target.value))}
-            />
+            <span className="timeline-pct">{Math.round(timelineProgress * 100)}%</span>
+            {timelineActions}
           </div>
-
-          <span className="timeline-label" style={{ minWidth: 36, textAlign: 'right' }}>
-            {Math.round(timelineProgress * 100)}%
-          </span>
         </div>
       )}
-
     </div>
   );
 }
