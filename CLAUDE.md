@@ -57,6 +57,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Priming runs along +X 10 mm beside the first layer's bounding box (below it, or above when below would turn Y negative), not at `origin − 5`.
 - **SVG placement and size** — sampled points are shifted so the viewBox's top-left corner is (0, 0) (a centred `viewBox="-100 -100 200 200"` used to print 100 mm off). A physical root `width`/`height` (`mm`, `cm`, `in`, `pt`, `pc`, `Q`) sets `ParsedSVG.mmPerUnit`; loading such a file adopts it as `scaleFactor`, and `PathParams` offers *Usar tamaño real* when they differ. Unitless/px SVGs keep 1 unit = 1 mm. Verified in Chromium; `svgParser` still has no automated test.
 - **Critical review (Oct 2026)**, recorded in `pendientes.md` → *Revisión crítica*. Fixed:
+  - "Reiniciar" in the Lissajous panel restores only the fields that panel edits (`LISS_PANEL_FIELDS` in `App.tsx`), through `setLissParams`, so with a keyframe selected it resets that keyframe. It is disabled while keyframes lock the global wave.
+  - The layer count is computed once by `layerCount()` (`waveGenerator.ts`), capped at `MAX_LAYERS` (500); use it instead of re-deriving `numLayers` / `totalHeight / layerHeight`.
+  - Default G-code filename is `barrocode.gcode`.
   - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
   - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
   - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
@@ -78,24 +81,21 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 2. **A bead can lose its support.** The Z floor only acts downward. With `phaseShiftPerLayer`, a crest over the trough of the layer below leaves a gap up to `layerHeight + 2·lissAmpZ`, so the bead prints in the air. Warn in the viewer, or cap the gap upward the same way the floor works (`waveGenerator.ts`, next to `MIN_LAYER_GAP`).
 3. **Arc length ignores scaling transforms.** `getPointAtLength` works in **element-local** length, so under `<g transform="scale(2)">` sample spacing and wavelengths come out 2× in root units. Accumulate arc length from the transformed points (`svgParser.ts`).
 4. **Z-hop probably stacks clay at crossings** (inferred, confirm with a test print). Only the later pass hops, so a crossing gets two beads per layer and the next layer's first pass crosses at the height of that double bead with no gap. Reduce or zero E inside the hop window.
-5. **"Reiniciar" in the Lissajous panel resets *all* params** (`onReset={() => setParams(DEFAULT_PARAMS)}` in `App.tsx`), wiping layers, speeds and scale, while keeping keyframes. Reset only the Lissajous fields.
 
 ### UX quick wins
 
-6. Fix the NumInput-while-focused wheel refresh and add Shift = fine step (both in `NumInput.tsx`, one handler; covers every numeric field).
-7. Coarser wheel step for the pivot fields in `CenterScaleParams.tsx` (5 or 10 mm; Shift keeps it fine once #6 lands).
-8. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
-9. Default G-code filename is still `curva.de.barro.gcode` (`App.tsx`; `downloadGcode` defaults to `clay-wave.gcode`) — rename to `barrocode.gcode`.
-10. Cap "Núm. de capas" (no `max`; typing 10000 freezes the tab).
-11. Warn when the part leaves the bed; needs a bed-size parameter first (UI-3 leftover).
+5. Fix the NumInput-while-focused wheel refresh and add Shift = fine step (both in `NumInput.tsx`, one handler; covers every numeric field).
+6. Coarser wheel step for the pivot fields in `CenterScaleParams.tsx` (5 or 10 mm; Shift keeps it fine once #5 lands).
+7. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
+8. Warn when the part leaves the bed; needs a bed-size parameter first (UI-3 leftover).
 
 ### Hygiene (only when touching the area)
 
-12. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
-13. `lib/draw3D.ts` and `CenterPad.tsx` still hardcode colours in canvas code; canvas can't read CSS variables directly, so read them once with `getComputedStyle` or keep a small palette constant.
-14. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
-15. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
-16. Fix the stale `pendientes.md` checkmarks listed in "Current state".
+9. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
+10. `lib/draw3D.ts` and `CenterPad.tsx` still hardcode colours in canvas code; canvas can't read CSS variables directly, so read them once with `getComputedStyle` or keep a small palette constant.
+11. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
+12. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
+13. Fix the stale `pendientes.md` checkmarks listed in "Current state".
 
 ### Lower priority / needs a decision
 
