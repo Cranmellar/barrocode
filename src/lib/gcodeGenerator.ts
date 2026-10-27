@@ -5,7 +5,10 @@
  *   When softJoin=true, the transition from layer N → N+1 is a continuous
  *   print move that interpolates XY from the last point of layer N to the
  *   first point of layer N+1, while raising Z linearly.  No retract or lift.
- *   This gives clay a smooth, unbroken extrusion across layers.
+ *   This gives clay a smooth, unbroken extrusion across layers.  When the
+ *   next layer starts more than transitionLength away in XY (open paths end
+ *   at the far end), the join would extrude a chord across the part, so a
+ *   normal lift-and-travel is used instead.
  *
  * Extrusion model:
  *   E is cumulative.  Each move of distance d:   E += d * extrusionMultiplier
@@ -226,6 +229,7 @@ export function generateGcode(
   const eRef = { value: 0 };
   const zRef = { value: params.safeZ };
   let isFirstMove = true;
+  let joined = false;  // arrived at this path through a soft transition
 
   if (params.primingMove) {
     const pz = toolpath[0].z;
@@ -274,10 +278,7 @@ export function generateGcode(
         if (params.dwellAtStart > 0) {
           blocks.push(`G4 P${params.dwellAtStart}  ; dwell — wait for clay flow`);
         }
-      } else if (!params.softJoin || pi > 0) {
-        // Inter-path travel: skirt arc (or short hop).
-        // Always needed for pi > 0 even with softJoin; only the layer→layer
-        // transition (pi === 0, softJoin) arrives via continuous extrusion.
+      } else if (!joined) {
         const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params);
         blocks.push(skirtLines.join('\n'));
         zRef.value = start.z;
@@ -285,15 +286,17 @@ export function generateGcode(
 
       blocks.push(pathToGcode(pts, params, eRef, zRef).join('\n'));
       isFirstMove = false;
+      joined = false;
       cur = pts[pts.length - 1];
 
       if (params.softJoin && nextLayer !== null && pi === layer.paths.length - 1) {
         const next = nextLayer.paths[0]?.[0];
-        if (next) {
+        if (next && dist(cur.x, cur.y, next.x, next.y) <= params.transitionLength) {
           const tLines = buildTransition(
             cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
           );
           zRef.value = next.z;
+          joined = true;
           blocks.push(tLines.join('\n'));
         }
       }

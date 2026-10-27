@@ -60,7 +60,7 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Generar valores E** | Incluye la columna de extrusión `E`. Desactívalo para salida solo de movimiento. |
 | **Multiplicador de extrusión** | Unidades `E` por mm de desplazamiento. Ajustar según bomba, presión o tornillo sin fin. |
 | **Transición Z suave** | Conecta una capa con la siguiente con movimiento continuo, sin retracción ni levantamiento. |
-| **Arco de transición** | Longitud en mm durante la transición entre capas. |
+| **Arco de transición** | Distancia máxima en mm de la transición entre capas. Si la capa siguiente empieza más lejos (por ejemplo en un trayecto abierto, que termina en el extremo opuesto), se hace un viaje elevado sin extruir. |
 | **Dirección alternada** | Invierte capas impares para reducir deriva direccional. |
 | **Cerrar trayecto** | Agrega retorno al inicio de cada trayecto. |
 | **Pausa al inicio** | Inserta `G4` en la primera posición para estabilizar el flujo de arcilla. |
