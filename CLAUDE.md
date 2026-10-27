@@ -49,6 +49,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
+- **Graphical overhaul** ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)): decisions closed (full-screen 3D with floating containers, Claude-like typography in GSCode, neutrals + one signal colour, desktop only, no dark mode). Phase 1 is done: design tokens, unified controls, canvas palette from CSS and the OKLCH layer ramp. Phases 2–6 are open; the layout below is still the pre-overhaul one.
 - **Seam ramp (soft join).** The layer→layer join used to be a Z-only move in place on closed paths (end = start XY), with no E. Now `buildToolpath` spreads the rise over the last `transitionLength` mm of every closed path, so the climb happens while printing and the preview shows it. Each ramp sits on the one below; only layer 0's tail lifts off the bed by up to one layer height (accepted; flow compensation belongs with NP-0a). Open paths and `alternateDirection` keep the old transition.
 - **Machine-safety pass (Oct 2026)** — the G-code can no longer drive the nozzle into the bed or the part:
   - `M82` (absolute E) in the preamble when `generateE` is on.
@@ -93,10 +94,9 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 ### Hygiene (only when touching the area)
 
 9. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
-10. `lib/draw3D.ts` and `CenterPad.tsx` still hardcode colours in canvas code; canvas can't read CSS variables directly, so read them once with `getComputedStyle` or keep a small palette constant.
-11. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
-12. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
-13. Fix the stale `pendientes.md` checkmarks listed in "Current state".
+10. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
+11. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
+12. Fix the stale `pendientes.md` checkmarks listed in "Current state".
 
 ### Lower priority / needs a decision
 
@@ -251,6 +251,7 @@ src/
     waveGenerator.ts        Lissajous math + keyframe interp + scale
     toolpath.ts             Final mm trajectory shared by G-code + preview
     draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈585 lines)
+    palette.ts              CSS tokens copied for canvas code + OKLCH layer ramp
     gcodeGenerator.ts       G-code assembly (≈320 lines)
     gcodeStats.ts           Time / length / E summary read back from the G-code
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
@@ -350,7 +351,8 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - While the user drags the camera (`isInteracting`), drawing uses a LOD stride of 4 and skips the keyframe, skirt and join overlays. Keep new expensive overlays behind `!isInteracting`.
 - Scene drawing has three bands: backdrop (background, grid, centre axis), `drawGeometry` (layer strokes and the overlays tied to them), and foreground (keyframe markers, extruder, legend, captions, gizmo). Anything that follows the timeline must stay out of `drawGeometry`, which is cached during a scrub; its inputs are `GeometryScene`. Canvases outside the DOM rasterise on the main thread, so only use one where it is reused across frames.
 - Layer visibility comes from the layer slider: `drawScene` gets `layerCap` (top visible layer index) and `layerSolo`. New overlays tied to a layer should respect it.
-- Layer colors are an HSL gradient from cobalt to terracotta: `hsl(218→20, 72%→88%, 50%→62%)` (`layerColor`); with *Color por capa* off every layer is `--accent` and the legend is hidden. *Cotas* draws the bounding box's X/Y lengths and the height (`numLayers · layerHeight`, as in the toolbar) in the foreground band. Clicking a keyframe diamond on the canvas selects it (`keyframeAt`, from the same `keyframeMarkers` the drawing uses). Keyframes are numbered diamonds coloured by `keyframeColor(t)` (the layer hue at their position, fixed 62 % lightness so the dark number reads on every hue). Number and colour are the same on the timeline lane, the canvas, the keyframe strip and the Lissajous header; the selected one gets a dark outline. The canvas extruder is a dark square, like the slider thumb, so it never reads as a keyframe.
+- Canvas colours come from `lib/palette.ts`: `loadPalette()` (called in `main.tsx`) copies the CSS tokens once; its defaults mirror them for tests. Never hardcode a colour in canvas code.
+- Layer colors are an OKLCH ramp from electric indigo through magenta to `--signal` (`rampColor` in `palette.ts`, wrapped by `layerColor`); with *Color por capa* off every layer is `--ink-2` and the legend is hidden. *Cotas* draws the bounding box's X/Y lengths and the height (`numLayers · layerHeight`, as in the toolbar) in the foreground band. Clicking a keyframe diamond on the canvas selects it (`keyframeAt`, from the same `keyframeMarkers` the drawing uses). Keyframes are numbered diamonds coloured by `keyframeColor(t)` (the ramp hue at their position, at a fixed light tone so the dark number reads on every hue). Number and colour are the same on the timeline lane, the canvas, the keyframe strip and the Lissajous header; the selected one gets a dark outline. The canvas extruder is a dark square, like the slider thumb, so it never reads as a keyframe.
 - `LissajousPreview` cancels its `requestAnimationFrame` when both `ampN` and `ampT` are ≈0. Don't remove this — it's a battery and CPU optimization. Its static canvas redraws only on change; per-frame work belongs on the dot canvas.
 - Canvas text takes `font-variation-settings` from the canvas element's computed style, so `:root`'s `'wght' 450` overrides the weight in `ctx.font`: every in-page canvas draws GSCode at 450. A canvas that isn't in the DOM (e.g. `document.createElement('canvas')` used as an offscreen buffer) draws the real weight instead, so text cached that way looks bolder. Keep text on in-page canvases.
 - Auto-fit triggers in `LissajousPreview` are explicit and key off specific param changes (currently `lissAmpN`, `lissAmpT`). Pan/zoom are user-only.
@@ -359,10 +361,13 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
 ## CSS
 
-- Design tokens in `:root` at the top of `src/index.css`. Use them; don't hardcode colours.
-- Smallest text size is **9px**. Don't go below.
-- `--muted` is `#6A6A6A`. `--accent` is `#4A4E8C` (desaturated indigo). The art direction is Swiss neutral — restrained, untinted grey surfaces, single accent.
+- Design tokens in `:root` at the top of `src/index.css`: colours, type (`--fs-xs…xl` = 10/11/12/14/18 px, `--fw-regular` 450 / `--fw-strong` 600), spacing (`--sp-1…6`), radii, shadows, motion. Use them; don't hardcode values. The overhaul plan and its design direction are in [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md).
+- Art direction: clean, Claude-like. Neutral greys, white surfaces, ink (`--accent` = `--ink`) for everyday interaction. **`--signal` (`#FF5A1F`, ink text on it) is reserved** for the final export action, adding a keyframe and the keyboard focus ring (`--focus`); don't use it anywhere else. `--shadow-float` only on floating containers and menus.
+- Sentence case everywhere: no `text-transform: uppercase`, no letter-spacing. Hierarchy comes from weight and ink (`--ink` / `--ink-2` / `--muted`), not caps.
+- Every `font-weight` must be paired with `font-variation-settings: 'wght' N`: `:root` sets the variation, which overrides a plain `font-weight` on GSCode.
+- Smallest text size in CSS is **10px** (`--fs-xs`). Don't go below. (Some canvas captions are still 7–9 px; overhaul phase 2 removes or enlarges them.)
 - Sliders apply a dynamic `linear-gradient` fill inline (see `LissajousParams.Slider`). Keep this pattern when adding new sliders.
+- Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost). Segmented controls (`.seg-switch`, `.view-presets`) share one pill style.
 - `body.dragging-h` / `body.dragging-v` are added during resize drags to override the cursor globally.
 
 ---

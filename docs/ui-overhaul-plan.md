@@ -127,7 +127,9 @@ La app está **bien construida pero organizada como herramienta de escritorio de
 
 Ordenado por impacto ÷ esfuerzo, con la filosofía del repo: commits pequeños y verificables. Cada fase deja la app desplegable. Las Fases 1–2 valen para cualquier decisión de layout y pueden empezar ya.
 
-### Fase 1 — Fundaciones del sistema visual (≈ 1–2 sesiones · riesgo bajo · sin cambio de layout)
+### ✅ Fase 1 — Fundaciones del sistema visual (≈ 1–2 sesiones · riesgo bajo · sin cambio de layout)
+
+> **Hecha (2026-10-27).** Las primitivas se aplicaron sobre las clases existentes (`.btn-small`, `.btn-primary`, `.btn-reset`, `.seg-switch`, `.view-presets`…) más `.btn-signal`, para no tocar el JSX. Pendiente para la Fase 2: los textos pequeños del canvas (7–9 px) y la leyenda de capas.
 
 1. **Tokens nuevos en `:root`:** escala tipográfica (`--fs-1…5`: 10/11/12/14/18), pesos (450/600), *tracking* 0, espaciado (`--sp-1…6`: 4/8/12/16/24/32), dos radios, `--shadow-float`, movimiento (`--dur-fast 120ms`, `--dur 200ms`, `--dur-slow 320ms`, `--ease`). Sustituir los 11 tamaños / 13 *trackings* / 43 *paddings* por los tokens.
 2. **Paleta de canvas desde CSS:** leer los tokens una vez con `getComputedStyle` y pasarlos a `draw3D`, `LissajousPreview` y `CenterPad` (cierra la higiene #10 de CLAUDE.md y es requisito de todo lo demás).
@@ -200,4 +202,4 @@ Todo con los tokens de movimiento y desactivado con `prefers-reduced-motion`. So
 | 5 Animación | Sensación de producto pulido, feedback claro | Bajo-medio | Bajo | Fase 1 |
 | 6 QA / docs | Sin regresiones, CLAUDE.md al día | Bajo | — | cada fase |
 
-**Estado:** decisiones cerradas; Fase 1 en curso.
+**Estado:** decisiones cerradas; Fase 1 hecha; siguiente, Fase 2.
