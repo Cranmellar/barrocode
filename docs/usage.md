@@ -59,8 +59,8 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 | **Velocidad de impresión / desplazamiento** | Define avances en mm/min. |
 | **Generar valores E** | Incluye la columna de extrusión `E`. Desactívalo para salida solo de movimiento. |
 | **Multiplicador de extrusión** | Unidades `E` por mm de desplazamiento. Ajustar según bomba, presión o tornillo sin fin. |
-| **Transición Z suave** | Conecta una capa con la siguiente con movimiento continuo, sin retracción ni levantamiento. |
-| **Arco de transición** | Longitud en mm durante la transición entre capas. |
+| **Transición Z suave** | Conecta una capa con la siguiente con movimiento continuo, sin retracción ni levantamiento. En rutas cerradas la boquilla sube a la capa siguiente mientras recorre el final de la vuelta, en vez de subir en vertical en la costura. |
+| **Arco de transición** | Largo en mm del tramo final de cada ruta cerrada en el que se sube a la capa siguiente. Si es mayor que el perímetro, la subida ocupa toda la vuelta. No se aplica con *Dirección alternada*. |
 | **Dirección alternada** | Invierte capas impares para reducir deriva direccional. |
 | **Cerrar trayecto** | Agrega retorno al inicio de cada trayecto. |
 | **Pausa al inicio** | Inserta `G4` en la primera posición para estabilizar el flujo de arcilla. |

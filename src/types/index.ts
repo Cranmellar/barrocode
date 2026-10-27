@@ -66,6 +66,7 @@ export interface WaveLayer {
   index: number;
   z: number;           // Z in mm
   paths: WavePoint[][];  // [pathIndex][pointIndex], SVG units
+  closed: boolean[];     // per path: the source ends where it starts
 }
 
 // ── Keyframes ───────────────────────────────────────────────────────────────

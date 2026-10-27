@@ -250,6 +250,12 @@ export function generateWaveLayers(
   const kfSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
   let flatIdx = 0;
 
+  // getPointAtLength works in float32, so a closed source can miss its start
+  // by a little more than 0.001 units on large coordinates.
+  const closed = enabled.map(({ points: pts, totalLength }) => pts.length > 1 && (params.closePath ||
+    Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y)
+      <= Math.max(0.001, totalLength * 1e-5)));
+
   const layers: WaveLayer[] = [];
   // Absolute Z of each point on the previous layer, in sampling order.
   let prevZ: number[][] = [];
@@ -340,7 +346,7 @@ export function generateWaveLayers(
       return result;
     });
 
-    layers.push({ index: li, z, paths: pathPoints });
+    layers.push({ index: li, z, paths: pathPoints, closed });
     prevZ = layerZ;
   }
 

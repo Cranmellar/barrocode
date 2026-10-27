@@ -2,10 +2,11 @@
  * G-code Generator
  *
  * Soft layer join:
- *   When softJoin=true, the transition from layer N → N+1 is a continuous
- *   print move that interpolates XY from the last point of layer N to the
- *   first point of layer N+1, while raising Z linearly.  No retract or lift.
- *   This gives clay a smooth, unbroken extrusion across layers.
+ *   When softJoin=true, buildToolpath ramps Z up over the last
+ *   transitionLength mm of each closed path, so the layer already ends at the
+ *   next layer's start.  Any gap left (open paths, Z wave, per-layer phase)
+ *   is bridged by a continuous print move that interpolates XY to the first
+ *   point of layer N+1 while raising Z linearly.  No retract or lift.
  *
  * Extrusion model:
  *   E is cumulative.  Each move of distance d:   E += d * extrusionMultiplier
@@ -289,7 +290,7 @@ export function generateGcode(
 
       if (params.softJoin && nextLayer !== null && pi === layer.paths.length - 1) {
         const next = nextLayer.paths[0]?.[0];
-        if (next) {
+        if (next && Math.hypot(next.x - cur.x, next.y - cur.y, next.z - zRef.value) > 0.001) {
           const tLines = buildTransition(
             cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
           );

@@ -12,7 +12,9 @@ BarroCode está orientado a impresión por deposición líquida, especialmente a
 
 ## Transición Suave Entre Capas
 
-Cuando `softJoin` está activo, BarroCode conecta el final de una capa con el inicio de la siguiente mediante interpolación:
+Cuando `softJoin` está activo, cada ruta cerrada sube una altura de capa a lo largo de sus últimos `transitionLength` mm (rampa con smoothstep), de modo que termina justo donde empieza la capa siguiente. Cada rampa queda sobre la rampa de la capa de abajo, así que la altura del cordón no cambia; solo la cola de la capa 0 se separa de la cama hasta una altura de capa. Con `alternateDirection` no hay rampa, porque la capa siguiente empezaría encima de ella.
+
+Si queda distancia entre el final de una capa y el inicio de la siguiente (rutas abiertas, onda Z, desfase por capa), se cubre con un movimiento continuo:
 
 ```mermaid
 flowchart LR
