@@ -86,16 +86,40 @@ La app está **bien construida pero organizada como herramienta de escritorio de
 
 ---
 
-## 3. Decisiones que necesito de ti antes de empezar
+## 3. Decisiones (cerradas el 2026-10-27)
 
-| ID | Decisión | Opciones | Recomendación |
-|---|---|---|---|
-| D-1 | Layout | (a) vista completa + flotantes · (b) 3 columnas fijas sin arrastre | **(a)** |
-| D-2 | Elevación | permitir una sombra suave en contenedores flotantes, o solo bordes | **Una sombra**, solo flotantes y menús |
-| D-3 | Tipografía | GSCode en todo · GSCode para títulos y números + sans neutra para etiquetas | **GSCode en todo**, con escala de 4–5 tamaños y menos MAYÚSCULAS (es la identidad; el problema es la jerarquía, no la fuente) |
-| D-4 | Paleta | índigo solo · dúo de marca terracota + índigo (del logo) | **Dúo de marca**: índigo = acción, terracota = estado activo / reproducción / rampa de capas |
-| D-5 | Alcance móvil | edición completa · ver, ajustar onda y exportar | **Ver + onda + exportar** en < 768 px; edición completa desde tablet |
-| D-6 | Modo oscuro | sí ahora · más adelante · no | **Más adelante**: los tokens de la Fase 1 lo dejan a un paso |
+| ID | Decisión | Resultado |
+|---|---|---|
+| D-1 | Layout | **Vista 3D completa + contenedores flotantes.** |
+| D-2 | Elevación | **Una sombra suave**, solo en contenedores flotantes y menús. |
+| D-3 | Tipografía | **GSCode en todo**, con un tratamiento "como Claude": limpio, pensado para mucho texto (ver 3.1). |
+| D-4 | Paleta | **Neutros limpios + un color de señal estridente, high-tech, reservado a muy pocas acciones** (como usa el color Claude Code). Se descarta el dúo terracota/índigo actual. |
+| D-5 | Móvil | **Fuera de alcance.** Objetivo: escritorio y portátil, de 1024 a 1920 px de ancho. |
+| D-6 | Modo oscuro | **No.** |
+
+### 3.1 Dirección de diseño
+
+**Tipografía (GSCode, tratamiento "Claude")**
+- Todo en minúscula de frase. **Sin MAYÚSCULAS espaciadas** (hoy hay 13 *trackings* distintos; pasan a 0).
+- La jerarquía la dan el **peso** y el **color**, no el tamaño ni las mayúsculas: dos pesos (450 texto, 600 títulos y valores) y tres tintas (`--ink` principal, `--ink-2` etiquetas, `--muted` unidades y ayudas).
+- Cinco tamaños: 10 (pies, unidades) · 11 (secundario) · 12 (etiquetas, cuerpo) · 14 (títulos de grupo, valores destacados) · 18 (raro).
+- Interlineado generoso (1.5 en cuerpo, 1.6 en texto largo), cifras tabulares en todos los valores.
+
+**Color**
+- **Neutros** (escala gris limpia, apenas fría): fondo del visor `--bg`, superficies blancas `--surface`, rellenos sutiles `--surface-2`, bordes `--border` / `--border-strong`.
+- **Interacción normal en tinta** (`--accent` = casi negro): sliders, casillas, botón primario, selección en segmentados. Limpio y sobrio, como Claude.
+- **`--signal` naranja eléctrico (`#FF5A1F`)**, con texto en tinta encima. Solo para:
+  1. la acción final (Descargar `.gcode` / Exportar);
+  2. añadir keyframe;
+  3. el anillo de foco del teclado;
+  4. más adelante: barra de "recalculando" y la parte "barro" del logotipo.
+  Nada más usa este color; si aparece en otro sitio, es un error.
+- **Rampa de capas** en OKLCH: índigo eléctrico → magenta → naranja de señal (tipo *plasma*), perceptualmente uniforme y sin el verde/amarillo del arcoíris actual. Los keyframes toman el color de la rampa en su posición.
+- Ejes N / T: los extremos fríos de la rampa (azul eléctrico y magenta), solo en diagramas y en la vista Lissajous.
+
+**Forma**
+- Radios 4 / 6 / 10 px (el mayor, para contenedores flotantes). Thumb de slider redondo con sombra mínima.
+- Botones de 28 px de alto, segmentados tipo "píldora" (fondo `--surface-2`, opción activa blanca con sombra).
 
 ---
 
@@ -105,13 +129,13 @@ Ordenado por impacto ÷ esfuerzo, con la filosofía del repo: commits pequeños 
 
 ### Fase 1 — Fundaciones del sistema visual (≈ 1–2 sesiones · riesgo bajo · sin cambio de layout)
 
-1. **Tokens nuevos en `:root`:** escala tipográfica (`--fs-1…5`: 10/11/12/14/18), pesos (450/600/750), dos *trackings* (normal y `--track-caps` solo para títulos de sección), espaciado (`--sp-1…6`: 4/8/12/16/24/32), dos radios, `--shadow-float` (si D-2), movimiento (`--dur-fast 120ms`, `--dur 200ms`, `--dur-slow 320ms`, `--ease`). Sustituir los 11 tamaños / 13 *trackings* / 43 *paddings* por los tokens.
+1. **Tokens nuevos en `:root`:** escala tipográfica (`--fs-1…5`: 10/11/12/14/18), pesos (450/600), *tracking* 0, espaciado (`--sp-1…6`: 4/8/12/16/24/32), dos radios, `--shadow-float`, movimiento (`--dur-fast 120ms`, `--dur 200ms`, `--dur-slow 320ms`, `--ease`). Sustituir los 11 tamaños / 13 *trackings* / 43 *paddings* por los tokens.
 2. **Paleta de canvas desde CSS:** leer los tokens una vez con `getComputedStyle` y pasarlos a `draw3D`, `LissajousPreview` y `CenterPad` (cierra la higiene #10 de CLAUDE.md y es requisito de todo lo demás).
-3. **Rampa de capas sin arcoíris:** interpolar índigo → terracota en OKLCH (o por el camino corto vía violeta). Un cambio en `layerColor`; se nota en toda la app.
-4. **Primitivas CSS** (clases, no componentes compartidos, respetando la convención #3): `.btn` + `--primary / --secondary / --ghost / --danger`, `.seg` (segmentado), `.field` (etiqueta + entrada + unidad), `.sec-title`, `.chip`. Migrar las 6 variantes de botón. "Añadir keyframe" deja el verde y pasa a primario.
-5. **Una sola regla de etiquetas:** títulos de sección en MAYÚSCULA espaciada; todo lo demás en minúscula normal. Aplica a los tres paneles y al visor.
+3. **Rampa de capas sin arcoíris:** índigo eléctrico → magenta → naranja de señal en OKLCH (ver 3.1). Un cambio en `layerColor`; se nota en toda la app.
+4. **Primitivas CSS** (clases, no componentes compartidos, respetando la convención #3): `.btn` + `--primary / --secondary / --ghost / --danger / --signal`, `.seg` (segmentado), `.field` (etiqueta + entrada + unidad), `.sec-title`, `.chip`. Migrar las 6 variantes de botón. "Añadir keyframe" y "Descargar" pasan a `--signal`; el resto, a tinta o neutro.
+5. **Una sola regla de etiquetas:** minúscula de frase en todas partes; títulos con peso 600 y tinta principal, etiquetas en `--ink-2`, unidades en `--muted`. Aplica a los tres paneles y al visor.
 
-*Entregable verificable:* capturas antes/después a 4 tamaños; `npm test` y `npm run build` verdes; sin cambio de G-code.
+*Entregable verificable:* capturas antes/después a 1024, 1280 y 1440 px; `npm test` y `npm run build` verdes; sin cambio de G-code.
 
 ### Fase 2 — Limpieza de ruido y mensajes (≈ 1 sesión · riesgo bajo)
 
@@ -133,12 +157,13 @@ Requiere D-1. En pasos desplegables por separado:
 6. **Estado vacío y exportar:** carga + muestras como estado vacío central; G-code en cajón "Exportar".
 7. Colapsar cada contenedor a icono; recordar estado en `localStorage` (con try/catch, como el resto).
 
-### Fase 4 — Responsive (≈ 2 sesiones · riesgo medio)
+### Fase 4 — Anchos de escritorio (≈ 0,5 sesión · riesgo bajo)
 
-1. *Breakpoints:* ≥ 1280 todo abierto · 900–1279 un panel lateral a la vez · < 900 hojas inferiores con pestañas (Pieza · Onda · Tiempo · Exportar).
-2. Cámara con *pointer events* (rotar con un dedo, zoom con pellizco) en `Preview2D`; mantener el patrón *stable refs*.
-3. Objetivos táctiles ≥ 36 px en sliders, botones y diamantes de keyframe.
-4. Verificar a 390, 768, 1024, 1280 y 1440 px.
+Móvil queda fuera (D-5). Solo asegurar que todo se ve bien entre 1024 y 1920 px:
+
+1. ≥ 1280: los dos paneles laterales abiertos. 1024–1279: abrir un panel lateral colapsa el otro.
+2. La barra superior no se trunca: el resumen se compacta antes de cortar botones.
+3. Verificar a 1024, 1280, 1440 y 1920 px.
 
 ### Fase 5 — Feedback animado, simple (≈ 1–2 sesiones · riesgo bajo)
 
@@ -157,7 +182,7 @@ Todo con los tokens de movimiento y desactivado con `prefers-reduced-motion`. So
 
 ### Fase 6 — QA y documentación (continua)
 
-1. Script de capturas Playwright a 4 tamaños como comprobación visual antes de cada commit de UI (en `scratchpad`, o en `scripts/` si lo quieres versionado).
+1. Script de capturas Playwright a 1024, 1280 y 1440 px como comprobación visual antes de cada commit de UI (en `scratchpad`, o en `scripts/` si lo quieres versionado).
 2. Auditoría de contraste y teclado con `design:accessibility-review` al cerrar la Fase 3.
 3. Comprobar que no se pierde rendimiento frente a las cifras de CLAUDE.md (rotación, *scrub*, tick de slider).
 4. Actualizar CLAUDE.md (layout, convención de sombras, tokens, mapa de archivos) y `docs/usage.md`.
@@ -168,11 +193,11 @@ Todo con los tokens de movimiento y desactivado con `prefers-reduced-motion`. So
 
 | Fase | Qué consigue | Esfuerzo | Riesgo | Depende de |
 |---|---|---|---|---|
-| 1 Fundaciones | Coherencia visual inmediata, rampa de capas limpia, base para todo | Bajo | Bajo | D-2, D-3, D-4 |
+| 1 Fundaciones | Coherencia visual inmediata, rampa de capas limpia, base para todo | Bajo | Bajo | — |
 | 2 Ruido y copy | Interfaz más tranquila, mensajes consistentes | Bajo | Bajo | — |
 | 3 Layout | La pieza protagonista, sin duplicados, información contextual | Alto | Medio | D-1 |
-| 4 Responsive | Usable en tablet y móvil | Medio | Medio | Fase 3, D-5 |
+| 4 Anchos de escritorio | Bien de 1024 a 1920 px | Bajo | Bajo | Fase 3 |
 | 5 Animación | Sensación de producto pulido, feedback claro | Bajo-medio | Bajo | Fase 1 |
 | 6 QA / docs | Sin regresiones, CLAUDE.md al día | Bajo | — | cada fase |
 
-**Siguiente paso recomendado:** responder D-1…D-6 y arrancar la Fase 1 (tokens + paleta de canvas + rampa de capas), que da el mayor salto visible con el menor riesgo y no compromete ninguna decisión de layout.
+**Estado:** decisiones cerradas; Fase 1 en curso.
