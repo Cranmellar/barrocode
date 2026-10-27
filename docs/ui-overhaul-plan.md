@@ -147,7 +147,9 @@ Ordenado por impacto ÷ esfuerzo, con la filosofía del repo: commits pequeños 
 4. Copy: "1 trayecto cargado / N trayectos"; estado vacío del visor con frase normal y tamaño legible; un solo verbo para restaurar valores ("Restablecer"); quitar el título "G-CODE" duplicado; traducir los errores de `svgParser.ts` (higiene #7).
 5. Revisión con la skill `design:ux-copy` de todos los textos y *tooltips*.
 
-### Fase 3 — Nuevo layout (≈ 3–4 sesiones · riesgo medio · el cambio grande)
+### ✅ Fase 3 — Nuevo layout (≈ 3–4 sesiones · riesgo medio · el cambio grande)
+
+> **Hecha (2026-10-27).** Todos los puntos, más el comportamiento de la Fase 4 (por debajo de 1280 px solo queda abierto un panel lateral). Además, de la Fase 2: textos del canvas a 10–14 px, la leyenda de capas pasa a ser una barra de color junto al slider de capas y se quita el "AZ/EL". El logo queda pequeño (15 px) en la cabecera del panel izquierdo. Coste medido: la rotación de cámara pasa de ≈ 5,1 a ≈ 5,8 ms de hilo principal por paso a 60 capas, por el canvas más grande.
 
 Requiere D-1. En pasos desplegables por separado:
 
@@ -202,4 +204,4 @@ Todo con los tokens de movimiento y desactivado con `prefers-reduced-motion`. So
 | 5 Animación | Sensación de producto pulido, feedback claro | Bajo-medio | Bajo | Fase 1 |
 | 6 QA / docs | Sin regresiones, CLAUDE.md al día | Bajo | — | cada fase |
 
-**Estado:** decisiones cerradas; Fase 1 hecha; siguiente, Fase 2.
+**Estado:** Fases 1 y 3 hechas (y lo esencial de la 4). Siguiente: lo que queda de la Fase 2 (duplicados y textos) y la Fase 5 (animaciones).

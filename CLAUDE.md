@@ -49,7 +49,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
-- **Graphical overhaul** ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)): decisions closed (full-screen 3D with floating containers, Claude-like typography in GSCode, neutrals + one signal colour, desktop only, no dark mode). Phase 1 is done: design tokens, unified controls, canvas palette from CSS and the OKLCH layer ramp. Phases 2–6 are open; the layout below is still the pre-overhaul one.
+- **Graphical overhaul** ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)): decisions closed (full-screen 3D with floating containers, Claude-like typography in GSCode, neutrals + one signal colour, desktop only, no dark mode). Done: phase 1 (design tokens, unified controls, canvas palette from CSS, OKLCH layer ramp) and phase 3 (full-window 3D view with floating panels, see "Layout and file map"), plus the canvas text sizes from phase 2. Open: the rest of phase 2 (duplicates and copy), phase 5 (animated feedback), phase 6 (QA).
 - **Seam ramp (soft join).** The layer→layer join used to be a Z-only move in place on closed paths (end = start XY), with no E. Now `buildToolpath` spreads the rise over the last `transitionLength` mm of every closed path, so the climb happens while printing and the preview shows it. Each ramp sits on the one below; only layer 0's tail lifts off the bed by up to one layer height (accepted; flow compensation belongs with NP-0a). Open paths and `alternateDirection` keep the old transition.
 - **Machine-safety pass (Oct 2026)** — the G-code can no longer drive the nozzle into the bed or the part:
   - `M82` (absolute E) in the preamble when `generateE` is on.
@@ -213,36 +213,38 @@ Regeneration in `App.tsx`: `layers` and `toolpath` are `useMemo`s keyed on `pars
 
 ## Layout and file map
 
-Screen layout (all panels resizable via `useResize` in `App.tsx`):
+Screen layout: the 3D canvas fills the window (`.app-stage`); everything else floats on it. `App.tsx` computes `insets` (screen space taken by the side panels and the top bar) and passes them to `Preview2D`, which frames the part and places its overlays inside them (`Scene.inset`). Both side panels collapse to a 44 px rail (`barrocode.panels`); under 1280 px wide only one stays open.
 
 ```
-┌ left sidebar ───────┬ center ──────────────────────────────┬ right sidebar ───────┐
-│ logo + ?            │ Preview2D toolbar: Ajustar,          │ LissajousPreview     │
-│ session banner      │  Iso/Planta/Frente, summary, tabs    │ ─── drag ───         │
-│ upload, samples     │ 3D canvas + layer slider (right)     │ LissajousParams:     │
-│ PathList            │ timeline: KF lane + slider           │  context header      │
-│ PathParams groups:  │ ─── drag ───                         │  (global / KF / lock)│
-│  Pieza (incl.       │ Keyframe strip (in App.tsx):         │  presets, N, T, Z,   │
-│  CenterScaleParams),│  ‹ › nav, Añadir/OK, delete;         │  Delta, Fase         │
-│  Trayecto, Máquina  │  position, scale, CenterPad          │                      │
-└─────────────────────┴──────────────────────────────────────┴──────────────────────┘
+┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
+│ logo · ? · ‹      │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ Cargar SVG, file  │ │ Descargar (signal)               │ │ small Lissajous    │
+│ ‹ sample ›        │ └──────────────────────────────────┘ │ context line       │
+│ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
+│ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
+│ Trayecto │Máquina │   G-code opens as a drawer here  │a│ │                    │
+│ (incl. Center-    │                                  │y│ │                    │
+│  ScaleParams)     │ ┌ dock ────────────────────────┐ └─┘ │                    │
+│                   │ │ keyframe editor (if selected)│     │                    │
+│                   │ │ ‹ n › · timeline · % · +KF   │     │                    │
+└───────────────────┘ └──────────────────────────────┘     └────────────────────┘
 ```
 
 ```
 src/
   main.tsx                  React root, StrictMode
-  App.tsx                   Master state, layout, inline samples, keyframe strip, shortcuts, session (≈765 lines)
+  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈820 lines)
   index.css                 All styles (≈1570 lines, design tokens in :root)
   types/index.ts            All shared types
   components/
-    Preview2D.tsx           3D preview state, interaction, toolbar, layer slider, timeline (≈450 lines)
+    Preview2D.tsx           Full-window 3D canvas, interaction, top bar, layer slider, timeline dock, G-code drawer (≈570 lines)
     LissajousParams.tsx     Right panel: wave sliders + presets; edits the selected keyframe
-    LissajousPreview.tsx    Right panel top: animated Lissajous in the extruder frame
-    PathParams.tsx          Left panel: collapsible Pieza / Trayecto / Máquina groups
+    LissajousPreview.tsx    Small animated Lissajous strip under the wave panel header
+    PathParams.tsx          Left panel: Pieza / Trayecto / Máquina tabs
     PathList.tsx            Per-path overrides + collapse
     CenterScaleParams.tsx   Pivot + scale sections, rendered inside PathParams' Pieza group
     CenterPad.tsx           56×56 canvas pivot picker
-    GcodeOutput.tsx         G-code textarea + copy + download
+    GcodeOutput.tsx         G-code drawer: textarea + copy + close
     HelpDialog.tsx          "?" quick-start modal (native <dialog>)
     NumInput.tsx            Controlled number input with wheel-to-change
   lib/
@@ -280,13 +282,13 @@ Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale/rotation fields 
 - `gcodeFilename: string` — derived from uploaded SVG filename
 - `lastRawRef: { raw, spacing } | null` — kept for re-parse on spacing change
 - `gcodeTimerRef` — debounce handle for G-code regeneration (400 ms)
-- `centerTab: 'preview' | 'gcode'` — which tab is active in the center panel
+- `centerTab: 'preview' | 'gcode'` — whether the G-code drawer is open over the 3D view
 - `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
 - `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 - `savedSession: SavedSession | null` — last autosaved session (`localStorage` key `barrocode.session`, written 1 s after changes), offered for restore while no SVG is loaded
 
-Other `localStorage` keys: `barrocode.leftGroups` (open state of the left-panel groups in `PathParams`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
+Other `localStorage` keys: `barrocode.leftTab` (active left-panel tab in `PathParams`), `barrocode.panels` (which side panels are open, in `App.tsx`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
 
 Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. They are ignored while typing in text/number fields.
 
@@ -349,7 +351,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - `Preview2D` draws `buildToolpath` output, never `WaveLayer.paths` directly, for anything that represents printed motion.
 - `Preview2D` keeps state and interaction; all canvas drawing lives in `lib/draw3D.ts` (`drawScene`, `drawTopDown`). Orthographic projection: `project(x, y, z, azimuth, elevation)`. Screen coords are `[offsetX + px*scale, offsetY + py*scale]`.
 - While the user drags the camera (`isInteracting`), drawing uses a LOD stride of 4 and skips the keyframe, skirt and join overlays. Keep new expensive overlays behind `!isInteracting`.
-- Scene drawing has three bands: backdrop (background, grid, centre axis), `drawGeometry` (layer strokes and the overlays tied to them), and foreground (keyframe markers, extruder, legend, captions, gizmo). Anything that follows the timeline must stay out of `drawGeometry`, which is cached during a scrub; its inputs are `GeometryScene`. Canvases outside the DOM rasterise on the main thread, so only use one where it is reused across frames.
+- Scene drawing has three bands: backdrop (background, grid, centre axis), `drawGeometry` (layer strokes and the overlays tied to them), and foreground (keyframe markers, extruder, dimensions, empty-state text, gizmo; the last two keep inside `scene.inset`). Anything that follows the timeline must stay out of `drawGeometry`, which is cached during a scrub; its inputs are `GeometryScene`. Canvases outside the DOM rasterise on the main thread, so only use one where it is reused across frames.
 - Layer visibility comes from the layer slider: `drawScene` gets `layerCap` (top visible layer index) and `layerSolo`. New overlays tied to a layer should respect it.
 - Canvas colours come from `lib/palette.ts`: `loadPalette()` (called in `main.tsx`) copies the CSS tokens once; its defaults mirror them for tests. Never hardcode a colour in canvas code.
 - Layer colors are an OKLCH ramp from electric indigo through magenta to `--signal` (`rampColor` in `palette.ts`, wrapped by `layerColor`); with *Color por capa* off every layer is `--ink-2` and the legend is hidden. *Cotas* draws the bounding box's X/Y lengths and the height (`numLayers · layerHeight`, as in the toolbar) in the foreground band. Clicking a keyframe diamond on the canvas selects it (`keyframeAt`, from the same `keyframeMarkers` the drawing uses). Keyframes are numbered diamonds coloured by `keyframeColor(t)` (the ramp hue at their position, at a fixed light tone so the dark number reads on every hue). Number and colour are the same on the timeline lane, the canvas, the keyframe strip and the Lissajous header; the selected one gets a dark outline. The canvas extruder is a dark square, like the slider thumb, so it never reads as a keyframe.
@@ -368,7 +370,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - Smallest text size in CSS is **10px** (`--fs-xs`). Don't go below. (Some canvas captions are still 7–9 px; overhaul phase 2 removes or enlarges them.)
 - Sliders apply a dynamic `linear-gradient` fill inline (see `LissajousParams.Slider`). Keep this pattern when adding new sliders.
 - Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost). Segmented controls (`.seg-switch`, `.view-presets`) share one pill style.
-- `body.dragging-h` / `body.dragging-v` are added during resize drags to override the cursor globally.
+- Floating containers (`.float-panel`, top bar groups, `.layer-slider`, `.dock`, `.gcode-drawer`) share one surface: white, `--border`, `--radius-lg`, `--shadow-float`. Opaque on purpose: a translucent or blurred panel would make the browser recomposite it on every canvas frame.
 
 ---
 
