@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
-import logoUrl from './assets/logo.png';
+import logoUrl from './assets/logo.svg';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, WAVE_PARAMS } from './lib/waveGenerator';
