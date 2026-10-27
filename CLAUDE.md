@@ -49,6 +49,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
+- **Seam ramp (soft join).** The layer→layer join used to be a Z-only move in place on closed paths (end = start XY), with no E. Now `buildToolpath` spreads the rise over the last `transitionLength` mm of every closed path, so the climb happens while printing and the preview shows it. Each ramp sits on the one below; only layer 0's tail lifts off the bed by up to one layer height (accepted; flow compensation belongs with NP-0a). Open paths and `alternateDirection` keep the old transition.
 - **Machine-safety pass (Oct 2026)** — the G-code can no longer drive the nozzle into the bed or the part:
   - `M82` (absolute E) in the preamble when `generateE` is on.
   - Final lift goes to `max(safeZ, highest printed Z) + 10`; it used to be an absolute `safeZ + 10`, which plunged through parts taller than 30 mm.
@@ -184,6 +185,10 @@ WaveLayer[] + PrintParams + svgH
          hopSampleArcs inserts points across each hop window so the parabola
          is resolved even when hopRadius < sample spacing
        • z = layer.z + zOffset + hop per point; centroid per layer
+       • softJoin seam ramp: each closed path (WaveLayer.closed) rises one
+         layer step over its last transitionLength mm (smoothstep), so it
+         ends at the next layer's start; off with alternateDirection or
+         a single layer
      → ToolpathLayer[] { index, z, paths: {x,y,z}[][] (mm), centroid, crossings }
 
 ToolpathLayer[] consumed by BOTH:
@@ -193,7 +198,7 @@ ToolpathLayer[] consumed by BOTH:
   │    • skirtArcPoints for inter-path travel: lift to highest printed Z + 2,
   │      descend to the path's real start Z
   │    • buildTransition for softJoin: smoothstep XY + linear Z, no retract;
-  │      only when the next layer starts within transitionLength, else travel
+  │      skipped when the seam ramp already reached the next start
   │    • E accumulates: E += dist * extrusionMultiplier
   │    • final lift to max(safeZ, highest printed Z) + 10
   │  → string

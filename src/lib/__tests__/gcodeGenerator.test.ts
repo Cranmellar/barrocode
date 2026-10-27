@@ -88,6 +88,22 @@ describe('generateGcode — motion invariants', () => {
   }
 });
 
+describe('generateGcode — soft join', () => {
+  it('rises to the next layer while moving along a closed path, never in place', () => {
+    const { gcode } = run([lemniscate()], { numLayers: 3, closePath: true });
+    const body = gcode.slice(gcode.indexOf('; descend'), gcode.indexOf('; ===== End'));
+    const moves = interpret(body);
+
+    expect(moves.some(m => m.to.z > m.from.z)).toBe(true);
+    for (const m of moves) {
+      if (m.to.z !== m.from.z) {
+        expect(m.extruding).toBe(true);
+        expect(Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y)).toBeGreaterThan(0.1);
+      }
+    }
+  });
+});
+
 describe('generateGcode — priming', () => {
   it('primes beside the part, never across it or at negative coordinates', () => {
     for (const geometry of [facingPair, crossingPair, () => [lemniscate()]]) {

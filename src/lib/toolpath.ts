@@ -1,5 +1,6 @@
 /**
- * Final print trajectory in mm: path order, Z oscillation and z-hop applied.
+ * Final print trajectory in mm: path order, Z oscillation, z-hop and the
+ * soft-join seam ramp applied.
  *
  * Both the G-code emitter and the 3D preview consume this, so what the
  * preview draws is exactly what gets printed.
@@ -23,6 +24,7 @@ export interface ToolpathLayer {
 // Every PrintParams field buildToolpath reads; a test pins the list.
 export const TOOLPATH_PARAMS = [
   'scaleFactor', 'originX', 'originY', 'flipY', 'zHopHeight', 'hopRadius',
+  'softJoin', 'transitionLength', 'alternateDirection',
 ] as const satisfies readonly (keyof PrintParams)[];
 
 function nearestNeighbourOrder<T extends MM2>(paths: T[][], start: MM2): T[][] {
@@ -42,6 +44,20 @@ function nearestNeighbourOrder<T extends MM2>(paths: T[][], start: MM2): T[][] {
     cur = chosen[chosen.length - 1];
   }
   return ordered;
+}
+
+const smoothstep = (t: number) => t * t * (3 - 2 * t);
+
+/**
+ * Lift over the last `length` mm of a closed path, 0 → `step`, so it ends at
+ * the next layer's height instead of climbing straight up at the seam. Each
+ * layer's ramp lies on the one below, keeping the bead height constant;
+ * only layer 0's ramp has the flat bed under it. With alternateDirection the
+ * next layer would start over this ramp, so the caller skips it there.
+ */
+function seamRamp(arc: number, endArc: number, length: number, step: number): number {
+  const t = (arc - (endArc - length)) / length;
+  return t <= 0 ? 0 : step * smoothstep(Math.min(1, t));
 }
 
 function sameXY(a: MM2[][], b: MM2[][]): boolean {
@@ -68,14 +84,21 @@ export function buildToolpath(
   // phase shift every layer (every other one with alternateDirection) has
   // the same XY, so detection runs once instead of once per layer.
   const recent: { ordered: MM2[][]; crossings: number[] }[] = [];
+  const rampStep = params.softJoin && !params.alternateDirection && layers.length > 1
+    ? layers[1].z - layers[0].z
+    : 0;
 
   for (const layer of layers) {
-    const mmPaths = layer.paths
-      .filter(path => path.length >= 2)
-      .map(path => path.map(p => ({
+    const closed = new Set<MM2[]>();
+    const mmPaths = layer.paths.flatMap((path, pi) => {
+      if (path.length < 2) return [];
+      const mm = path.map(p => ({
         ...svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH),
         zOffset: p.zOffset,
-      })));
+      }));
+      if (layer.closed[pi]) closed.add(mm);
+      return [mm];
+    });
 
     const ordered = nearestNeighbourOrder(mmPaths, cur);
     const flat = ordered.flat();
@@ -102,6 +125,11 @@ export function buildToolpath(
     let k = 0;
     const paths = ordered.map(path => {
       const out: ToolpathPoint[] = [];
+      const startArc = arcPath[k].arc, endArc = arcPath[k + path.length - 1].arc;
+      const rampLength = Math.min(params.transitionLength, endArc - startArc);
+      const ramp = (arc: number) => rampStep > 0 && rampLength > 0 && closed.has(path)
+        ? seamRamp(arc, endArc, rampLength, rampStep)
+        : 0;
       path.forEach((p, i) => {
         const arc = arcPath[k++].arc;
         if (i > 0 && crossings.length > 0) {
@@ -111,11 +139,11 @@ export function buildToolpath(
             out.push({
               x: prev.x + (p.x - prev.x) * f,
               y: prev.y + (p.y - prev.y) * f,
-              z: zAt(prev.zOffset + (p.zOffset - prev.zOffset) * f, a),
+              z: zAt(prev.zOffset + (p.zOffset - prev.zOffset) * f, a) + ramp(a),
             });
           }
         }
-        out.push({ x: p.x, y: p.y, z: zAt(p.zOffset, arc) });
+        out.push({ x: p.x, y: p.y, z: zAt(p.zOffset, arc) + ramp(arc) });
       });
       return out;
     });

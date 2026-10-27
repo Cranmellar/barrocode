@@ -169,7 +169,7 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
           {params.softJoin &&
             <Num label="Arco de transición" value={params.transitionLength}
               min={1} step={1} unit="mm"
-              hint="Distancia máxima de la transición entre capas; si la capa siguiente empieza más lejos (trayectos abiertos), se viaja elevado sin extruir"
+              hint="Tramo final de cada ruta cerrada en el que la Z sube hasta la capa siguiente. Si supera el perímetro, la subida ocupa toda la vuelta"
               onChange={v => set('transitionLength', v)} />}
         </Sec>
 
