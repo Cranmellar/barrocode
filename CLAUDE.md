@@ -28,13 +28,13 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 | `npm run preview` | Local static preview of `dist/` |
 | `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-Tests cover `lib/` only (no DOM, so `svgParser` is untested) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI only runs `npm test` and `npm run build` on `main`, so a pull request gets no automated check.
+Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI only runs `npm test` and `npm run build` on `main`, so a pull request gets no automated check.
 
 ---
 
 ## Deployment
 
-GitHub Pages, one workflow only: [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm test`, `npm run build`, upload `dist/` artifact, deploy. A failing test blocks the deploy; pull requests are not built.
+GitHub Pages via [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm test`, `npm run build`, upload `dist/` artifact, deploy. A failing test blocks the deploy. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs the same test and build on pull requests, without deploying.
 
 `vite.config.ts` uses `base: './'` so the build also works opened directly from `file://` or a USB sub-path.
 
@@ -97,6 +97,9 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ### Lower priority / needs a decision
 
+- Sharp tips lose length to corner rounding (a 30° point, ≈ 15 mm at amplitude 3). Option: fade the amplitude near a tip instead of growing the fillet (`roundCorners` in `waveGenerator.ts`). The owner hasn't chosen yet.
+- With keyframes that change the amplitude along a layer, a closed path's end has the next layer's amplitude, so the seam steps by ≈ 0.5 mm. It continues smoothly into the layer above; closing it would need the amplitude held over the seam.
+
 - E ignores the real bead thickness: with the Z wave the gap to the layer below ranges from 0.5× to ≈ 1.6× `layerHeight`, but E only follows XY distance. Scale E by the local gap (extends NP-0a).
 - `parseSVG` can't detect `visibility:hidden`: the measuring container is itself `visibility:hidden`.
 
@@ -149,6 +152,9 @@ SVG string
          the parsed doc into a hidden 1000×1000 DOM div
        • queries path / polyline / polygon / line / circle / ellipse / rect,
          skipping defs/clipPath/mask/symbol/marker/pattern and display:none
+       • a <path> with several subpaths (a contour with a hole) is split by
+         splitSubpaths() into one SampledPath per subpath (id-1, id-2…);
+         sampled whole, the jump between them printed as a bead
        • arc-length sampling via getTotalLength + getPointAtLength
        • finite-difference tangent/normal per sample
        • getScreenCTM() for transforms
@@ -157,11 +163,27 @@ SVG string
 
 SampledPath[] + PrintParams + WaveKeyframe[]
   └─ generateWaveLayers()  [lib/waveGenerator.ts]
-       • filters enabled paths
+       • filters enabled paths; roundCorners() fillets every stretch of the
+         centerline (chord turn or sample-tangent jump) tighter than
+         cornerRadius(ampN, ampT, wlT) = 1.25 · max(ampN / (1 − ampT·2π/wlT),
+         ampT), the denominator clamped to [0.5, 1]; max over keyframes.
+         Fillets start and end on the path with its tangents (a cubic
+         between them), grow until they reach the radius when the legs bend
+         inward, and shrink when two corners leave no room. Closed paths are
+         cut open at their smoothest point so a corner on the seam is
+         rounded too. Unrounded, the wave folded into loops (which got
+         z-hops) on the inside of corners and jumped on the outside. Paths
+         with nothing that tight pass through untouched.
+       • closed paths: both seam samples get one tangent, along the chord
+         between their neighbours (joinSeamFrame); the parser's one-sided
+         ones differ on a corner or after a `Z` that closes a tiny gap
        • per layer: phaseBase = lissPhaseOffset + li * phaseShiftPerLayer
        • per point: createKeyframeSampler() lerps between keyframes
          (cursor-based, t must increase monotonically)
        • phase integrated per path: cycX += 2π·ds/wlX (no chirp when wl varies)
+       • closed paths: each cycX scaled so the path holds a whole number of
+         cycles (pre-pass, works with keyframed wl), so the wave meets itself
+         at the seam; it used to end up to 2·amp to the side
        • lissajousPoint(): offsetN = ampN*sin(cycN + δ + phase)
                            offsetT = ampT*sin(cycT + phase)
                            zOffset = ampZ*sin(cycZ + phaseZ + phase)   (mm)
@@ -214,8 +236,8 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ logo · ? · ‹      │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
-│ Cargar SVG, file  │ │ Descargar (signal)               │ │ small Lissajous    │
+│ Cargar SVG · ‹    │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ file name         │ │ Descargar (signal), ?            │ │ small Lissajous    │
 │ ‹ sample ›        │ └──────────────────────────────────┘ │ context line       │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
@@ -230,8 +252,8 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 ```
 src/
   main.tsx                  React root, StrictMode
-  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈820 lines)
-  index.css                 All styles (≈1570 lines, design tokens in :root)
+  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈790 lines)
+  index.css                 All styles (≈1320 lines, design tokens in :root)
   types/index.ts            All shared types
   components/
     Preview2D.tsx           Full-window 3D canvas, interaction, top bar, layer slider, timeline dock, G-code drawer (≈570 lines)
@@ -249,9 +271,9 @@ src/
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
     toolpath.ts             Final mm trajectory shared by G-code + preview
-    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈585 lines)
+    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈625 lines)
     palette.ts              CSS tokens copied for canvas code + OKLCH layer ramp
-    gcodeGenerator.ts       G-code assembly (≈320 lines)
+    gcodeGenerator.ts       G-code assembly (≈325 lines)
     gcodeStats.ts           Time / length / E summary read back from the G-code
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
@@ -323,7 +345,6 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 These are documented hazards. Fix them when you touch the area, but don't go on cleanup sweeps without being asked.
 
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
-- **`resampleSVG` in `lib/svgParser.ts`** is dead code.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the canvas boundary on fast moves.
 - **Z-hop crossing detection** uses a spatial grid; it only `console.warn`s above 3000 points (`WARN_PTS`), never skips.
 

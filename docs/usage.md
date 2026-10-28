@@ -16,7 +16,7 @@ flowchart TD
 
 ## 1. Cargar Un SVG
 
-Arrastra un archivo SVG al área de carga o haz clic en ella.
+Arrastra un archivo SVG sobre la ventana o usa **Cargar SVG** en el panel izquierdo.
 
 Elementos soportados:
 
@@ -28,11 +28,11 @@ Elementos soportados:
 - `<ellipse>`
 - `<rect>`
 
-Si no tienes un archivo a mano, usa el navegador de muestras integrado: cuatro SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
+Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
 
 ## 2. Revisar Trayectos
 
-Cada elemento geométrico detectado aparece en **Trayectos SVG**.
+Cada elemento geométrico detectado aparece en **Trayectos SVG**. Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) aparece como un trayecto por subtrazado, con el nombre del original seguido de `-1`, `-2`…
 
 Puedes:
 
@@ -44,7 +44,7 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
-El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (capas, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). Un bloque plegado muestra un resumen de sus valores clave, y el estado de cada bloque se recuerda entre sesiones.
+El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
 
 | Parámetro | Efecto |
 |---|---|
@@ -70,9 +70,9 @@ El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (
 
 | Parámetro | Efecto |
 |---|---|
-| **Amplitud N** | Semi-amplitud lateral, sobre la normal del trayecto. |
+| **Amplitud N** | Semi-amplitud lateral, sobre la normal del trayecto. Las esquinas y curvas más cerradas de lo que la onda puede seguir se redondean con un radio de 1,25 × la amplitud N (más si la onda T es grande), para que la onda no forme bucles hacia dentro ni saltos hacia fuera. Con amplitud 0 la trayectoria conserva las esquinas tal como están. |
 | **Amplitud T** | Semi-amplitud adelante/atrás, sobre la tangente. |
-| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. |
+| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. En un trayecto cerrado se ajusta levemente para que entre un número entero de ciclos y la onda cierre sin escalón en la costura (de 20 a 19,97 mm en un contorno de 3,5 m). |
 | **Delta** | Diferencia de fase entre N y T. `0°` tiende a línea; `90°` tiende a elipse cuando las longitudes de onda coinciden. |
 | **Offset de fase** | Fase inicial de la onda. |
 | **Amplitud Z** | Oscilación vertical de la boquilla. La primera capa no baja de su altura y cada punto queda al menos media altura de capa sobre la capa anterior: con amplitudes grandes o desfase por capa, los valles se aplanan en vez de chocar. |
@@ -136,7 +136,7 @@ Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`).
 | `←` / `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %) |
 | `K` | Añade un keyframe en el extrusor, o selecciona el que ya está ahí |
 | `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
-| `G` | Alterna Trayectoria / G-code |
+| `G` | Abre o cierra el panel de G-code |
 | `?` | Abre la ayuda |
 
 ### Sesión
@@ -145,4 +145,4 @@ BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estad
 
 ## 7. Exportar
 
-Haz clic en **Descargar .gcode**. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.
+Haz clic en **Descargar** en la barra superior. El panel **G-code** de la misma barra muestra el archivo (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.

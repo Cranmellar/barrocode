@@ -126,6 +126,78 @@ function sampleElement(
   return points;
 }
 
+const PARAMS_PER_COMMAND: Record<string, number> = {
+  m: 2, l: 2, h: 1, v: 1, c: 6, s: 4, q: 4, t: 2, a: 7, z: 0,
+};
+
+/**
+ * Split path data into one string per subpath (each `M`/`m`), each starting
+ * with an absolute moveto. getPointAtLength runs straight across the gap
+ * between subpaths, so a contour with a hole would print a bead joining
+ * both. Returns [d] unchanged when there is a single subpath.
+ */
+export function splitSubpaths(d: string): string[] {
+  const starts: { at: number; x: number; y: number; rest: number; implicitRel: boolean }[] = [];
+  let x = 0, y = 0, sx = 0, sy = 0;
+  let i = 0;
+  const skip = () => { while (i < d.length && /[\s,]/.test(d[i])) i++; };
+  const num = () => {
+    skip();
+    const m = /^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/.exec(d.slice(i));
+    if (!m) return null;
+    i += m[0].length;
+    return parseFloat(m[0]);
+  };
+  // Arc flags may be written without separators ("a5 5 0 0110 10").
+  const flag = () => { skip(); return d[i] === '0' || d[i] === '1' ? +d[i++] : null; };
+
+  let cmd = '';
+  while (true) {
+    skip();
+    if (i >= d.length) break;
+    if (/[a-zA-Z]/.test(d[i])) {
+      cmd = d[i++];
+    } else if (!cmd) {
+      return [d];
+    }
+    const lc = cmd.toLowerCase();
+    const rel = cmd === lc;
+    const at = i - 1;
+    if (lc === 'z') { x = sx; y = sy; cmd = ''; continue; }
+    const n = PARAMS_PER_COMMAND[lc];
+    if (n === undefined) return [d];
+    let first = true;
+    // A command letter may be followed by several parameter groups.
+    while (true) {
+      skip();
+      if (i >= d.length || /[a-zA-Z]/.test(d[i])) break;
+      const vals: number[] = [];
+      for (let k = 0; k < n; k++) {
+        const v = lc === 'a' && (k === 3 || k === 4) ? flag() : num();
+        if (v === null) return [d];
+        vals.push(v);
+      }
+      const ox = rel ? x : 0, oy = rel ? y : 0;
+      if (lc === 'h') x = ox + vals[0];
+      else if (lc === 'v') y = oy + vals[0];
+      else { x = ox + vals[n - 2]; y = oy + vals[n - 1]; }
+      if (lc === 'm' && first) {
+        sx = x; sy = y;
+        starts.push({ at, x, y, rest: i, implicitRel: rel });
+      }
+      first = false;
+    }
+  }
+  if (starts.length <= 1) return [d];
+  return starts.map((s, k) => {
+    const end = k + 1 < starts.length ? starts[k + 1].at : d.length;
+    const rest = d.slice(s.rest, end).trim();
+    // Extra pairs after a moveto are linetos, relative after `m`.
+    const lead = rest && !/^[a-zA-Z]/.test(rest) ? (s.implicitRel ? 'l' : 'L') : '';
+    return `M${s.x} ${s.y}${lead ? ` ${lead}` : ''} ${rest}`.trim();
+  });
+}
+
 const MM_PER_UNIT: Record<string, number> = {
   mm: 1, cm: 10, q: 0.25, in: 25.4, pt: 25.4 / 72, pc: 25.4 / 6,
 };
@@ -229,7 +301,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   // Detect parser errors (malformed XML).
   const parseError = doc.querySelector('parsererror');
   if (parseError) {
-    throw new Error(`SVG parse error: ${parseError.textContent?.slice(0, 200)}`);
+    throw new Error(`El archivo no es un SVG válido: ${parseError.textContent?.slice(0, 200)}`);
   }
 
   const sourceSvgEl = doc.documentElement;
@@ -257,7 +329,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const liveSvgEl = container.querySelector('svg') as SVGSVGElement | null;
 
   if (!liveSvgEl) {
-    throw new Error('No <svg> element found in the uploaded file.');
+    throw new Error('El archivo no contiene un elemento <svg>.');
   }
 
   // Make the hidden SVG large enough that viewBox scaling doesn't distort
@@ -282,36 +354,47 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
 
     if (totalLen <= 0) return;
 
-    const pts = sampleElement(el, liveSvgEl, spacing);
-    if (pts.length < 2) return;
-    for (const p of pts) { p.x -= viewBox.x; p.y -= viewBox.y; }
+    const id = el.id || `${el.tagName.toLowerCase()}-${idx}`;
+    const subpaths = el instanceof SVGPathElement ? splitSubpaths(el.getAttribute('d') ?? '') : [];
+    // Each subpath is measured on a copy in the same place in the tree, so
+    // it keeps the original's transforms.
+    const parts: { el: SVGGeometryElement; id: string }[] = subpaths.length > 1
+      ? subpaths.map((d, k) => {
+        const part = el.cloneNode(false) as SVGPathElement;
+        part.removeAttribute('id');
+        part.setAttribute('d', d);
+        el.after(part);
+        return { el: part, id: `${id}-${k + 1}` };
+      })
+      : [{ el, id }];
 
-    paths.push({
-      id: el.id || `${el.tagName.toLowerCase()}-${idx}`,
-      tagName: el.tagName.toLowerCase(),
-      totalLength: totalLen,
-      points: pts,
-      enabled: true,
-      ampNOverride: null,
-      ampTOverride: null,
-      wlNOverride: null,
-      wlTOverride: null,
-    });
+    for (const part of parts) {
+      const len = part.el.getTotalLength();
+      const pts = len > 0 ? sampleElement(part.el, liveSvgEl, spacing) : [];
+      if (part.el !== el) part.el.remove();
+      if (pts.length < 2) continue;
+      for (const p of pts) { p.x -= viewBox.x; p.y -= viewBox.y; }
+
+      paths.push({
+        id: part.id,
+        tagName: el.tagName.toLowerCase(),
+        totalLength: len,
+        points: pts,
+        enabled: true,
+        ampNOverride: null,
+        ampTOverride: null,
+        wlNOverride: null,
+        wlTOverride: null,
+      });
+    }
   });
 
   if (paths.length === 0) {
     throw new Error(
-      'No measurable geometry found. Make sure the SVG contains <path>, <polyline>, <circle>, <ellipse>, <rect>, or <line> elements.',
+      'No se encontró geometría medible. El SVG debe contener elementos <path>, <polyline>, <polygon>, <line>, <circle>, <ellipse> o <rect> visibles.',
     );
   }
 
   return { paths, viewBox, mmPerUnit, raw: svgString };
 }
 
-/**
- * Re-sample an already-parsed SVG with a different spacing value.
- * This is cheaper than re-parsing but still hits the DOM.
- */
-export function resampleSVG(raw: string, spacing: number): ParsedSVG {
-  return parseSVG(raw, spacing);
-}
