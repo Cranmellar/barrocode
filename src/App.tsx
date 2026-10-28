@@ -514,8 +514,23 @@ export default function App() {
     }
   }, []);
 
+  // A new SVG keeps the keyframes' wave but not their placement, which was
+  // set for the previous part: centre, scale and rotation fall back to the
+  // global values.
+  function keepWaveOnly() {
+    const placed = keyframes.some(k => KF_TRANSFORM_FIELDS.some(f => k[f] !== undefined));
+    if (!placed) return;
+    setKeyframes(keyframes.map(k => {
+      const wave = { ...k };
+      for (const f of KF_TRANSFORM_FIELDS) delete wave[f];
+      return wave;
+    }));
+    showToast('Keyframes conservados; centro, escala y giro vuelven a los globales');
+  }
+
   function handleFile(file: File) {
     setSavedSession(null);
+    keepWaveOnly();
     setGcodeFilename(file.name.replace(/\.svg$/i, '.gcode'));
     const reader = new FileReader();
     reader.onload = ev => doParse(ev.target?.result as string, params.sampleSpacing, [], true);
@@ -613,6 +628,7 @@ export default function App() {
 
   function loadSample() {
     setSavedSession(null);
+    keepWaveOnly();
     const s = SAMPLES[sampleIndex];
     setGcodeFilename(s.name);
     doParse(s.raw, params.sampleSpacing);

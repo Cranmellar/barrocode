@@ -104,7 +104,7 @@ Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket
 **D — Decisiones abiertas**
 
 - [x] **KF-D1 — Borrar el último keyframe.** La onda volvía de golpe a los valores globales, desfasados. Ahora, al borrar el último (con `Supr`, el botón de papelera o *Borrar todos* con uno solo), su onda, centro, escala y giro pasan a ser los valores globales y un toast lo avisa; la pieza no cambia. *Borrar todos* con varios keyframes deja los globales como estaban.
-- [ ] **KF-D2 — Keyframes al cargar otro SVG.** Hoy se conservan todos, con el centro del pivote (en mm) de la pieza anterior. Propuesta: conservar la onda, descartar centro/escala/giro y avisar con un toast.
+- [x] **KF-D2 — Keyframes al cargar otro SVG.** Se conservaban enteros, con el centro del pivote (en mm) de la pieza anterior. Ahora, al cargar otro SVG o una muestra, los keyframes conservan su onda y pierden centro, escala y giro, que vuelven a los globales; un toast lo avisa. Restaurar una sesión los trae completos.
 
 Relacionado: el escalón en la costura con keyframes de amplitud (*Accidentes de trayectoria*).
 
