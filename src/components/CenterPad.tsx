@@ -18,9 +18,9 @@ import { palette } from '../lib/palette';
 interface Props {
   layers:   WaveLayer[];
   params:   PrintParams;
-  svgH:     number;
-  centerX:  number;      // mm — current pivot X
-  centerY:  number;      // mm — current pivot Y
+  centre:   { x: number; y: number };  // SVG units — partCentreSVG of the source paths
+  centerX:  number;      // mm — pivot X, from the part centre
+  centerY:  number;      // mm — pivot Y, from the part centre
   kfT:      number;      // 0-1 — keyframe position in trajectory
   onChange: (x: number, y: number) => void;
 }
@@ -36,12 +36,12 @@ function s2w(sx: number, sy: number, t: T2): [number, number] {
 
 interface Bounds { mnX: number; mnY: number; mxX: number; mxY: number }
 
-function partBounds(layers: WaveLayer[], params: PrintParams, svgH: number): Bounds | null {
+function partBounds(layers: WaveLayer[], params: PrintParams, centre: { x: number; y: number }): Bounds | null {
   let mnX = Infinity, mnY = Infinity, mxX = -Infinity, mxY = -Infinity;
   for (const layer of layers) {
     for (const path of layer.paths) {
       for (const pt of path) {
-        const { x, y } = svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+        const { x, y } = svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, centre);
         if (x < mnX) mnX = x; if (x > mxX) mxX = x;
         if (y < mnY) mnY = y; if (y > mxY) mxY = y;
       }
@@ -60,14 +60,14 @@ function buildTransform(b: Bounds | null, px: number, py: number, W: number, H: 
   return { cx: W / 2 - ((mnX + mxX) / 2) * s, cy: H / 2 + ((mnY + mxY) / 2) * s, s };
 }
 
-export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChange }: Props) {
+export function CenterPad({ layers, params, centre, centerX, centerY, kfT, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tRef      = useRef<T2>({ cx: 36, cy: 36, s: 1 });
   const dragging  = useRef(false);
   const [size, setSize]       = useState({ w: 0, h: 0 });
   const [dragEnd, setDragEnd] = useState(0);
 
-  const bounds = useMemo(() => partBounds(layers, params, svgH), [layers, params, svgH]);
+  const bounds = useMemo(() => partBounds(layers, params, centre), [layers, params, centre]);
   const aspect = bounds
     ? Math.min(2, Math.max(0.5, (bounds.mxX - bounds.mnX || 1) / (bounds.mxY - bounds.mnY || 1)))
     : 1;
@@ -99,7 +99,8 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.scale(dpr, dpr);
 
     // Freeze the framing while dragging so the view does not shift under the cursor.
-    const T = dragging.current ? tRef.current : buildTransform(bounds, centerX, centerY, W, H);
+    const pivotX = params.originX + centerX, pivotY = params.originY + centerY;
+    const T = dragging.current ? tRef.current : buildTransform(bounds, pivotX, pivotY, W, H);
     tRef.current = T;
 
     // ── Background ──────────────────────────────────────────────────────────
@@ -119,7 +120,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
         if (path.length < 2) continue;
         ctx.beginPath();
         path.forEach((pt, i) => {
-          const mm = svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+          const mm = svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, centre);
           const [sx, sy] = w2s(mm.x, mm.y, T);
           if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
         });
@@ -140,7 +141,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
         if (path.length < 2) continue;
         ctx.beginPath();
         path.forEach((pt, i) => {
-          const mm = svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+          const mm = svgToMM(pt, params.scaleFactor, params.originX, params.originY, params.flipY, centre);
           const [sx, sy] = w2s(mm.x, mm.y, T);
           if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
         });
@@ -152,7 +153,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     // ── Center crosshair ─────────────────────────────────────────────────────
     ctx.save();
     ctx.globalAlpha = 1;
-    const [ccx, ccy] = w2s(centerX, centerY, T);
+    const [ccx, ccy] = w2s(pivotX, pivotY, T);
 
     // Circle ring
     ctx.strokeStyle = palette.nAxis;
@@ -185,13 +186,14 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.fillText(`L${layerIdx + 1}`, W - 3, H - 3);
     ctx.restore();
 
-  }, [layers, params, svgH, centerX, centerY, layerIdx, size, bounds, dragEnd]);
+  }, [layers, params, centre, centerX, centerY, layerIdx, size, bounds, dragEnd]);
 
   // ── Drag interaction ────────────────────────────────────────────────────────
   function hitWorld(e: React.MouseEvent<HTMLCanvasElement>): [number, number] {
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
-    return s2w(e.clientX - rect.left - canvas.clientLeft, e.clientY - rect.top - canvas.clientTop, tRef.current);
+    const [x, y] = s2w(e.clientX - rect.left - canvas.clientLeft, e.clientY - rect.top - canvas.clientTop, tRef.current);
+    return [x - params.originX, y - params.originY];
   }
 
   function endDrag() {

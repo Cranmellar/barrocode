@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath, WaveKeyframe } from '../../types';
 import { cornerRadius, createKeyframeSampler, generateWaveLayers, getParamsAtT, roundCorners, segmentAlpha } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, curve, polyline, sampledPath } from './fixtures';
 
 /** Circle with its exact frame, so the seam has no frame error of its own. */
 function circle(r: number, n: number): SampledPath {
@@ -28,7 +28,7 @@ const WAVE: Partial<PrintParams> = {
 
 function seamGaps(path: SampledPath, overrides: Partial<PrintParams>, keyframes: WaveKeyframe[] = []) {
   const params = { ...PARAMS, numLayers: 3, ...WAVE, ...overrides };
-  return generateWaveLayers([path], params, keyframes, VIEWBOX.height).map(layer => {
+  return generateWaveLayers([path], params, keyframes).map(layer => {
     const pts = layer.paths[0], a = pts[0], b = pts[pts.length - 1];
     return { xy: Math.hypot(a.x - b.x, a.y - b.y), z: Math.abs(a.zOffset - b.zOffset) };
   });
@@ -71,7 +71,7 @@ describe('generateWaveLayers — closed paths', () => {
 
   it('changes the wavelength by less than half a cycle over the path', () => {
     const params = { ...PARAMS, numLayers: 1, lissAmpN: 3, lissWlN: 20 };
-    const [layer] = generateWaveLayers([path], params, [], VIEWBOX.height);
+    const [layer] = generateWaveLayers([path], params, []);
     // Count sign changes of the normal offset: 2 per cycle.
     const offsets = layer.paths[0].map((p, i) =>
       (p.x - path.points[i].x) * path.points[i].normalX + (p.y - path.points[i].y) * path.points[i].normalY);
@@ -85,7 +85,7 @@ describe('generateWaveLayers — closed paths', () => {
     open.points = open.points.slice(0, 200);
     open.totalLength = open.points[open.points.length - 1].arcLength;
     const params = { ...PARAMS, numLayers: 1, lissAmpN: 3, lissWlN: 20 };
-    const [layer] = generateWaveLayers([open], params, [], VIEWBOX.height);
+    const [layer] = generateWaveLayers([open], params, []);
     const p = layer.paths[0][10], src = open.points[10];
     const offset = (p.x - src.x) * src.normalX + (p.y - src.y) * src.normalY;
     expect(offset).toBeCloseTo(3 * Math.sin(2 * Math.PI * src.arcLength / 20), 9);
@@ -198,8 +198,8 @@ describe('roundCorners', () => {
           const a = (Math.PI * i) / tips, r = i % 2 ? inner : 80;
           return [100 + r * Math.cos(a), 100 + r * Math.sin(a)];
         });
-        const layers = generateWaveLayers([sampledPath('star', polyline(star))], params, [], VIEWBOX.height);
-        const [layer] = buildToolpath(layers, params, VIEWBOX.height);
+        const layers = generateWaveLayers([sampledPath('star', polyline(star))], params, []);
+        const [layer] = buildToolpath(layers, params, CENTRE);
         expect(layer.crossings).toBe(0);
         // The T wave alone stretches the 2 mm spacing to ≈ 3.2 mm.
         const pts = layer.paths[0];
@@ -256,7 +256,7 @@ describe('keyframed phase', () => {
   const kf = (t: number, phase: Partial<WaveKeyframe>): WaveKeyframe =>
     ({ id: `k${t}`, t, ampN: 3, ampT: 0, wlN: 20, wlT: 20, delta: 0, ...phase });
   const firstYs = (params: PrintParams, kfs: WaveKeyframe[]) =>
-    generateWaveLayers([line], params, kfs, VIEWBOX.height).map(l => l.paths[0][0].y);
+    generateWaveLayers([line], params, kfs).map(l => l.paths[0][0].y);
 
   it('matches the global phase when every keyframe holds the same values', () => {
     const params = { ...base, lissPhaseOffset: 0.4, phaseShiftPerLayer: 0.7 };

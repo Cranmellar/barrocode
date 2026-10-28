@@ -3,8 +3,9 @@
  * alrededor de un punto de pivote en mm, con escala independiente por eje o
  * uniforme.
  *
- * La escala se aplica después de la conversión SVG → mm, por lo que el
- * centro se especifica en coordenadas del lecho de impresión.
+ * The pivot is a mm offset from the centre of the part's bounding box, so
+ * 0, 0 is always the part's geometric centre, wherever the SVG placed it on
+ * its artboard.
  */
 
 import type { PrintParams } from '../types';
@@ -61,10 +62,10 @@ export function CenterScaleParams({ params, onChange }: Props) {
     <>
       {/* ── Centro de pivote ── */}
       <div className="section">
-        <div className="section-title">Centro de pivote (mm)</div>
+        <div className="section-title" title="Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.">Centro de pivote</div>
 
         <div className="param-row">
-          <label>X<span className="unit"> mm</span></label>
+          <label title="Desde el centro de la pieza">X<span className="unit"> mm</span></label>
           <NumInput
             value={params.centerX}
             step={5}
@@ -73,7 +74,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
           />
         </div>
         <div className="param-row">
-          <label>Y<span className="unit"> mm</span></label>
+          <label title="Desde el centro de la pieza">Y<span className="unit"> mm</span></label>
           <NumInput
             value={params.centerY}
             step={5}
@@ -86,8 +87,9 @@ export function CenterScaleParams({ params, onChange }: Props) {
           className="btn-reset"
           style={{ margin: '4px 12px' }}
           onClick={() => onChange({ ...params, centerX: 0, centerY: 0 })}
+          title="Vuelve al centro geométrico de la pieza"
         >
-          Resetear centro
+          Centrar en la pieza
         </button>
       </div>
 

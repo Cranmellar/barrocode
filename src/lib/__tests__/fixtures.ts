@@ -2,7 +2,11 @@ import type { PrintParams, SampledPath, SVGViewBox } from '../../types';
 
 export const VIEWBOX: SVGViewBox = { x: 0, y: 0, width: 200, height: 200 };
 
-// scaleFactor 1, origin 0 and no Y flip: mm coordinates equal SVG units.
+// scaleFactor 1, origin 0 and no Y flip: with CENTRE as the part centre,
+// mm coordinates equal SVG units.
+// buildToolpath's centre for tests that place their parts by hand.
+export const CENTRE = { x: 0, y: 0 };
+
 export const PARAMS: PrintParams = {
   sampleSpacing: 2,
   lissAmpN: 0, lissAmpT: 0, lissAmpZ: 0,

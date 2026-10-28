@@ -65,6 +65,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
   - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
   - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
+- **Part centred on the bed.** `svgToMM` puts the centre of the enabled paths' bounding box (`partCentreSVG` in `waveGenerator.ts`) at (`originX`, `originY`), shown as *Posición X / Y* in *Escala y posición*; default 0, 0. Where the SVG placed the part on its artboard no longer matters (Illustrator exports put parts far from the viewBox origin). `centerX/Y` (pivot, params and keyframes) are mm offsets from that centre; *Centrar en la pieza* resets them. The 3D camera orbits around the part's centre (`orbit` in `Preview2D`), not the bed origin, and refits when another SVG is loaded (`partKey`). Disabling a path re-centres the rest.
 - **One `pendientes.md` ticket is ticked `[x]` but not implemented** — treat it as open: pivot drag in the 3D viewport (`Preview2D` has no params `onChange`; nothing draggable for the pivot).
 - **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
@@ -191,14 +192,16 @@ SampledPath[] + PrintParams + WaveKeyframe[]
                            zOffset = ampZ*sin(cycZ + phaseZ + phase)   (mm)
        • Z floor: layer 0 ≥ its base Z; later points ≥ same sample on the
          layer below + layerHeight·MIN_LAYER_GAP (0.5)
-       • applyTransformSVG: scale, then rotate, around pivot in SVG space
+       • applyTransformSVG: scale, then rotate, around pivot in SVG space;
+         pivot = bounding-box centre of the enabled paths + (centerX, centerY)
        • alternateDirection: reverse every other layer
        • closePath: append first point if not closed
      → WaveLayer[] { index, z (mm), paths: WavePoint[][] (SVG units + zOffset mm) }
 
-WaveLayer[] + PrintParams + svgH
+WaveLayer[] + PrintParams + part centre (partCentreSVG)
   └─ buildToolpath()       [lib/toolpath.ts]
-       • svgToMM() here (NOT before)
+       • svgToMM() here (NOT before): the part centre (partCentreSVG)
+         goes to (originX, originY)
        • nearest-neighbour path order O(n²) per layer, each layer starting
          where the previous one ended
        • buildArcPath + findCrossings (inter-path gaps excluded, reused when
@@ -317,9 +320,11 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 
 ## Coordinate / unit conventions
 
-- `WaveLayer.paths` stores XY in **SVG user units**, measured from the viewBox's top-left corner; `WavePoint.zOffset` is already in **mm**.
+- `WaveLayer.paths` stores XY in **SVG user units**, measured from the viewBox's top-left corner (only `svgToMM` re-centres them); `WavePoint.zOffset` is already in **mm**.
 - `svgToMM()` (in `waveGenerator.ts`) converts XY to **mm** only in `buildToolpath`.
 - `lissAmpN/T` and `lissWlN/T/Z` are in **mm** and divided by `scaleFactor` inside the wave math (so the visual amplitude tracks the real-world mm regardless of SVG unit scale); `lissAmpZ` is not (Z is always mm).
+- `svgToMM(pt, sf, originX, originY, flipY, centre)` maps the part centre (`partCentreSVG`, SVG units) to (`originX`, `originY`) mm. `buildToolpath`, `CenterPad` and `draw3D` take that centre; tests that place parts by hand pass `CENTRE` (0, 0) from `fixtures.ts`.
+- `centerX/Y` are offsets in mm from the part's centre, so the pivot sits at (`originX + centerX`, `originY + centerY`) on the bed.
 - Transform order: `scaleFactor` (SVG→mm) is separate from `scaleX/Y` (shape scale around pivot) and `rotation` (degrees, counter-clockwise seen from above, around the same pivot). `applyTransformSVG` scales and then rotates in SVG space before `svgToMM` converts; with `flipY` the angle's sign flips there so the bed always sees counter-clockwise. `rotation.test.ts` pins this.
 - Twisting a part shifts each layer by `r · Δθ` at distance `r` from the pivot, so steep twists overhang. That is the user's call; the app doesn't warn or limit it.
 - `flipY`: most printers want Y growing upward; SVG Y grows downward.

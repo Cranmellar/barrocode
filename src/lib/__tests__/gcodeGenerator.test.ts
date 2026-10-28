@@ -3,12 +3,12 @@ import type { PrintParams, SampledPath } from '../../types';
 import { generateWaveLayers } from '../waveGenerator';
 import { generateGcode } from '../gcodeGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, curve, interpret, polyline, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, curve, interpret, polyline, sampledPath } from './fixtures';
 
 function run(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
   const params = { ...PARAMS, ...overrides };
-  const layers = generateWaveLayers(paths, params, [], VIEWBOX.height);
-  const toolpath = buildToolpath(layers, params, VIEWBOX.height);
+  const layers = generateWaveLayers(paths, params, []);
+  const toolpath = buildToolpath(layers, params, CENTRE);
   return { params, gcode: generateGcode(toolpath, params), toolpath };
 }
 
