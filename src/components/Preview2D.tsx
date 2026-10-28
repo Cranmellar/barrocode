@@ -22,6 +22,7 @@ import {
   type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
+import { FlowSteps } from './FlowSteps';
 import { downloadGcode } from '../lib/gcodeGenerator';
 
 interface Props {
@@ -716,6 +717,13 @@ export function Preview2D({
           {gcodeBusy && gcode && <span className="gcode-progress" role="progressbar" aria-label="Generando G-code" />}
         </div>
       </div>
+
+      {sampledPaths.length === 0 && numLayers === 0 && (
+        <div className="stage-empty"
+          style={{ left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset }}>
+          <FlowSteps />
+        </div>
+      )}
 
       {numLayers > 0 && (
         <span className={`view-angles${showAngles ? ' view-angles--on' : ''}`} aria-hidden="true"

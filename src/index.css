@@ -366,6 +366,44 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   overflow: hidden;
 }
 
+/* Four-step flow under the canvas empty-state text (drawn ≈26 px below centre). */
+.stage-empty {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+.stage-empty-flow {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 52px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+}
+.stage-empty-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.stage-empty-step svg { width: 36px; height: 36px; display: block; }
+.stage-empty-step b { color: var(--accent); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
+.hf-ink    { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linejoin: round; }
+.hf-accent { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+.stage-empty-sep {
+  margin-top: 15px;
+  width: 5px;
+  height: 5px;
+  border-top: 1.5px solid var(--muted);
+  border-right: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+
 /* Small wave figure at the top of the wave panel */
 .liss-figure {
   position: relative;
@@ -485,38 +523,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 
 .help-figure { margin: 4px 0 10px; }
-
-.help-flow {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
-}
-.help-flow-step {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 8px 4px 6px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-  font-size: var(--fs-xs);
-  color: var(--muted);
-}
-.help-flow-step + .help-flow-step::before {
-  content: '→';
-  position: absolute;
-  left: -8px;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-.help-flow-step svg { width: 100%; max-width: 64px; height: auto; display: block; }
-.help-flow-step b { color: var(--accent); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
-.hf-ink    { fill: none; stroke: var(--ink-2); stroke-width: 1.5; stroke-linejoin: round; }
-.hf-accent { fill: none; stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
 
 .help-diagram {
   display: block;
