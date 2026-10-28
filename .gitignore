@@ -29,3 +29,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Claude Code per-user settings and local worktrees
+.claude/settings.local.json
+.claude/worktrees/
