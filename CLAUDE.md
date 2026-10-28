@@ -59,7 +59,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Priming runs along +X 10 mm beside the first layer's bounding box (below it, or above when below would turn Y negative), not at `origin − 5`.
 - **SVG placement and size** — sampled points are shifted so the viewBox's top-left corner is (0, 0) (a centred `viewBox="-100 -100 200 200"` used to print 100 mm off). A physical root `width`/`height` (`mm`, `cm`, `in`, `pt`, `pc`, `Q`) sets `ParsedSVG.mmPerUnit`; loading such a file adopts it as `scaleFactor`, and `PathParams` offers *Usar tamaño real* when they differ. Unitless/px SVGs keep 1 unit = 1 mm. Verified in Chromium; `svgParser` still has no automated test.
 - **Critical review (Oct 2026)**, recorded in `pendientes.md` → *Revisión crítica*. Fixed:
-  - "Reiniciar" in the Lissajous panel restores only the fields that panel edits (`LISS_PANEL_FIELDS` in `App.tsx`), through `setLissParams`, so with a keyframe selected it resets that keyframe. It is disabled while keyframes lock the global wave.
+  - "Reiniciar" in the Lissajous panel restores only the fields that panel edits (`LISS_PANEL_FIELDS` in `App.tsx`), through `setLissParams`, so with a keyframe selected it resets that keyframe. It is disabled when keyframes exist and none is selected.
   - The layer count is computed once by `layerCount()` (`waveGenerator.ts`), capped at `MAX_LAYERS` (500); use it instead of re-deriving `numLayers` / `totalHeight / layerHeight`.
   - Default G-code filename is `barrocode.gcode`.
   - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
@@ -303,7 +303,7 @@ Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale/rotation fields 
 - `gcodeTimerRef` — debounce handle for G-code regeneration (400 ms)
 - `centerTab: 'preview' | 'gcode'` — whether the G-code drawer is open over the 3D view
 - `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
-- `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it
+- `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it. With keyframes and none selected (`autoKey`), the panel shows the wave interpolated at the extruder, and `setLissParams` turns an edit of a wave field into a keyframe there (or edits the one under the extruder) and selects it; the *Fase* fields stay global
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 - `savedSession: SavedSession | null` — last autosaved session (`localStorage` key `barrocode.session`, written 1 s after changes), offered for restore while no SVG is loaded
 

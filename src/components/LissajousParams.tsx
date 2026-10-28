@@ -12,8 +12,9 @@ interface Props {
   // Default values: sliders mark them and snap to them.
   defaults: PrintParams;
   editingKf: { number: number; label: string; color: string; onDone: () => void } | null;
-  // Keyframes exist but none is selected: the wave fields have no effect.
-  waveLocked: boolean;
+  // Keyframes exist but none is selected: the panel shows the wave at the
+  // extruder (this position), and editing it creates a keyframe there.
+  autoKeyAt: string | null;
   // Small figure of the wave, shown under the header.
   figure?: React.ReactNode;
   headerExtra?: React.ReactNode;
@@ -154,7 +155,7 @@ const PRESETS = [
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function LissajousParams({ params, onChange, onReset, morph, defaults, editingKf, waveLocked, figure, headerExtra }: Props) {
+export function LissajousParams({ params, onChange, onReset, morph, defaults, editingKf, autoKeyAt, figure, headerExtra }: Props) {
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
@@ -167,10 +168,12 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <div className="panel-header">
         <span>Onda</span>
         <span className="panel-header-actions">
-          <button className="btn-reset" onClick={onReset} disabled={waveLocked}
+          <button className="btn-reset" onClick={onReset} disabled={autoKeyAt !== null}
             title={editingKf
               ? 'Restablece la onda de este keyframe y la fase'
-              : 'Restablece solo los parámetros de la onda'}>Restablecer</button>
+              : autoKeyAt !== null
+                ? 'Selecciona un keyframe para restablecer su onda'
+                : 'Restablece solo los parámetros de la onda'}>Restablecer</button>
           {headerExtra}
         </span>
       </div>
@@ -184,102 +187,100 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
           <button className="btn-small liss-context-done" onClick={editingKf.onDone}
             title="Terminar de editar el keyframe (Esc)">OK</button>
         </div>
-      ) : waveLocked ? (
-        <div className="liss-context liss-context--locked">
-          La onda la definen los keyframes. Selecciona uno en la línea de tiempo para editarla.
+      ) : autoKeyAt !== null ? (
+        <div className="liss-context liss-context--live">
+          Onda en el extrusor ({autoKeyAt}). Al cambiar un valor se crea un keyframe aquí.
         </div>
       ) : (
         <div className="liss-context">Onda global: se aplica a toda la pieza</div>
       )}
 
-      <fieldset className="liss-fieldset" disabled={waveLocked}>
-        {/* ── Preajustes ── */}
-        <Sec title="Preajustes">
-          <div className="preset-grid">
-            {PRESETS.map(p => {
-              const on = params.lissAmpN === p.ampN && params.lissAmpT === p.ampT
-                && params.lissWlN === p.wlN && params.lissWlT === p.wlT
-                && Math.abs(params.lissDelta - rad(p.d)) < 1e-9;
-              return (
-              <button key={p.label} className={`btn-preset${on ? ' btn-preset--on' : ''}`} aria-pressed={on}
-                onClick={() =>
-                onChange({ ...params,
-                  lissAmpN: p.ampN, lissAmpT: p.ampT,
-                  lissWlN: p.wlN,  lissWlT: p.wlT,
-                  lissDelta: rad(p.d),
-                }, true)
-              }>
-                <LissajousMini
-                  ampN={p.ampN} ampT={p.ampT}
-                  wlN={p.wlN}   wlT={p.wlT}
-                  delta={rad(p.d)}
-                />
-                {p.label}
-              </button>
-              );
-            })}
+      {/* ── Preajustes ── */}
+      <Sec title="Preajustes">
+        <div className="preset-grid">
+          {PRESETS.map(p => {
+            const on = params.lissAmpN === p.ampN && params.lissAmpT === p.ampT
+              && params.lissWlN === p.wlN && params.lissWlT === p.wlT
+              && Math.abs(params.lissDelta - rad(p.d)) < 1e-9;
+            return (
+            <button key={p.label} className={`btn-preset${on ? ' btn-preset--on' : ''}`} aria-pressed={on}
+              onClick={() =>
+              onChange({ ...params,
+                lissAmpN: p.ampN, lissAmpT: p.ampT,
+                lissWlN: p.wlN,  lissWlT: p.wlT,
+                lissDelta: rad(p.d),
+              }, true)
+            }>
+              <LissajousMini
+                ampN={p.ampN} ampT={p.ampT}
+                wlN={p.wlN}   wlT={p.wlT}
+                delta={rad(p.d)}
+              />
+              {p.label}
+            </button>
+            );
+          })}
+        </div>
+      </Sec>
+
+      {/* ── Eje N ── */}
+      <Sec title="N · Normal (lateral)">
+        <Slider morph={morph} def={defaults.lissAmpN} label="Amplitud N" value={params.lissAmpN}
+          min={0} max={30} step={0.1} unit="mm"
+          hint="Desplazamiento máximo a izquierda/derecha de la línea central"
+          onChange={v => set('lissAmpN', v)} />
+        <Slider morph={morph} def={defaults.lissWlN} label="Longitud de onda N" value={params.lissWlN}
+          min={1} max={200} step={1} unit="mm"
+          hint="Longitud de arco por ciclo completo en dirección normal"
+          onChange={v => set('lissWlN', v)} />
+      </Sec>
+
+      {/* ── Eje T ── */}
+      <Sec title="T · Tangente (avance)">
+        <Slider morph={morph} def={defaults.lissAmpT} label="Amplitud T" value={params.lissAmpT}
+          min={0} max={30} step={0.1} unit="mm"
+          hint="Desplazamiento máximo en la dirección de avance del trayecto"
+          onChange={v => set('lissAmpT', v)} />
+        <Slider morph={morph} def={defaults.lissWlT} label="Longitud de onda T" value={params.lissWlT}
+          min={1} max={200} step={1} unit="mm"
+          hint="Longitud de arco por ciclo completo en dirección tangente"
+          onChange={v => set('lissWlT', v)} />
+      </Sec>
+
+      {/* ── Eje Z ── */}
+      <Sec title="Z · Vertical">
+        {params.lissAmpZ > params.layerHeight && (
+          <div className="warn-note">
+            ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
+            ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
           </div>
-        </Sec>
-
-        {/* ── Eje N ── */}
-        <Sec title="N · Normal (lateral)">
-          <Slider morph={morph} def={defaults.lissAmpN} label="Amplitud N" value={params.lissAmpN}
-            min={0} max={30} step={0.1} unit="mm"
-            hint="Desplazamiento máximo a izquierda/derecha de la línea central"
-            onChange={v => set('lissAmpN', v)} />
-          <Slider morph={morph} def={defaults.lissWlN} label="Longitud de onda N" value={params.lissWlN}
+        )}
+        <Slider morph={morph} def={defaults.lissAmpZ} label="Amplitud Z" value={params.lissAmpZ}
+          min={0} max={20} step={0.1} unit="mm"
+          hint="Desplazamiento máximo vertical. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa anterior; con amplitudes grandes los valles se aplanan."
+          onChange={v => set('lissAmpZ', v)} />
+        {params.lissAmpZ > 0 && <>
+          <Slider morph={morph} def={defaults.lissWlZ} label="Longitud de onda Z" value={params.lissWlZ}
             min={1} max={200} step={1} unit="mm"
-            hint="Longitud de arco por ciclo completo en dirección normal"
-            onChange={v => set('lissWlN', v)} />
-        </Sec>
-
-        {/* ── Eje T ── */}
-        <Sec title="T · Tangente (avance)">
-          <Slider morph={morph} def={defaults.lissAmpT} label="Amplitud T" value={params.lissAmpT}
-            min={0} max={30} step={0.1} unit="mm"
-            hint="Desplazamiento máximo en la dirección de avance del trayecto"
-            onChange={v => set('lissAmpT', v)} />
-          <Slider morph={morph} def={defaults.lissWlT} label="Longitud de onda T" value={params.lissWlT}
-            min={1} max={200} step={1} unit="mm"
-            hint="Longitud de arco por ciclo completo en dirección tangente"
-            onChange={v => set('lissWlT', v)} />
-        </Sec>
-
-        {/* ── Eje Z ── */}
-        <Sec title="Z · Vertical">
-          {params.lissAmpZ > params.layerHeight && (
-            <div className="warn-note">
-              ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
-              ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
-            </div>
-          )}
-          <Slider morph={morph} def={defaults.lissAmpZ} label="Amplitud Z" value={params.lissAmpZ}
-            min={0} max={20} step={0.1} unit="mm"
-            hint="Desplazamiento máximo vertical. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa anterior; con amplitudes grandes los valles se aplanan."
-            onChange={v => set('lissAmpZ', v)} />
-          {params.lissAmpZ > 0 && <>
-            <Slider morph={morph} def={defaults.lissWlZ} label="Longitud de onda Z" value={params.lissWlZ}
-              min={1} max={200} step={1} unit="mm"
-              hint="Longitud de arco por ciclo completo en dirección vertical"
-              onChange={v => set('lissWlZ', v)} />
-            <Slider morph={morph} def={deg(defaults.lissPhaseZ)} label="Fase Z" value={deg(params.lissPhaseZ)}
-              min={-180} max={180} step={1} unit="°"
-              hint="Desfase de la oscilación Z respecto a la fase base"
-              onChange={v => set('lissPhaseZ', rad(v))} />
-          </>}
-        </Sec>
-
-        {/* ── Acoplamiento N/T ── */}
-        <Sec title="Acoplamiento N / T">
-          <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
+            hint="Longitud de arco por ciclo completo en dirección vertical"
+            onChange={v => set('lissWlZ', v)} />
+          <Slider morph={morph} def={deg(defaults.lissPhaseZ)} label="Fase Z" value={deg(params.lissPhaseZ)}
             min={-180} max={180} step={1} unit="°"
-            hint="Desfase entre N y T. 0°=línea  90°=elipse (si λN=λT)  180°=línea cruzada"
-            onChange={v => set('lissDelta', rad(v))} />
-        </Sec>
-      </fieldset>
+            hint="Desfase de la oscilación Z respecto a la fase base"
+            onChange={v => set('lissPhaseZ', rad(v))} />
+        </>}
+      </Sec>
+
+      {/* ── Acoplamiento N/T ── */}
+      <Sec title="Acoplamiento N / T">
+        <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
+          min={-180} max={180} step={1} unit="°"
+          hint="Desfase entre N y T. 0°=línea  90°=elipse (si λN=λT)  180°=línea cruzada"
+          onChange={v => set('lissDelta', rad(v))} />
+      </Sec>
 
       {/* ── Fase ── */}
-      <Sec title="Fase" badge={editingKf || waveLocked ? 'Global' : undefined}>
+      <Sec title="Fase" badge={editingKf || autoKeyAt !== null ? 'Global' : undefined}>
         <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
           hint="Fase global al inicio del arco (s=0)"

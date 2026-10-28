@@ -90,7 +90,7 @@ Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket
 
 **B — Entender la interpolación**
 
-- [ ] **KF-B1 — Panel de onda vivo.** Con keyframes y ninguno seleccionado, el panel muestra valores globales que no tienen efecto. Mostrar en gris los valores interpolados en el extrusor (`getParamsAtT`), que cambian al recorrer la línea de tiempo. Opcional (*auto-key*): tocar un slider en ese estado crea un keyframe en el extrusor. **Decisión pendiente** sobre el auto-key.
+- [x] **KF-B1 — Panel de onda vivo, con auto-key.** Con keyframes y ninguno seleccionado, el panel estaba bloqueado mostrando valores globales sin efecto. Ahora muestra la onda interpolada en el extrusor (`getParamsAtT`), que cambia al recorrer la línea de tiempo, y queda editable: cambiar un valor de la onda (slider, campo o preajuste) crea un keyframe en el extrusor con ese cambio, lo selecciona y lo confirma con un toast; si ya hay uno bajo el extrusor, lo edita. *Fase* sigue siendo global y *Restablecer* solo actúa con un keyframe seleccionado.
 - [ ] **KF-B2 — Curva del parámetro en la línea de tiempo.** Al pasar sobre un slider del panel o un campo del dock, dibujar en el carril de keyframes una curva pequeña de ese valor a lo largo de `t` (≈200 llamadas a `getParamsAtT`).
 - [ ] **KF-B3 — Diferencias con el keyframe anterior.** Marcar en el editor qué campos cambian respecto al anterior ("N 2 → 6 mm").
 

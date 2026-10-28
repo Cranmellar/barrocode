@@ -254,10 +254,15 @@ export default function App() {
   );
 
   // While a keyframe is selected the Lissajous panel shows and edits that
-  // keyframe's wave; global values are overridden whenever keyframes exist.
-  const lissParams: PrintParams = selectedKf
+  // keyframe's wave. With keyframes but none selected it shows the wave
+  // interpolated at the extruder, and editing it keys it there (auto-key):
+  // the global values have no effect once keyframes exist.
+  const autoKey = keyframes.length > 0 && !selectedKf;
+  const shownWave: Partial<Record<KfLissKey, number>> | null =
+    selectedKf ?? (autoKey ? getParamsAtT(timelineProgress, keyframes, params) : null);
+  const lissParams: PrintParams = shownWave
     ? KF_LISS_FIELDS.reduce<PrintParams>(
-        (acc, [pk, kk]) => ({ ...acc, [pk]: selectedKf[kk] ?? params[pk] }),
+        (acc, [pk, kk]) => ({ ...acc, [pk]: shownWave[kk] ?? params[pk] }),
         params,
       )
     : params;
@@ -266,7 +271,7 @@ export default function App() {
   const [lissMorph, setLissMorph] = useState(0);
   function setLissParams(next: PrintParams, morph = false) {
     if (morph) setLissMorph(n => n + 1);
-    if (!selectedKf) { setParams(next); return; }
+    if (!shownWave) { setParams(next); return; }
     const kfPatch: Partial<Record<KfLissKey, number>> = {};
     const globalNext = { ...next };
     for (const [pk, kk] of KF_LISS_FIELDS) {
@@ -274,7 +279,18 @@ export default function App() {
       globalNext[pk] = params[pk];
     }
     setParams(globalNext);
-    setKeyframes(keyframes.map(k => k.id === selectedKf.id ? { ...k, ...kfPatch } : k));
+    if (Object.keys(kfPatch).length === 0) return;
+    const target = selectedKf ?? kfAtCursor;
+    if (target) {
+      setKeyframes(keyframes.map(k => k.id === target.id ? { ...k, ...kfPatch } : k));
+      setSelectedKfId(target.id);
+      return;
+    }
+    const newKf = { ...snapshotKeyframe(timelineProgress), ...kfPatch };
+    const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
+    setKeyframes(updated);
+    setSelectedKfId(newKf.id);
+    showToast(`Keyframe ${updated.indexOf(newKf) + 1} creado en el ${Math.round(newKf.t * 100)} %`);
   }
 
   function resetLissParams() {
@@ -300,16 +316,12 @@ export default function App() {
     if (kf) glideTimeline(kf.t);
   }
 
-  function addKeyframe() {
-    if (kfAtCursor) {
-      selectKf(kfAtCursor.id === selectedKfId ? null : kfAtCursor.id);
-      return;
-    }
-    // Snapshot the wave currently shown at this t, so adding a keyframe
-    // between existing ones doesn't change the shape.
-    const lp = getParamsAtT(timelineProgress, keyframes, params);
-    const newKf: WaveKeyframe = {
-      id: uid(), t: timelineProgress,
+  // A new keyframe holds the wave currently shown at t, so adding one
+  // between existing ones doesn't change the shape.
+  function snapshotKeyframe(t: number): WaveKeyframe {
+    const lp = getParamsAtT(t, keyframes, params);
+    return {
+      id: uid(), t,
       ampN: lp.ampN, ampT: lp.ampT, ampZ: lp.ampZ,
       wlN: lp.wlN, wlT: lp.wlT, wlZ: lp.wlZ,
       delta: lp.delta, phaseZ: lp.phaseZ,
@@ -317,6 +329,14 @@ export default function App() {
       scaleX: lp.scaleX, scaleY: lp.scaleY,
       rotation: lp.rotation,
     };
+  }
+
+  function addKeyframe() {
+    if (kfAtCursor) {
+      selectKf(kfAtCursor.id === selectedKfId ? null : kfAtCursor.id);
+      return;
+    }
+    const newKf = snapshotKeyframe(timelineProgress);
     const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
     setKeyframes(updated);
     setSelectedKfId(newKf.id);
@@ -857,7 +877,7 @@ export default function App() {
                 color: keyframeColor(selectedKf.t),
                 onDone: () => setSelectedKfId(null),
               }}
-              waveLocked={keyframes.length > 0 && !selectedKf}
+              autoKeyAt={autoKey ? `${Math.round(timelineProgress * 100)} %, capa ${layerAtT(toolpath, timelineProgress) + 1}` : null}
               figure={<div className="liss-figure"><LissajousPreview params={lissParams} morph={lissMorph} /></div>}
               headerExtra={
                 <button className="btn-icon" onClick={() => togglePanel('right')}
