@@ -131,7 +131,7 @@ El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin
 | Rueda del mouse | Zoom |
 | **Ajustar** | Encuadre automático |
 | **Iso / Planta / Frente** | Vistas predefinidas, con encuadre |
-| Slider de capas (borde derecho) | Muestra hasta la capa elegida; **Sola** deja solo esa capa en color y las inferiores en gris |
+| Slider de capas (borde derecho) | Muestra hasta la capa elegida; el botón *Aislar capa* (icono de capas, debajo) deja solo esa capa en color y las inferiores en gris |
 
 Las vistas y el encuadre se animan; al soltar una rotación la cámara sigue un instante por inercia. El azimut y la elevación aparecen junto al cubo de orientación solo mientras la cámara gira.
 
