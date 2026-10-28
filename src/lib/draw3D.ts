@@ -78,6 +78,25 @@ export function flattenPoints(toolpath: ToolpathLayer[]): FlatPoint[] {
   return pts;
 }
 
+// Index of the layer the extruder sits on at timeline position t: the same
+// point the preview draws it at, counted without flattening.
+export function layerAtT(toolpath: ToolpathLayer[], t: number): number {
+  const sizes = toolpath.map(l => l.paths.reduce((n, p) => n + p.length, 0));
+  const total = sizes.reduce((a, b) => a + b, 0);
+  let idx = Math.min(total - 1, Math.floor(t * (total - 1)));
+  for (let i = 0; i < toolpath.length; i++) {
+    if (idx < sizes[i]) return toolpath[i].index;
+    idx -= sizes[i];
+  }
+  return toolpath.length > 0 ? toolpath[toolpath.length - 1].index : 0;
+}
+
+// "capa 23 · 34.5 mm": the 1-based layer and the part's height at its top,
+// which for the last layer matches the height under Cotas.
+export function layerLabel(layerIndex: number, layerHeight: number): string {
+  return `capa ${layerIndex + 1} · ${parseFloat(((layerIndex + 1) * layerHeight).toFixed(1))} mm`;
+}
+
 export interface Scene {
   view: View3D;
   toolpath: ToolpathLayer[];

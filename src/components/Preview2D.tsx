@@ -19,7 +19,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
+  type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt, layerAtT, layerLabel,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
@@ -266,6 +266,7 @@ export function Preview2D({
   }, [hasEditor]);
 
   const flatPoints = useMemo(() => flattenPoints(toolpath), [toolpath]);
+  const layerLabelAt = (t: number) => layerLabel(layerAtT(toolpath, t), params.layerHeight);
 
   const modelBounds = useMemo(() => {
     if (flatPoints.length === 0) return null;
@@ -817,7 +818,7 @@ export function Preview2D({
                         e.stopPropagation();
                         kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
                       }}
-                      title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% — clic para editar, arrastrar para mover`}
+                      title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% · ${layerLabelAt(kf.t)} — clic para editar, arrastrar para mover`}
                     >{i + 1}</div>
                   );
                 })}
@@ -831,7 +832,7 @@ export function Preview2D({
                   const kf = keyframes.find(k => k.id === draggingKfId);
                   return kf && (
                     <span className="kf-drag-label" style={{ left: `${kf.t * 100}%` }}>
-                      {(kf.t * 100).toFixed(1)}%
+                      {(kf.t * 100).toFixed(1)}% · {layerLabelAt(kf.t)}
                     </span>
                   );
                 })()}
@@ -844,7 +845,10 @@ export function Preview2D({
                 onChange={e => onTimelineChange(parseFloat(e.target.value))}
               />
             </div>
-            <span className="timeline-pct">{Math.round(timelineProgress * 100)}%</span>
+            <span className="timeline-pct" title="Posición del extrusor en el recorrido, su capa y la altura de la pieza al terminarla">
+              {Math.round(timelineProgress * 100)}%
+              <span className="timeline-layer">{layerLabelAt(timelineProgress)}</span>
+            </span>
             {timelineActions}
           </div>
         </div>

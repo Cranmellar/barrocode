@@ -4,7 +4,7 @@ import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
-import { keyframeColor } from './lib/draw3D';
+import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
@@ -641,7 +641,7 @@ export default function App() {
     <div className="kf-editor">
       <div className="kf-group">
         <div className="kf-field">
-          <label>Posición</label>
+          <label>Posición <span className="kf-field-hint">{layerLabel(layerAtT(toolpath, selectedKf.t), params.layerHeight)}</span></label>
           <div className="kf-field-input-row">
             <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
               onChange={v => moveSelectedKf(v / 100)} />

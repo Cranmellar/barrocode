@@ -356,6 +356,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   text-align: right;
   color: var(--ink-2);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.timeline-layer {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
 .gcode-drawer {
@@ -1414,6 +1421,11 @@ input[type="range"]::-moz-range-thumb {
   color: var(--muted);
   white-space: nowrap;
   line-height: 1;
+}
+.kf-field-hint {
+  margin-left: var(--sp-1);
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
 }
 .kf-field-input-row {
   display: flex;
