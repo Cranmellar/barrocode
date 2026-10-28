@@ -1367,6 +1367,9 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-group:last-child { border-right: none; }
 .kf-group-ease { flex: 0 0 auto; }
+.kf-group-ease .kf-field { align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
+.kf-ease-glyph { color: var(--ink-2); }
+.kf-ease-glyph path:first-child { transition: d var(--dur) var(--ease); }
 .kf-group .kf-field {
   border-right: none;
   border-bottom: 1px solid var(--border);

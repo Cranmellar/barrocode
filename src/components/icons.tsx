@@ -21,11 +21,6 @@ const PATHS = {
   </>),
   escalaX: <path d="M2 8h12M4.5 5.5 2 8l2.5 2.5M11.5 5.5 14 8l-2.5 2.5" />,
   escalaY: <path d="M8 2v12M5.5 4.5 8 2l2.5 2.5M5.5 11.5 8 14l2.5-2.5" />,
-  transicion: (<>
-    <path d="M2 13.5c6 0 6-11 12-11" />
-    <circle cx="2" cy="13.5" r="1" />
-    <circle cx="14" cy="2.5" r="1" />
-  </>),
   centro: (<>
     <circle cx="8" cy="8" r="3.5" />
     <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" />

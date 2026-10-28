@@ -117,6 +117,19 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
   );
 }
 
+// A keyframe between two straight segments: a corner, or reached and left flat when smooth.
+function EaseGlyph({ smooth }: { smooth: boolean }) {
+  return (
+    <svg className="kf-ease-glyph" width="44" height="24" viewBox="0 0 44 24" fill="none" stroke="currentColor"
+      strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d={smooth ? 'M2 21C10 16 14 4 22 4C30 4 34 16 42 21' : 'M2 21C10 15 14 10 22 4C30 10 34 15 42 21'} />
+      {smooth
+        ? <circle cx="22" cy="4" r="2.6" fill="currentColor" />
+        : <path d="M22 1.2 24.8 4 22 6.8 19.2 4z" fill="currentColor" />}
+    </svg>
+  );
+}
+
 // True while a scroller has content hidden below its visible area.
 // `active` follows whether the scroller is mounted (its panel can be hidden).
 function useScrollMore<T extends HTMLElement>(active: boolean) {
@@ -740,7 +753,8 @@ export default function App() {
 
       <div className="kf-group kf-group-ease">
         <div className="kf-field" title="Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, los tramos son rectos.">
-          <label><Icon name="transicion" size={11} />Transición</label>
+          <label>Transición</label>
+          <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
           <label className="kf-switch">
             <input type="checkbox" checked={Boolean(selectedKf.smooth)}
               onChange={e => updateKf('smooth', e.target.checked)} />
