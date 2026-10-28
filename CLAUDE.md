@@ -162,7 +162,7 @@ Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G
 7. **Keyframe drag and `CenterPad` drag** call `setKeyframes` on every `mousemove`, so each move runs the full pipeline, about the cost of a slider tick. The timeline keyframe drag now applies moves once per animation frame, but in Chromium that measured within noise (60 moves at 60 layers: ≈5.4–6.7 s of main thread before, ≈5.1–5.9 s after): Chromium already delivers at most one `mousemove` per frame and React batches updates within a task. The real cost is the pipeline itself, ≈85 ms per frame at 60 layers. `CenterPad` drag is unchanged. `CenterPad.partBounds` also passes every point through `svgToMM` each time the layers or params change; take the bounds from the shared toolpath instead.
 
 Lower priority:
-- Loading an SVG with arcs is slow: `getPointAtLength` costs 0.2–0.7 ms per call on arc-heavy paths and `sampleElement` makes three per sample, so samples 4, 5 and 7 (480 mm at the default scale) take 2–3 s to load. Taking each tangent from the neighbouring samples instead would cut it to a third; it changes the tangents, so check the corner rounding and snapshots.
+- ~~Loading an SVG with curves or arcs was slow.~~ **Done.** Chromium measures every curve before `t` again on each `getPointAtLength` call (0.2–0.7 ms on the samples' arcs and cubics, 0.004 ms on lines), and `sampleElement` made three calls per sample. Now each sample gets one, and where the outline turns evenly (the sample and both neighbours within 1° of each other, none over 45°) the chord between its neighbours is the tangent, exact on a circular arc; elsewhere it keeps the two measured ones, which `roundCorners` needs to see a corner between samples. Load, click to idle: sample 4 ≈1955 → ≈700 ms, 5 ≈2710 → ≈1050, 7 ≈3290 → ≈1260, 2/3/6/8 to about a third. Against the old tangents, on the eight samples at N 3 and 6 mm: tangents within 0.3°, waved layer within 0.02 mm, the same corners rounded (a sharp five-point star at three rotations: identical); default G-code for samples 1, 4, 8: same lines and E, coordinates within 0.01 mm.
 - Editing `sampleSpacing` re-parses the SVG on every keystroke or wheel tick, with three `getPointAtLength` calls per sample. Debounce it by ≈300 ms.
 - Autosave runs `JSON.stringify` on the raw SVG 1 s after every change. Store the raw SVG under its own key, and only when it changes.
 - The whole tree re-renders on each timeline tick, with no `React.memo`. This costs less than 3 ms, small next to the canvas.
@@ -186,10 +186,10 @@ SVG string
        • a <path> with several subpaths (a contour with a hole) is split by
          splitSubpaths() into one SampledPath per subpath (id-1, id-2…);
          sampled whole, the jump between them printed as a bead
-       • arc-length sampling via getTotalLength + getPointAtLength (three
-         calls per sample; `tangents` false makes it one, for callers that
-         only need positions)
-       • finite-difference tangent/normal per sample
+       • arc-length sampling via getTotalLength + getPointAtLength: one call
+         per sample, two more for a tangent measured either side where the
+         outline doesn't turn evenly; elsewhere the chord between the
+         neighbouring samples (`tangents` false skips tangents entirely)
        • getScreenCTM() for transforms
        • points shifted by −viewBox.x/y so the viewBox corner is (0, 0)
      → ParsedSVG { paths: SampledPath[], viewBox, mmPerUnit, raw }
@@ -405,6 +405,7 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the canvas boundary on fast moves.
 - **Z-hop crossing detection** uses a spatial grid; it only `console.warn`s above 3000 points (`WARN_PTS`), never skips.
+- **`roundCorners` restarts a loop at a near-tie.** When it fillets a corner on a closed path's seam, it restarts the loop at the fillet sample nearest the old start; on a symmetric fillet two samples are about as near, so a tiny change in the input (a tangent off by 0.1°) can pick the other one and shift the whole wave by one sample (sample 2 at N 3 mm: up to 0.8 mm). Either result is valid; compare geometry, not point by point, when checking a change.
 
 ---
 
