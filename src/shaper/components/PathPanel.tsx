@@ -140,9 +140,10 @@ export function PathPanel(props: Props) {
                   : `C ${xy(prev.outX, prev.outY)}  ${xy(q.inX, q.inY)}  ${xy(q.x, q.y)}`;
                 const on = sel?.c === c && sel.i === i;
                 return (
-                  <li key={k} data-node={k < ns.length ? `${c}:${i}` : undefined}
-                    className={`path-command${on ? ' path-command--on' : ''}`}
-                    onClick={() => onSelect({ c, i })}>{text}</li>
+                  <li key={k} data-node={k < ns.length ? `${c}:${i}` : undefined}>
+                    <button className={`path-command${on ? ' path-command--on' : ''}`} aria-pressed={on}
+                      onClick={() => onSelect({ c, i })}>{text}</button>
+                  </li>
                 );
               })}
               <li className="path-command path-command--end">Z</li>

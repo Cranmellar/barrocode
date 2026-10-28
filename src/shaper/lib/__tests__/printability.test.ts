@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_SHAPE, shapePoints, type ShapeDoc } from '../shape';
-import { checkShape } from '../printability';
+import { checkShape, waveBand } from '../printability';
 import type { Pt } from '../families';
 import { cornerRadius, roundCorners } from '../../../lib/waveGenerator';
 import type { SampledPath, SampledPoint } from '../../../types';
@@ -95,5 +95,15 @@ describe('checkShape', () => {
     const pts = shapePoints({ ...DEFAULT_SHAPE, family: 'polygon', polySides: 4, polyFilletMM: 0, sizeMM: 100 });
     const corners = checkShape(pts, WAVE).tight.map(s => pts[s.index]);
     for (const c of corners) expect(Math.hypot(c.x, c.y)).toBeGreaterThan(49);
+  });
+});
+
+describe('waveBand', () => {
+  it('runs amp mm to either side of the line', () => {
+    const pts = shapePoints({ ...DEFAULT_SHAPE, family: 'superformula', sfM: 0, sizeMM: 80 });
+    const [a, b] = waveBand(pts, 3);
+    const radii = (q: Pt[]) => q.map(p => Math.hypot(p.x, p.y));
+    for (const r of radii(a)) expect(r).toBeCloseTo(37, 2);
+    for (const r of radii(b)) expect(r).toBeCloseTo(43, 2);
   });
 });

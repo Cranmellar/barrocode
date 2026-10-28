@@ -8,6 +8,26 @@ export interface WaveLimit {
   spacingMM: number;
   /** The wave in a few words, for the warning ("N 3 mm"). */
   label: string;
+  /** How far the wave swings to each side of the line (mm): the largest N amplitude. */
+  ampNMM: number;
+}
+
+/**
+ * The two lines `amp` mm to either side of a closed outline, along its
+ * normals: the band the wave sweeps. Where the outline bends tighter than
+ * `amp`, the inner line crosses itself.
+ */
+export function waveBand(pts: Pt[], amp: number): [Pt[], Pt[]] {
+  const n = pts.length;
+  const left: Pt[] = [], right: Pt[] = [];
+  pts.forEach((p, i) => {
+    const a = pts[(i - 1 + n) % n], b = pts[(i + 1) % n];
+    const tx = b.x - a.x, ty = b.y - a.y, l = Math.hypot(tx, ty) || 1;
+    const nx = -ty / l, ny = tx / l;
+    left.push({ x: p.x + nx * amp, y: p.y + ny * amp });
+    right.push({ x: p.x - nx * amp, y: p.y - ny * amp });
+  });
+  return [left, right];
 }
 
 /** A stretch of the outline tighter than the wave can follow. */

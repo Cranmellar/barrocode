@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F5 hechas (ver sección 6); el resto, propuesta.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F6 hechas (ver sección 6). Queda abierta D-S4.
 
 ---
 
@@ -95,11 +95,11 @@ Cada pedido nuevo se compara con esta lista antes de entrar.
 |---|---|---|
 | D-S1 | **Deshacer en el shaper.** El proyecto no tiene undo, pero editar puntos sin deshacer es frustrante. | **Cerrada: sí**, local al shaper: una pila de `ShapeDoc` (son pocos bytes). *Impresión* sigue sin undo. |
 | D-S2 | **`svg-path-editor-lib` o modelo propio.** El proyecto no tiene dependencias en runtime aparte de React. | **Cerrada: modelo propio** (F4). La librería (1.0.4, Apache-2.0, ESM, ≈4,8 kB gzip) pasaba el filtro de peso, pero su modelo son comandos mutables cuyas asas pertenecen a comandos distintos: mover un nodo no mueve sus asas, no parte una curva sin cambiarla y convertir a curva pone las asas en tercios. Habría que escribir igual el arrastre con asas, la partición y la simetría, más adaptadores. |
-| D-S3 | **Selector de espacio de trabajo o página aparte.** | Selector (sección 3.1). |
+| D-S3 | **Selector de espacio de trabajo o página aparte.** | **Cerrada:** selector, en el encabezado del panel izquierdo (F0). |
 | D-S4 | **Licencia de BarroCode.** No tiene. | MIT antes de copiar código de cualquier referente. Si solo se toman ideas, no es urgente. |
-| D-S5 | **Familias del MVP.** | Superfórmula, polígono/estrella con radio de esquina, flor de lóbulos (cubren las muestras 1, 4, 6 y 7). |
-| D-S6 | **Un contorno o varios en el MVP.** | Uno cerrado. Varios (pared doble, agujeros) cuando haya offset. |
-| D-S7 | **Color del botón *Enviar a impresión*.** `--signal` está reservado a exportar el G-code y añadir keyframe. | `.btn-primary`: dentro del flujo completo, la exportación final sigue siendo el G-code. |
+| D-S5 | **Familias del MVP.** | **Cerrada:** superfórmula, polígono/estrella con radio de esquina, flor de lóbulos (F1). |
+| D-S6 | **Un contorno o varios en el MVP.** | **Cerrada: varios** (F5), porque las muestras 4, 7 y 8 los tienen. La simetría solo con un contorno. |
+| D-S7 | **Color del botón *Enviar a impresión*.** `--signal` está reservado a exportar el G-code y añadir keyframe. | **Cerrada:** `.btn-primary` (F0). |
 
 ## 6. Fases
 
@@ -183,6 +183,13 @@ Esto es lo propio de BarroCode, que ningún referente tiene.
 - Sobre el lienzo, una banda de ±`lissAmpN` alrededor de la línea central, para ver dónde la onda chocará consigo misma antes de enviar.
 - Entrada en `HelpDialog`, atajos en la ayuda, revisión con la lista de fase 6 del overhaul.
 - Actualizar CLAUDE.md (mapa de archivos, frontera del módulo, decisiones cerradas).
+- **Hecho (2026-10-28).**
+  - **Onda fantasma:** *Onda*, en la barra superior, dibuja alrededor de cada contorno la franja de ±N que barre la onda actual (la N mayor si hay keyframes; `waveBand` en `printability.ts`), con el color del eje N del panel de onda y sus dos bordes. Donde dos franjas se solapan se ve más oscuro: en la muestra 8 con N = 12 mm, los pétalos vecinos chocan. Un test comprueba que en un círculo los bordes quedan a ±N exactos.
+  - **Ayuda:** sección *Forma: crear la pieza*, mención en el paso 1 del flujo y los atajos de *Forma* (deshacer, rehacer, doble clic, `Supr`, `Esc`). De paso se arreglaron dos espacios que faltaban ("usa*Cargar SVG*", "pulsa*Descargar*"). `docs/usage.md` tiene una sección *O crear la forma en Forma*.
+  - **Revisión (fase 6 del overhaul):**
+    - **Capturas a 1024, 1280 y 1440 px** (familia, *Descubrir*, muestra 8 importada con la franja, ayuda): la barra superior de *Forma* cabe en los tres anchos.
+    - **Teclado:** las filas de la lista de comandos eran `<li>` con clic y no se alcanzaban con Tab; ahora son botones con `aria-pressed`, y Enter elige el nodo. Los nodos del lienzo siguen siendo solo de ratón; el teclado llega a ellos por la lista y el panel del nodo.
+    - **Rendimiento de *Impresión*, `main` (`d5202be`) frente a esta rama, misma máquina, muestra 4 a 60 capas:** reposo 0,2 % / 0,2 %; tick de slider 54–84 / 51–52 ms; G-code tras editar 119–139 / 113–120 ms; paso de rotación 3,7–4,0 / 3,4–3,8 ms. Sin regresión: *Forma* se carga aparte y no corre nada mientras no está abierta.
 
 ## 7. Costo, beneficio y riesgos
 

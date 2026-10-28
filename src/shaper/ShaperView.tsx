@@ -10,7 +10,8 @@ import {
   pathD, propagate, reverseNodes, rotateStart, setSmooth, setStraight, splitSegment, splitSymmetric,
   type PathNode,
 } from './lib/pathModel';
-import { checkShape, spotIndices, type PrintCheck as Check, type WaveLimit } from './lib/printability';
+import type { Pt } from './lib/families';
+import { checkShape, spotIndices, waveBand, type PrintCheck as Check, type WaveLimit } from './lib/printability';
 import {
   DEFAULT_SHAPE, fileName, fmt, outerDiameter, shapeBounds, shapeLabel, shapeOutlines, shapePath, shapePoints,
   type ShapeDoc, type ShapeImport,
@@ -49,6 +50,8 @@ const INSERT_PX = 8;
 const COALESCE_MS = 400;
 const HISTORY = 200;
 
+const loopD = (pts: Pt[]) => 'M' + pts.map(p => `${fmt(p.x, 2)} ${fmt(-p.y, 2)}`).join('L') + 'Z';
+
 type Drag = { kind: 'anchor' | 'in' | 'out'; c: number; i: number; moved: boolean; frame: number };
 
 export function ShaperView(props: Props) {
@@ -67,6 +70,8 @@ export function ShaperView(props: Props) {
     'M' + spotIndices(t, outlines[k].length).map(i => `${fmt(outlines[k][i].x, 2)} ${fmt(-outlines[k][i].y, 2)}`).join('L'))),
   [checks, outlines]);
   const diameter = contours ? outerDiameter(outlines) : doc.sizeMM;
+  const [showBand, setShowBand] = useState(true);
+  const bands = useMemo(() => wave.ampNMM > 0 ? outlines.map(o => waveBand(o, wave.ampNMM)) : [], [outlines, wave.ampNMM]);
 
   // ── Undo ─────────────────────────────────────────────────────────────────
   const past = useRef<ShapeDoc[]>([]);
@@ -289,6 +294,17 @@ export function ShaperView(props: Props) {
         <circle className="shaper-size" cx={0} cy={0} r={diameter / 2}>
           <title>Diámetro exterior: {fmt(diameter, 1)} mm</title>
         </circle>
+        {showBand && bands.length > 0 && (
+          <g className="shaper-band">
+            {outlines.map((o, c) => (
+              <path key={c} className="shaper-band-fill" d={loopD(o)} style={{ strokeWidth: 2 * wave.ampNMM }} />
+            ))}
+            {bands.flatMap(([a, b], c) => [
+              <path key={`a${c}`} className="shaper-band-edge" d={loopD(a)} />,
+              <path key={`b${c}`} className="shaper-band-edge" d={loopD(b)} />,
+            ])}
+          </g>
+        )}
         {ds.map((d, c) => <path key={c} className="shaper-shape" d={d} />)}
         {contours && ds.map((d, c) => (
           <path key={c} className="shaper-hit" d={d}
@@ -403,6 +419,11 @@ export function ShaperView(props: Props) {
             aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶</button>
           <button className="btn-icon" onClick={redo} disabled={future.current.length === 0}
             aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷</button>
+          <button className={`btn-toggle${showBand && bands.length ? ' btn-toggle--on' : ''}`}
+            aria-pressed={showBand && bands.length > 0} disabled={bands.length === 0}
+            onClick={() => setShowBand(!showBand)}
+            title={bands.length === 0 ? 'Sin onda en Impresión'
+              : `Mostrar la franja que barre la onda: ±${fmt(wave.ampNMM, 1)} mm a cada lado. Donde dos franjas se tocan, las paredes chocarán`}>Onda</button>
           <button className={`btn-toggle${batch && !contours ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch && !contours}
             disabled={!!contours}
             onClick={() => setBatch(batch ? null : { base: doc, spread: 1, seed: newSeed() })}

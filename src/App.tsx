@@ -339,6 +339,7 @@ export default function App() {
     label: keyframes.length > 0
       ? `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`
       : [`N ${params.lissAmpN} mm`, params.lissAmpT ? `T ${params.lissAmpT} mm` : ''].filter(Boolean).join(' · '),
+    ampNMM: keyframes.length > 0 ? Math.max(...keyframes.map(k => Math.abs(k.ampN))) : Math.abs(params.lissAmpN),
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [params.lissAmpN, params.lissAmpT, params.lissWlT, params.sampleSpacing, keyframes]);
   const toolpathKey = TOOLPATH_PARAMS.map(k => params[k]).join('|');

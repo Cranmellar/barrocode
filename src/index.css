@@ -1226,6 +1226,10 @@ input[type="range"]::-moz-range-thumb {
 .shaper-size { fill: none; stroke: var(--faint); stroke-width: 1; stroke-dasharray: 4 4; }
 .shaper-arrow { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .slider-row--off { opacity: 0.5; }
+/* The band the wave sweeps: the N axis colour from the wave panel */
+.shaper-band { pointer-events: none; }
+.shaper-canvas .shaper-band-fill { fill: none; stroke: var(--n-axis); stroke-opacity: 0.1; stroke-linejoin: round; vector-effect: none; }
+.shaper-band-edge { fill: none; stroke: var(--n-axis); stroke-opacity: 0.45; stroke-width: 1; }
 .shaper-tight { fill: none; stroke: var(--err); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .shaper-spot { fill: none; stroke: var(--err); stroke-width: 1.5; }
 .shaper-value { color: var(--ink); font-variant-numeric: tabular-nums; }
@@ -1265,8 +1269,15 @@ input[type="range"]::-moz-range-thumb {
   color: var(--ink-2);
 }
 .path-command {
+  display: block;
+  width: 100%;
   padding: 2px var(--sp-1);
+  background: none;
+  border: none;
   border-radius: var(--radius-sm);
+  font: inherit;
+  color: inherit;
+  text-align: left;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
