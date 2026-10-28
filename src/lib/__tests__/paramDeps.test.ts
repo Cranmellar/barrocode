@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PrintParams, WaveKeyframe } from '../../types';
 import { generateWaveLayers, WAVE_PARAMS } from '../waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from '../toolpath';
-import { PARAMS, VIEWBOX, curve, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, curve, sampledPath } from './fixtures';
 
 // App memoizes each stage on its field list, so a field the stage reads but
 // the list omits would leave the preview and G-code stale.
@@ -55,9 +55,9 @@ describe('memo field lists', () => {
 
     it(`TOOLPATH_PARAMS lists every field buildToolpath reads — ${label}`, () => {
       const layers = generateWaveLayers(lemniscate(), BASE, keyframes);
-      const ref = buildToolpath(layers, BASE, VIEWBOX.height);
+      const ref = buildToolpath(layers, BASE, CENTRE);
       for (const key of others(TOOLPATH_PARAMS)) {
-        expect(buildToolpath(layers, perturbed(BASE, key), VIEWBOX.height), key).toEqual(ref);
+        expect(buildToolpath(layers, perturbed(BASE, key), CENTRE), key).toEqual(ref);
       }
     });
   }
@@ -70,9 +70,9 @@ describe('memo field lists', () => {
       expect(generateWaveLayers(lemniscate(), perturbed(base, key), []), key).not.toEqual(ref);
     }
     const layers = generateWaveLayers(lemniscate(), BASE, []);
-    const ref = buildToolpath(layers, BASE, VIEWBOX.height);
+    const ref = buildToolpath(layers, BASE, CENTRE);
     for (const key of TOOLPATH_PARAMS) {
-      expect(buildToolpath(layers, perturbed(BASE, key), VIEWBOX.height), key).not.toEqual(ref);
+      expect(buildToolpath(layers, perturbed(BASE, key), CENTRE), key).not.toEqual(ref);
     }
   });
 });

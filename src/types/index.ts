@@ -132,8 +132,8 @@ export interface PrintParams {
 
   // ── Scale & placement ──
   scaleFactor: number;           // multiply SVG units → mm
-  originX: number;               // mm offset
-  originY: number;               // mm offset
+  originX: number;               // mm — bed position of the part's centre
+  originY: number;               // mm
   flipY: boolean;                // negate Y (SVG Y-down → printer Y-up)
 
   // ── Scale around center (applied after svgToMM) ──

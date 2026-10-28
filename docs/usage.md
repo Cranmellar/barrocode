@@ -54,7 +54,7 @@ El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, e
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
 | **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor. |
 | **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. La pieza se ubica desde la esquina superior izquierda del `viewBox`. |
-| **Origen X / Y** | Desplaza toda la impresión sobre la cama. |
+| **Posición X / Y** | Dónde queda el centro de la pieza en la cama. Con 0, 0 el centro geométrico de la pieza va al origen de la impresora, esté donde esté en la mesa de trabajo del SVG (Illustrator, Inkscape…). En una impresora con el origen en una esquina, pon aquí el centro de la cama. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
 | **Velocidad de impresión / desplazamiento** | Define avances en mm/min. |
 | **Generar valores E** | Incluye la columna de extrusión `E`. Desactívalo para salida solo de movimiento. |
@@ -127,7 +127,7 @@ Las vistas y el encuadre se animan; al soltar una rotación la cámara sigue un 
 | Arrastrar la etiqueta de un número | Desliza el valor a izquierda o derecha (con `Shift`, en pasos finos) |
 | Arrastrar un slider de la onda | Se pega al valor por defecto (la marca en la pista) y muestra el valor sobre el control |
 
-El centro de pivote (de la escala y el giro) se mide desde el centro geométrico de la pieza: 0, 0 es el centro de la pieza, esté donde esté en la mesa de trabajo del SVG (por ejemplo, un archivo de Illustrator). *Centrar en la pieza* lo devuelve ahí. Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`). La vista 3D gira alrededor del centro de la pieza.
+El centro de pivote (de la escala y el giro) se mide desde el centro geométrico de la pieza: 0, 0 es el centro de la pieza. *Centrar en la pieza* lo devuelve ahí. Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`). La vista 3D gira alrededor del centro de la pieza.
 
 ### Atajos de teclado
 

@@ -145,10 +145,10 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
                   Usar tamaño real (×{svgMmPerUnit})
                 </button>
               </div>)}
-          <Num label="Origen X" value={params.originX} step={1} unit="mm"
-            onChange={v => set('originX', v)} />
-          <Num label="Origen Y" value={params.originY} step={1} unit="mm"
-            onChange={v => set('originY', v)} />
+          <Num label="Posición X" value={params.originX} step={1} unit="mm"
+            hint="Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora" onChange={v => set('originX', v)} />
+          <Num label="Posición Y" value={params.originY} step={1} unit="mm"
+            hint="Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora" onChange={v => set('originY', v)} />
           <Check label="Invertir eje Y" checked={params.flipY}
             hint="El eje Y del SVG crece hacia abajo; actívalo si la impresora usa Y hacia arriba"
             onChange={v => set('flipY', v)} />

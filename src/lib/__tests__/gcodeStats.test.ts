@@ -3,7 +3,7 @@ import { summarizeGcode } from '../gcodeStats';
 import { generateWaveLayers } from '../waveGenerator';
 import { generateGcode } from '../gcodeGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, polyline, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, polyline, sampledPath } from './fixtures';
 
 describe('summarizeGcode', () => {
   it('splits print and travel, adds dwell and honours E resets', () => {
@@ -24,7 +24,7 @@ describe('summarizeGcode', () => {
   it('accounts for all extrusion in a generated program', () => {
     const path = sampledPath('a', polyline([[10, 10], [60, 10], [60, 40]]));
     const layers = generateWaveLayers([path], PARAMS, []);
-    const gcode = generateGcode(buildToolpath(layers, PARAMS, VIEWBOX.height), PARAMS);
+    const gcode = generateGcode(buildToolpath(layers, PARAMS, CENTRE), PARAMS);
     const es = [...gcode.matchAll(/E([\d.]+)/g)];
     const last = es[es.length - 1];
     const s = summarizeGcode(gcode);

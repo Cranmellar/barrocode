@@ -205,20 +205,23 @@ function lissajousPoint(
 
 // ── Scale + rotation around center in SVG space ─────────────────────────────
 //
-// centerX/Y are mm offsets from the part's centre (partCentreSVG), so the
-// pivot follows the part wherever the SVG placed it on its artboard. In SVG
-// units the pivot is
+// centerX/Y are mm offsets from the part's centre (partCentreSVG), which
+// svgToMM puts at (originX, originY) on the bed. In SVG units the pivot is
 //
 //   svgCX = cx + centerX_mm / sf
 //   svgCY = cy ± centerY_mm / sf     (minus with flipY)
 //
-// which svgToMM maps to the part centre in mm plus (centerX, centerY).
+// which svgToMM maps to (originX + centerX, originY + centerY).
 //
 // Scale goes first so scaleX/Y stay on the shape's own axes: an oval turns
 // rigidly instead of shearing.
 
-/** Centre of the bounding box of the enabled centerlines, in SVG units. */
-export function partCentreSVG(paths: SampledPath[]): { x: number; y: number } | null {
+/**
+ * Centre of the bounding box of the enabled centerlines, in SVG units. The
+ * part is printed with this point at (originX, originY), wherever the SVG
+ * placed it on its artboard.
+ */
+export function partCentreSVG(paths: SampledPath[]): { x: number; y: number } {
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const path of paths) {
     if (!path.enabled) continue;
@@ -227,15 +230,7 @@ export function partCentreSVG(paths: SampledPath[]): { x: number; y: number } | 
       if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
     }
   }
-  return minX === Infinity ? null : { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
-}
-
-/** Where centerX = centerY = 0 puts the pivot on the bed, in mm. */
-export function partCentreMM(paths: SampledPath[], params: PrintParams, svgH: number): { x: number; y: number } {
-  const c = partCentreSVG(paths);
-  if (!c) return { x: 0, y: 0 };
-  const sf = params.scaleFactor > 0 ? params.scaleFactor : 1;
-  return svgToMM(c, sf, params.originX, params.originY, params.flipY, svgH);
+  return minX === Infinity ? { x: 0, y: 0 } : { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
 }
 
 function applyTransformSVG(
@@ -587,7 +582,7 @@ export function generateWaveLayers(
   let flatIdx = 0;
 
   const loops = enabled.map(isLoop);
-  const centre = partCentreSVG(sampledPaths)!;
+  const centre = partCentreSVG(sampledPaths);
   const closed = loops.map(l => l || params.closePath);
 
   const layers: WaveLayer[] = [];
@@ -713,8 +708,9 @@ export function generateWaveLayers(
 }
 
 // ── Coordinate conversion ────────────────────────────────────────────────────
-// Scale-around-center is now handled inside generateWaveLayers, so svgToMM
-// is a pure SVG→mm projection: scaleFactor, origin offset, optional Y-flip.
+// Scale-around-center is handled inside generateWaveLayers, so svgToMM is a
+// pure SVG→mm projection: the part's centre (partCentreSVG) goes to
+// (originX, originY), then scaleFactor and an optional Y-flip.
 
 export function svgToMM(
   pt: { x: number; y: number },
@@ -722,12 +718,10 @@ export function svgToMM(
   originX: number,
   originY: number,
   flipY: boolean,
-  svgHeight: number,
+  centre: { x: number; y: number },  // SVG units
 ): { x: number; y: number } {
-  const x = pt.x * scaleFactor + originX;
-  const y = flipY
-    ? (svgHeight - pt.y) * scaleFactor + originY
-    : pt.y * scaleFactor + originY;
+  const x = (pt.x - centre.x) * scaleFactor + originX;
+  const y = (flipY ? centre.y - pt.y : pt.y - centre.y) * scaleFactor + originY;
   return { x, y };
 }
 

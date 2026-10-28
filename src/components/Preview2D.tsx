@@ -14,8 +14,8 @@
  */
 
 import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type Dispatch, type ReactNode, type SetStateAction } from 'react';
-import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
-import { findKeyframeAt, partCentreMM } from '../lib/waveGenerator';
+import type { SampledPath, PrintParams, WaveKeyframe } from '../types';
+import { findKeyframeAt, partCentreSVG } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
@@ -29,7 +29,6 @@ interface Props {
   sampledPaths: SampledPath[];
   toolpath: ToolpathLayer[];
   params: PrintParams;
-  viewBox: SVGViewBox | null;
   // Changes when another SVG is loaded, so the camera frames the new part.
   partKey: string | null;
   timelineProgress: number;
@@ -155,7 +154,7 @@ function uid() {
 }
 
 export function Preview2D({
-  sampledPaths, toolpath, params, viewBox, partKey,
+  sampledPaths, toolpath, params, partKey,
   timelineProgress, onTimelineChange, onScrub,
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeBusy, gcodeFilename, toast, onToast,
@@ -204,12 +203,7 @@ export function Preview2D({
   useEffect(() => { onKfSelectRef.current   = onKfSelect;        }, [onKfSelect]);
   useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
-  const svgH = viewBox?.height ?? 200;
-  const pivotBase = useMemo(
-    () => partCentreMM(sampledPaths, params, svgH),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sampledPaths, params.scaleFactor, params.originX, params.originY, params.flipY, svgH],
-  );
+  const centre = useMemo(() => partCentreSVG(sampledPaths), [sampledPaths]);
 
   // ── Keyframes appearing and disappearing ─────────────────────────────────
   // New keyframes pop in on the timeline and in the 3D view; removed ones
@@ -565,12 +559,12 @@ export function Preview2D({
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
-      ...geometry, flatPoints, modelBounds, sampledPaths, svgH, pivotBase, timelineProgress,
+      ...geometry, flatPoints, modelBounds, sampledPaths, centre, timelineProgress,
       keyframes, selectedKfId, showDims: viewOpts.showDims, kfPop,
       inset: { left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset },
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, pivotBase, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, centre, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {

@@ -118,9 +118,8 @@ export interface Scene {
   modelBounds: { minX: number; maxX: number; minY: number; maxY: number } | null;
   sampledPaths: SampledPath[];
   params: PrintParams;
-  svgH: number;
-  // Bed position of a zero pivot (the part's centre), in mm.
-  pivotBase: { x: number; y: number };
+  // partCentreSVG of sampledPaths.
+  centre: { x: number; y: number };
   // Screen margins covered by the floating panels; overlays stay inside them.
   inset: { left: number; right: number; top: number; bottom: number };
   keyframes: WaveKeyframe[];
@@ -192,7 +191,7 @@ export function drawScene(
   geometry?: CanvasImageSource,
 ) {
   const {
-    view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH, pivotBase,
+    view, toolpath, flatPoints, modelBounds, sampledPaths, params, centre,
     keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims, inset, kfPop,
   } = scene;
   const { azimuth, elevation } = view;
@@ -235,7 +234,7 @@ export function drawScene(
   if (numLayers > 0) {
     // Use the interpolated center at the current timeline position
     const lp = getParamsAtT(timelineProgress, keyframes, params);
-    const cxMM = pivotBase.x + lp.centerX, cyMM = pivotBase.y + lp.centerY;
+    const cxMM = params.originX + lp.centerX, cyMM = params.originY + lp.centerY;
     const maxZ = toolpath[numLayers - 1].z + params.layerHeight;
     const [cx0, cy0] = toScreen(cxMM, cyMM, 0);
     const [cx1, cy1] = toScreen(cxMM, cyMM, maxZ);
@@ -345,7 +344,7 @@ export function drawScene(
       if (!path.enabled || path.points.length < 2) continue;
       ctx.beginPath();
       path.points.forEach((p, i) => {
-        const mm = svgToMM({ x: p.x, y: p.y }, params.scaleFactor, params.originX, params.originY, params.flipY, svgH);
+        const mm = svgToMM({ x: p.x, y: p.y }, params.scaleFactor, params.originX, params.originY, params.flipY, centre);
         const [sx, sy] = toScreen(mm.x, mm.y, 0);
         if (i === 0) ctx.moveTo(sx, sy); else ctx.lineTo(sx, sy);
       });

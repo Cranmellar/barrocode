@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreMM, WAVE_PARAMS } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
@@ -237,7 +237,6 @@ export default function App() {
   }
 
   const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
-  const svgH = parsedSVG?.viewBox.height ?? 200;
 
   // Keyed on the fields each stage reads, so G-code-only edits (speeds, E,
   // travel, priming…) don't rebuild the geometry.
@@ -249,16 +248,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [parsedSVG, keyframes, waveKey],
   );
-  const pivotBase = useMemo(
-    () => parsedSVG ? partCentreMM(parsedSVG.paths, params, svgH) : { x: 0, y: 0 },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [parsedSVG, params.scaleFactor, params.originX, params.originY, params.flipY, svgH],
-  );
+  const centre = useMemo(() => partCentreSVG(parsedSVG?.paths ?? []), [parsedSVG]);
   const toolpathKey = TOOLPATH_PARAMS.map(k => params[k]).join('|');
   const toolpath = useMemo(
-    () => buildToolpath(layers, params, svgH),
+    () => buildToolpath(layers, params, centre),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [layers, toolpathKey, svgH],
+    [layers, toolpathKey, centre],
   );
 
   // While a keyframe is selected the Lissajous panel shows and edits that
@@ -758,8 +753,7 @@ export default function App() {
           <CenterPad
             layers={layers}
             params={params}
-            svgH={svgH}
-            base={pivotBase}
+            centre={centre}
             centerX={selectedKf.centerX ?? params.centerX}
             centerY={selectedKf.centerY ?? params.centerY}
             kfT={selectedKf.t}
@@ -809,7 +803,6 @@ export default function App() {
         sampledPaths={parsedSVG?.paths ?? []}
         toolpath={toolpath}
         params={params}
-        viewBox={parsedSVG?.viewBox ?? null}
         partKey={parsedSVG?.raw ?? null}
         timelineProgress={timelineProgress}
         onTimelineChange={setTimeline}

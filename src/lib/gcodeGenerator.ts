@@ -60,7 +60,7 @@ function buildHeader(params: PrintParams): string {
     `; Pivot from part centre : ${params.centerX} / ${params.centerY} mm`,
     `; Scale X / Y            : ${params.scaleX} / ${params.scaleY}`,
     `; Rotation               : ${params.rotation}°`,
-    `; Origin X / Y           : ${params.originX} / ${params.originY} mm`,
+    `; Part centre at X / Y   : ${params.originX} / ${params.originY} mm`,
     `; Flip Y                 : ${params.flipY}`,
     `; Z-hop height / radius  : ${params.zHopHeight} / ${params.hopRadius} mm`,
     `; Skirt threshold        : ${params.skirtThreshold} mm`,

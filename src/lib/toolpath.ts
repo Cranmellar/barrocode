@@ -75,7 +75,7 @@ function sameXY(a: MM2[][], b: MM2[][]): boolean {
 export function buildToolpath(
   layers: WaveLayer[],
   params: PrintParams,
-  svgH: number,
+  centre: { x: number; y: number },  // partCentreSVG of the source paths
 ): ToolpathLayer[] {
   const out: ToolpathLayer[] = [];
   // Each layer is ordered starting from where the previous one ended.
@@ -93,7 +93,7 @@ export function buildToolpath(
     const mmPaths = layer.paths.flatMap((path, pi) => {
       if (path.length < 2) return [];
       const mm = path.map(p => ({
-        ...svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, svgH),
+        ...svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, centre),
         zOffset: p.zOffset,
       }));
       if (layer.closed[pi]) closed.add(mm);

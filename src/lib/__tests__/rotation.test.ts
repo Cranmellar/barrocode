@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import type { PrintParams, WaveKeyframe } from '../../types';
-import { generateWaveLayers } from '../waveGenerator';
+import { generateWaveLayers, partCentreSVG } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, polyline, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, polyline, sampledPath } from './fixtures';
 
 const path = () => [sampledPath('l', polyline([[60, 40], [120, 40], [120, 90]]))];
 
 function points(overrides: Partial<PrintParams>, keyframes: WaveKeyframe[] = []) {
   const params = { ...PARAMS, numLayers: 3, ...overrides };
   const layers = generateWaveLayers(path(), params, keyframes);
-  return buildToolpath(layers, params, VIEWBOX.height).map(l => l.paths[0]);
+  return buildToolpath(layers, params, CENTRE).map(l => l.paths[0]);
 }
 
 function rotate([x, y]: [number, number], [cx, cy]: [number, number], deg: number): [number, number] {
@@ -75,8 +75,8 @@ describe('rotation around the pivot', () => {
   it('keeps a zero pivot on the part wherever the SVG placed it', () => {
     const far = [sampledPath('far', polyline([[600, 400], [660, 400], [660, 450]]))];
     const params = { ...PARAMS, numLayers: 1, scaleFactor: 0.5, originX: 20, originY: -30, flipY: true };
-    const ref = buildToolpath(generateWaveLayers(far, params), params, 1000)[0].paths[0];
-    const turned = buildToolpath(generateWaveLayers(far, { ...params, rotation: 180 }), params, 1000)[0].paths[0];
+    const ref = buildToolpath(generateWaveLayers(far, params), params, partCentreSVG(far))[0].paths[0];
+    const turned = buildToolpath(generateWaveLayers(far, { ...params, rotation: 180 }), params, partCentreSVG(far))[0].paths[0];
     const [cx, cy] = pivotOf(ref).map((v, i) => v - OFFSET[i]);
     ref.forEach((p, i) => expectNear(turned[i], rotate([p.x, p.y], [cx, cy], 180)));
   });

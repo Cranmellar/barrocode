@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath, WaveKeyframe } from '../../types';
 import { cornerRadius, createKeyframeSampler, generateWaveLayers, getParamsAtT, roundCorners, segmentAlpha } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, curve, polyline, sampledPath } from './fixtures';
 
 /** Circle with its exact frame, so the seam has no frame error of its own. */
 function circle(r: number, n: number): SampledPath {
@@ -199,7 +199,7 @@ describe('roundCorners', () => {
           return [100 + r * Math.cos(a), 100 + r * Math.sin(a)];
         });
         const layers = generateWaveLayers([sampledPath('star', polyline(star))], params, []);
-        const [layer] = buildToolpath(layers, params, VIEWBOX.height);
+        const [layer] = buildToolpath(layers, params, CENTRE);
         expect(layer.crossings).toBe(0);
         // The T wave alone stretches the 2 mm spacing to ≈ 3.2 mm.
         const pts = layer.paths[0];

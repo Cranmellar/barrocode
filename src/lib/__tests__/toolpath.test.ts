@@ -1,17 +1,37 @@
 import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath } from '../../types';
-import { generateWaveLayers } from '../waveGenerator';
+import { generateWaveLayers, partCentreSVG } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
+import { CENTRE, PARAMS, curve, polyline, sampledPath } from './fixtures';
 
 // The seam ramp is off unless a test asks for it, so flat-Z checks hold.
 function toolpath(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
   const params = { ...PARAMS, softJoin: false, ...overrides };
   const layers = generateWaveLayers(paths, params, []);
-  return buildToolpath(layers, params, VIEWBOX.height);
+  return buildToolpath(layers, params, CENTRE);
 }
 
 const HOP = { zHopHeight: 2.5, hopRadius: 3 };
+
+describe('buildToolpath — placement', () => {
+  // Far out on a large artboard, as Illustrator exports often are.
+  const paths = [
+    sampledPath('a', polyline([[600, 400], [700, 400], [700, 460]])),
+    sampledPath('b', polyline([[640, 480], [660, 520]])),
+  ];
+  for (const flipY of [false, true]) {
+    it(`puts the centre of the part at the origin — flipY ${flipY}`, () => {
+      const params = { ...PARAMS, softJoin: false, scaleFactor: 0.5, originX: 150, originY: -20, flipY };
+      const [layer] = buildToolpath(generateWaveLayers(paths, params, []), params, partCentreSVG(paths));
+      const pts = layer.paths.flat();
+      const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+      expect((Math.min(...xs) + Math.max(...xs)) / 2).toBeCloseTo(150, 6);
+      expect((Math.min(...ys) + Math.max(...ys)) / 2).toBeCloseTo(-20, 6);
+      expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(50, 6);
+      expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(60, 6);
+    });
+  }
+});
 
 describe('buildToolpath — z-hop', () => {
   it('lifts on the later pass over a self-crossing, not the earlier one', () => {
