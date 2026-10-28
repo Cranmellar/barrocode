@@ -122,14 +122,14 @@ export type MarkerScene = Pick<Scene,
 
 export interface KeyframeMarker { kf: WaveKeyframe; number: number; x: number; y: number; r: number }
 
-// Screen position of each visible keyframe diamond, in drawing order (the
-// last one is on top).
+// Screen position of each visible keyframe diamond, numbered by its place in
+// `keyframes`, in drawing order (the last one is on top).
 export function keyframeMarkers(scene: MarkerScene): KeyframeMarker[] {
   const { view, flatPoints: flat, keyframes, selectedKfId, layerCap, layerSolo } = scene;
   if (flat.length === 0) return [];
   const toScreen = screenMapper(view);
   const markers: KeyframeMarker[] = [];
-  [...keyframes].sort((a, b) => a.t - b.t).forEach((kf, i) => {
+  keyframes.forEach((kf, i) => {
     const pt = flat[Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)))];
     if (layerSolo ? pt.layerIndex !== layerCap : pt.layerIndex > layerCap) return;
     const [x, y] = toScreen(pt.x, pt.y, pt.z);

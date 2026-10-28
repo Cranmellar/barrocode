@@ -83,7 +83,7 @@ Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket
 **A — Pulido rápido**
 
 - [x] **KF-A1 — Atajos coherentes.** Los botones ‹ › del dock anunciaban `←`/`→`, pero esas teclas movían el extrusor 1 %, y con un keyframe seleccionado lo alejaban de él mientras el panel seguía editándolo. Ahora, con un keyframe seleccionado, `←`/`→` saltan al anterior/siguiente; sin selección siguen moviendo el extrusor. Ayuda actualizada.
-- [ ] **KF-A2 — Número y color estables al arrastrar.** El número sale del orden y el color de `t`: arrastrar el keyframe 2 más allá del 3 lo renumera y recolorea a mitad del gesto. Congelarlos durante el arrastre y renumerar al soltar.
+- [x] **KF-A2 — Número estable al arrastrar.** Arrastrar el keyframe 2 más allá del 3 los renumeraba a mitad del gesto. Ahora el número es la posición en `keyframes`, que se ordena al soltar, así que se mantiene durante el arrastre. El color sigue a `t` en vivo: cambia de forma continua y coincide con la capa que hay debajo.
 - [ ] **KF-A3 — *Eliminar todos* en dos pasos.** Hoy borra con un clic y no hay deshacer. El botón pasa a "¿Eliminar N?" durante ≈3 s; sin diálogo.
 - [ ] **KF-A4 — Posición en capas y altura.** `t` es la fracción de puntos de todas las capas; el 50 % puede caer a mitad de vuelta. Mostrar capa y altura junto al % en la línea de tiempo, la etiqueta de arrastre y el campo *Posición* del dock (p. ej. "38 % · capa 23 · 34,5 mm").
 - [ ] **KF-A5 — Arrastre con imán y coalescido.** Imán al inicio de capa (la costura) a pocos px, `Alt` lo desactiva. Coalescer los `mousemove` con `requestAnimationFrame` (CLAUDE.md, *Performance* #7).

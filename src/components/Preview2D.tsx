@@ -13,7 +13,7 @@
  * own lane above it.
  */
 
-import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
@@ -33,7 +33,7 @@ interface Props {
   timelineProgress: number;
   onTimelineChange: (v: number) => void;
   keyframes: WaveKeyframe[];
-  onKeyframesChange: (kf: WaveKeyframe[]) => void;
+  onKeyframesChange: Dispatch<SetStateAction<WaveKeyframe[]>>;
   centerTab: 'preview' | 'gcode';
   onTabChange: (tab: 'preview' | 'gcode') => void;
   gcode: string;
@@ -220,7 +220,7 @@ export function Preview2D({
       const now = performance.now();
       setBorn(b => ({ ...b, ...Object.fromEntries(added.map(k => [k.id, now])) }));
     }
-    const removed = [...prev].sort((a, b) => a.t - b.t)
+    const removed = prev
       .map((kf, i) => ({ kf, number: i + 1 }))
       .filter(m => !ids.has(m.kf.id));
     if (removed.length > 0) {
@@ -287,17 +287,15 @@ export function Preview2D({
       }
       const rect = trackRef.current.getBoundingClientRect();
       const newT  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      onKfsRef.current(
-        kfsRef.current
-          .map(k => k.id === d.id ? { ...k, t: newT } : k)
-          .sort((a, b) => a.t - b.t),
-      );
+      // Unsorted until release, so numbers hold while passing a neighbour.
+      onKfsRef.current(kfsRef.current.map(k => k.id === d.id ? { ...k, t: newT } : k));
       onTimelineRef.current(newT);
     }
     function onUp() {
       const d = kfDragRef.current;
       if (!d) return;
-      if (!d.moved) onKfSelectRef.current(d.id);
+      if (d.moved) onKfsRef.current(kfs => [...kfs].sort((a, b) => a.t - b.t));
+      else onKfSelectRef.current(d.id);
       kfDragRef.current = null;
       setDraggingKfId(null);
       document.body.style.cursor = '';
@@ -807,7 +805,7 @@ export function Preview2D({
                   ><KeyframeAddIcon size={22} dashed /></button>
                 )}
 
-                {[...keyframes].sort((a, b) => a.t - b.t).map((kf, i) => {
+                {keyframes.map((kf, i) => {
                   const dragging = kf.id === draggingKfId;
                   return (
                     <div

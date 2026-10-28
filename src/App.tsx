@@ -196,6 +196,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [gcodeFilename, setGcodeFilename] = useState('barrocode.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
+  // Sorted by t, except during a timeline drag, which sorts on release. A
+  // keyframe's number is its index + 1, so it keeps its number while being
+  // dragged past a neighbour.
   const [keyframes, setKeyframes] = useState<WaveKeyframe[]>([]);
   const [centerTab, setCenterTab] = useState<'preview' | 'gcode'>('preview');
   const [sampleIndex, setSampleIndex] = useState(0);
@@ -278,15 +281,14 @@ export default function App() {
     setLissParams(next, true);
   }
 
-  const sortedKfs = [...keyframes].sort((a, b) => a.t - b.t);
   const kfAtCursor = findKeyframeAt(keyframes, timelineProgress);
-  const selectedIdx = selectedKf ? sortedKfs.findIndex(k => k.id === selectedKf.id) : -1;
+  const selectedIdx = selectedKf ? keyframes.indexOf(selectedKf) : -1;
   const prevKf = selectedKf
-    ? sortedKfs[selectedIdx - 1] ?? null
-    : [...sortedKfs].reverse().find(k => k.t < timelineProgress) ?? null;
+    ? keyframes[selectedIdx - 1] ?? null
+    : [...keyframes].reverse().find(k => k.t < timelineProgress) ?? null;
   const nextKf = selectedKf
-    ? sortedKfs[selectedIdx + 1] ?? null
-    : sortedKfs.find(k => k.t > timelineProgress) ?? null;
+    ? keyframes[selectedIdx + 1] ?? null
+    : keyframes.find(k => k.t > timelineProgress) ?? null;
 
   // Selecting a keyframe moves the extruder onto it, so the preview shows
   // the wave being edited.
@@ -538,7 +540,7 @@ export default function App() {
     if (!savedSession) return;
     const p = { ...DEFAULT_PARAMS, ...savedSession.params };
     setParams(p);
-    setKeyframes(savedSession.keyframes);
+    setKeyframes([...savedSession.keyframes].sort((a, b) => a.t - b.t));
     setSelectedKfId(null);
     setGcodeFilename(savedSession.filename);
     doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
@@ -597,7 +599,7 @@ export default function App() {
           : `Fijar la onda en ${Math.round(timelineProgress * 100)} % del recorrido (K). Entre keyframes los valores se interpolan.`}
       >
         {kfAtCursor
-          ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${sortedKfs.indexOf(kfAtCursor) + 1}`
+          ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${keyframes.indexOf(kfAtCursor) + 1}`
           : <><KeyframeAddIcon />Keyframe</>}
       </button>
       {selectedKf && (
