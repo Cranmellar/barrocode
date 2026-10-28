@@ -28,8 +28,8 @@ function Slider({ label, value, min, max, step, unit, hint, def, disabled, onCha
   }, [dragging]);
   const at = (f: number) => `calc(7px + (100% - 14px) * ${Math.max(0, Math.min(1, f))})`;
   const decimals = String(step).split('.')[1]?.length ?? 0;
-  const fillPct = ((value - min) / (max - min)) * 100;
-  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fillPct}%,var(--border) ${fillPct}%,var(--border) 100%)`;
+  const fill    = at((value - min) / (max - min));
+  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)`;
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
   return (
     <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={hint}>

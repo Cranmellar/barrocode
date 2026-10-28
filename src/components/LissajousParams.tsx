@@ -52,8 +52,8 @@ function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange
     prevRef.current = { morph, value };
   }, [morph, value]);
   const decimals = String(step).split('.')[1]?.length ?? 0;
-  const fillPct  = ((value - min) / (max - min)) * 100;
-  const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fillPct}%,var(--border) ${fillPct}%,var(--border) 100%)`;
+  const fill     = at((value - min) / (max - min));
+  const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)`;
   return (
     <div className="slider-row" title={hint}>
       <div className="slider-header">

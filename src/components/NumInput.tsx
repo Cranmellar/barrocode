@@ -20,6 +20,12 @@ function decimalsOf(n: number): number {
   return String(n).split('.')[1]?.length ?? 0;
 }
 
+// The field keeps the step's decimals (at most 2), so a wheel or drag that
+// goes 2.5 → 3 → 3.5 doesn't change the text's width.
+function format(v: number, step: number | undefined): string {
+  return v.toFixed(Math.min(2, Math.max(decimalsOf(step ?? 1), decimalsOf(parseFloat(v.toFixed(2))))));
+}
+
 /**
  * Number input with these behaviours:
  *
@@ -42,13 +48,13 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
   valRef.current  = value;
 
   // ── Local display state ────────────────────────────────────────────────────
-  const [raw, setRaw] = useState(() => String(value));
+  const [raw, setRaw] = useState(() => format(value, step));
   const [delta, setDelta] = useState<{ n: number; text: string; left: number; top: number } | null>(null);
 
   // Sync display from parent — but only when the user is NOT actively editing
   useEffect(() => {
-    if (!focusedRef.current) setRaw(String(value));
-  }, [value]);
+    if (!focusedRef.current) setRaw(format(value, step));
+  }, [value, step]);
 
   // Latest props for the native listeners, which are attached once.
   const propsRef = useRef({ min, max, step, fineStep, onChange });
@@ -70,7 +76,7 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
       const prev = valRef.current;
       if (out === prev) return;
       onChange(out);
-      setRaw(String(out));
+      setRaw(format(out, s));
       const d = parseFloat((out - prev).toFixed(decimalsOf(inc) + 2));
       setDelta(g => ({
         n: (g?.n ?? 0) + 1,
@@ -154,7 +160,7 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
         onBlur={() => {
           focusedRef.current = false;
           // Snap display back to the last committed value on exit
-          setRaw(String(value));
+          setRaw(format(value, step));
         }}
         onChange={e => {
           const text = e.target.value;
