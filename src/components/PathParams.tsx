@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
+import { Icon, type IconName } from './icons';
 import { MAX_LAYERS, layerCount } from '../lib/waveGenerator';
 
 interface Props { params: PrintParams; onChange: (p: PrintParams) => void; svgMmPerUnit: number | null }
@@ -43,10 +44,10 @@ function Sec({ title, children }: { title: string; children: React.ReactNode }) 
 type GroupId = 'pieza' | 'trayecto' | 'maquina';
 
 const TAB_KEY = 'barrocode.leftTab';
-const TABS: { id: GroupId; title: string }[] = [
-  { id: 'pieza', title: 'Pieza' },
-  { id: 'trayecto', title: 'Trayecto' },
-  { id: 'maquina', title: 'Máquina' },
+const TABS: { id: GroupId; title: string; icon: IconName }[] = [
+  { id: 'pieza', title: 'Pieza', icon: 'pieza' },
+  { id: 'trayecto', title: 'Trayecto', icon: 'trayecto' },
+  { id: 'maquina', title: 'Máquina', icon: 'maquina' },
 ];
 
 function loadTab(): GroupId {
@@ -96,7 +97,7 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
           <button key={t.id} role="tab" aria-selected={tab === t.id}
             className={`panel-tab${tab === t.id ? ' panel-tab--on' : ''}`}
             onClick={() => selectTab(t.id)} title={summaries[t.id]}>
-            {t.title}
+            <Icon name={t.icon} />{t.title}
           </button>
         ))}
       </div>

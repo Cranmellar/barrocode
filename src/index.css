@@ -161,6 +161,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 .panel-rail--left  { left: var(--sp-3); }
 .panel-rail--right { right: var(--sp-3); }
+.btn-icon.rail-open { flex-direction: column; gap: 2px; height: auto; padding: 6px 0; }
 
 .panel-header-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
@@ -202,8 +203,12 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .panel-tab {
   position: relative;
   flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   height: 26px;
-  padding: 0 var(--sp-2);
+  padding: 0 var(--sp-1);
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
@@ -215,6 +220,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .panel-tab:hover { color: var(--ink); }
+.panel-tab .ico { opacity: 0.8; }
 .panel-tab--on { color: var(--ink); }
 
 .tab-pane { animation: var(--dur) var(--ease) both; }
@@ -697,6 +703,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .param-info .btn-small { font-style: normal; }
 
 /* ── Panel header ────────────────────────────────────────────────────────── */
+.ico { flex-shrink: 0; }
+.panel-title { display: inline-flex; align-items: center; gap: var(--sp-2); }
+.panel-title .ico { color: var(--ink-2); }
 .panel-header {
   display: flex;
   align-items: center;
@@ -1412,6 +1421,9 @@ input[type="range"]::-moz-range-thumb {
   font-size: var(--fs-sm);
 }
 .kf-field label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   font-size: var(--fs-sm);
   color: var(--muted);
   white-space: nowrap;

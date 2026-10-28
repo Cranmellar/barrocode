@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
+import { Icon } from './icons';
 
 interface Props {
   params: PrintParams;
@@ -165,7 +166,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
   return (
     <div className="lissajous-params">
       <div className="panel-header">
-        <span>Onda</span>
+        <span className="panel-title"><Icon name="onda" size={16} />Onda</span>
         <span className="panel-header-actions">
           <button className="btn-reset" onClick={onReset} disabled={autoKeyAt !== null}
             title={editingKf
