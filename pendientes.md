@@ -52,7 +52,7 @@ Catálogo hecho pasando las 8 muestras por el pipeline real y midiendo la capa 0
 
 - [x] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
 - [x] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
-- [ ] **Optimizar rendering con capas altas o muchos keyframes** — en gran parte hecho (memoización por etapa, reuso de cruces, LOD, caché del scrub, textarea truncado). Re-medido el 2026-10-28: cada re-render de `App` redibujaba la escena (`insets` inestable), corregido. También hechos: las estadísticas se calculan al emitir el G-code (la pausa al final de cada edición bajó a la mitad) y el punto animado del Lissajous da una vuelta y se detiene (reposo de 12 % a 0 %; quieto con *reduced motion*). Queda, en orden: reusar capas idénticas en `generateWaveLayers`, menos objetos por punto, y G-code en un worker. Detalle y cifras en CLAUDE.md, *Performance — user-side findings*.
+- [ ] **Optimizar rendering con capas altas o muchos keyframes** — en gran parte hecho (memoización por etapa, reuso de cruces, LOD, caché del scrub, textarea truncado). Re-medido el 2026-10-28: cada re-render de `App` redibujaba la escena (`insets` inestable), corregido. También hechos: las estadísticas se calculan al emitir el G-code (la pausa al final de cada edición bajó a la mitad) y el punto animado del Lissajous da una vuelta y se detiene (reposo de 12 % a 0 %; quieto con *reduced motion*). Hecho también: menos objetos por punto (el GC por tick bajó ≈70 %, el tick ≈15 % a 150 capas). Queda, en orden: reusar capas idénticas en `generateWaveLayers` y G-code en un worker. Detalle y cifras en CLAUDE.md, *Performance — user-side findings*.
 
 ### UI — layout y estilo
 
@@ -152,6 +152,6 @@ El plan original en ocho olas (oct. 2026) está casi cerrado; el detalle quedó 
 | 5 — Panel derecho | Hecha (UI-4 y overhaul fase 3). |
 | 6 — Samples | 8 muestras en carrusel; la grilla queda opcional. |
 | 7 — Sesión | Hecha (UI-5). |
-| 8 — Performance | En gran parte hecha. **Abierto:** capas idénticas, menos objetos por punto, worker (ver CLAUDE.md). |
+| 8 — Performance | En gran parte hecha. **Abierto:** capas idénticas, worker (ver CLAUDE.md). |
 
 El orden de trabajo vigente (correcciones del G-code primero, luego mejoras rápidas de UX e higiene) está en CLAUDE.md, *Next steps — low effort, high impact*.
