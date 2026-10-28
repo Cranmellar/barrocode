@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
+import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
@@ -119,13 +120,19 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
 
 // A keyframe between two straight segments: a corner, or reached and left flat when smooth.
 function EaseGlyph({ smooth }: { smooth: boolean }) {
+  const id = useId();
   return (
-    <svg className="kf-ease-glyph" width="44" height="24" viewBox="0 0 44 24" fill="none" stroke="currentColor"
-      strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg className="kf-ease-glyph" width="44" height="24" viewBox="0 0 44 24" fill="none" stroke={`url(#${id})`}
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="2" y1="0" x2="42" y2="0">
+          {[0, 0.25, 0.5, 0.75, 1].map(t => <stop key={t} offset={t} stopColor={rampColor(t)} />)}
+        </linearGradient>
+      </defs>
       <path d={smooth ? 'M2 21C10 16 14 4 22 4C30 4 34 16 42 21' : 'M2 21C10 15 14 10 22 4C30 10 34 15 42 21'} />
       {smooth
-        ? <circle cx="22" cy="4" r="2.6" fill="currentColor" />
-        : <path d="M22 1.2 24.8 4 22 6.8 19.2 4z" fill="currentColor" />}
+        ? <circle cx="22" cy="4" r="2.6" fill={`url(#${id})`} />
+        : <path d="M22 1.2 24.8 4 22 6.8 19.2 4z" fill={`url(#${id})`} />}
     </svg>
   );
 }
