@@ -28,7 +28,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 | `npm run preview` | Local static preview of `dist/` |
 | `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI runs `npm test` and `npm run build` on every pull request (`ci.yml`) and again before deploying `main`.
+Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/` and `src/shaper/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI runs `npm test` and `npm run build` on every pull request (`ci.yml`) and again before deploying `main`.
 
 ---
 
@@ -68,6 +68,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - **Part centred on the bed.** `svgToMM` puts the centre of the enabled paths' bounding box (`partCentreSVG` in `waveGenerator.ts`) at (`originX`, `originY`), shown as *Posición X / Y* in *Escala y posición*; default 0, 0. Where the SVG placed the part on its artboard no longer matters (Illustrator exports put parts far from the viewBox origin). `centerX/Y` (pivot, params and keyframes) are mm offsets from that centre; *Centrar en la pieza* resets them. The 3D camera orbits around the part's centre (`orbit` in `Preview2D`), not the bed origin, and refits when another SVG is loaded (`partKey`). Disabling a path re-centres the rest.
 - **Pivot drag in the 3D viewport is not implemented** (`Preview2D` has no params `onChange`). `pendientes.md` lists it open (Ola 3, KF-C3); it was once ticked by mistake.
 - **Keyframe polish (Oct 2026)**: arrow keys jump between keyframes while one is selected, numbers stay stable mid-drag, *Borrar todos* needs a second click, the timeline shows "capa N · H mm", dragged keyframes snap to layer starts, auto-key, smooth keyframes (`smooth`), phase offset/shift held per keyframe, deleting the last keyframe adopts its values, loading another SVG keeps only the keyframes' wave. Open: KF-B2, KF-B3, KF-C2, KF-C3 in `pendientes.md`.
+- **Forma workspace (shaper), phase F0** of [docs/shaper-plan.md](docs/shaper-plan.md). The left panel's header switches between *Forma* and *Impresión* (`workspace` in `App.tsx`). *Forma* is `src/shaper/`, loaded lazily as its own chunk; for now it shows a fixed 80 mm circle on a mm grid with its seam marked. *Enviar a impresión* hands `App` an SVG whose user unit is 1 mm (`shapeToSvg`), loaded through `doParse` like a file, so `scaleFactor` becomes 1; *Editar forma* goes back while that SVG is the loaded one (`sentShapeSvg`). Boundary: `App` imports only `ShaperView`; the shaper imports nothing from `src/lib/` or `src/components/`. The print shortcuts are off in *Forma*. Next: F1 (shape families).
 - **Icons** (`components/icons.tsx`, one inline-SVG set) on panel tabs, headers, rails and keyframe fields; the export and add-keyframe buttons fill with `--signal-ramp`.
 - **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
@@ -272,9 +273,9 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ Cargar SVG · ‹    │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
-│ file name         │ │ Descargar (signal), ?            │ │ small Lissajous    │
-│ ‹ sample ›        │ └──────────────────────────────────┘ │ context line       │
+│ Forma · Impresión │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ small Lissajous    │
+│ file name         │ └──────────────────────────────────┘ │ context line       │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
 │ Trayecto │Máquina │   G-code opens as a drawer here  │a│ │                    │
@@ -315,6 +316,11 @@ src/
     gcodeStats.ts           GcodeStats type; summary read back from G-code (test oracle)
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
+  shaper/                   Forma workspace (docs/shaper-plan.md), its own lazy chunk
+    ShaperView.tsx          Only export App uses: left panel, mm grid canvas, send button
+    lib/shape.ts            ShapeDoc (F0: circle), path data in mm, seam, label
+    lib/toSvg.ts            ShapeDoc → SVG with 1 user unit = 1 mm
+    lib/__tests__/          Vitest specs for the shaper's lib
 docs/                       usage, architecture, fabrication notes, research notes,
                             perf spec, UI mockup/prompt (design references)
 pendientes.md               Prioritised backlog (some checkmarks stale — see "Current state")
@@ -471,7 +477,7 @@ When you need context, this is where to look:
 - [pendientes.md](pendientes.md) — **actionable backlog**, prioritized in waves. Read before starting any new ticket; cross-check its checkmarks with "Current state" above.
 - [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 - [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md) — graphical overhaul: diagnosis of the current UI, layout proposal, open decisions (D-1…D-6) and phased plan. Check it before any UI/CSS work.
-- [docs/shaper-plan.md](docs/shaper-plan.md) — proposal for *Forma*, an in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, open decisions (D-S1…D-S7) and phases F0–F6. Not started.
+- [docs/shaper-plan.md](docs/shaper-plan.md) — proposal for *Forma*, an in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, open decisions (D-S1…D-S7) and phases F0–F6. F0 done.
 - `docs/ui-interactive-mockup.html`, `docs/ui-image-prompt.md` — UI design references, not shipped.
 
 ---

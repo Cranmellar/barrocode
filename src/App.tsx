@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
+import { lazy, Suspense, useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, WAVE_PARAMS } from './lib/waveGenerator';
@@ -15,6 +15,11 @@ import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
 import { Icon } from './components/icons';
+
+// Its own chunk: Impresión doesn't load the shaper until Forma is opened.
+const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
+
+type Workspace = 'forma' | 'impresion';
 
 const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#55555D"/></svg>`;
 const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#55555D"/></svg>`;
@@ -231,6 +236,9 @@ export default function App() {
   const [selectedKfId, setSelectedKfId] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(() => !hasSeenHelp());
   const [savedSession, setSavedSession] = useState(loadSession);
+  const [workspace, setWorkspace] = useState<Workspace>('impresion');
+  // The last SVG sent from Forma; while it is the loaded one, Impresión offers to edit it.
+  const [sentShapeSvg, setSentShapeSvg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -429,11 +437,13 @@ export default function App() {
 
   const selectedKfIdRef = useRef(selectedKfId);
   const helpOpenRef = useRef(helpOpen);
+  const workspaceRef = useRef(workspace);
   const addKeyframeRef = useRef(addKeyframe);
   const deleteKeyframeRef = useRef(deleteKeyframe);
   const neighbourKfRef = useRef({ prev: prevKf, next: nextKf, select: selectKf });
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
+  useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
   useEffect(() => { deleteKeyframeRef.current = deleteKeyframe; }, [keyframes, params, selectedKfId]);
   useEffect(() => { neighbourKfRef.current = { prev: prevKf, next: nextKf, select: selectKf }; }, [keyframes, timelineProgress, selectedKfId]);
@@ -449,7 +459,7 @@ export default function App() {
         setHelpOpen(true);
         return;
       }
-      if (helpOpenRef.current) return;
+      if (helpOpenRef.current || workspaceRef.current !== 'impresion') return;
       const id = selectedKfIdRef.current;
       const key = e.key.toLowerCase();
       if (key === 'k') {
@@ -656,6 +666,15 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  function sendShape(svg: string, name: string) {
+    setSavedSession(null);
+    keepWaveOnly();
+    setGcodeFilename(`${name}.gcode`);
+    doParse(svg, params.sampleSpacing, [], true);
+    setSentShapeSvg(svg);
+    setWorkspace('impresion');
+  }
+
   function loadSample() {
     setSavedSession(null);
     keepWaveOnly();
@@ -810,6 +829,26 @@ export default function App() {
     </div>
   );
 
+  const switcher = (
+    <div className="workspace-switch" role="tablist" aria-label="Espacio de trabajo">
+      {([['forma', 'Forma', 'Crear la forma de la pieza'], ['impresion', 'Impresión', 'Onda, capas y G-code']] as const)
+        .map(([w, label, title]) => (
+          <button key={w} role="tab" aria-selected={workspace === w} title={title}
+            className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
+            onClick={() => setWorkspace(w)}>{label}</button>
+        ))}
+    </div>
+  );
+
+  if (workspace === 'forma') return (
+    <>
+      <Suspense fallback={<div className="app-stage" />}>
+        <ShaperView switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)} />
+      </Suspense>
+      <HelpDialog open={helpOpen} onClose={closeHelp} />
+    </>
+  );
+
   return (
     <div
       className={`app-stage${dropping ? ' app-stage--drop' : ''}`}
@@ -854,6 +893,13 @@ export default function App() {
       {shown.left ? (
         <aside className={`float-panel panel-left${leaving === 'left' ? ' panel-leave' : ''}`} style={{ width: LEFT_W }}>
           <div ref={leftScroll.ref} className={`panel-scroll${leftScroll.more ? ' scroll-more' : ''}`}>
+            <div className="panel-header">
+              {switcher}
+              <span className="panel-header-actions">
+                <button className="btn-icon" onClick={() => togglePanel('left')}
+                  title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
+              </span>
+            </div>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
                 <span className="session-banner-text">
@@ -897,9 +943,6 @@ export default function App() {
                     aria-label="Muestra siguiente"
                   ><Chevron dir="right" /></button>
                 </div>
-
-                <button className="btn-icon" onClick={() => togglePanel('left')}
-                  title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
               </div>
 
               {parsedSVG && (
@@ -907,6 +950,10 @@ export default function App() {
                   <span className="file-name" title={gcodeFilename.replace(/\.gcode$/i, '')}>
                     {gcodeFilename.replace(/\.gcode$/i, '')}
                   </span>
+                  {parsedSVG.raw === sentShapeSvg && (
+                    <button className="btn-small" onClick={() => setWorkspace('forma')}
+                      title="Volver a Forma para cambiar esta forma">Editar forma</button>
+                  )}
                   <button className="btn-icon" title="Descartar el SVG" aria-label="Descartar el SVG" onClick={clearSVG}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                       <line x1="2" y1="2" x2="10" y2="10" /><line x1="10" y1="2" x2="2" y2="10" />

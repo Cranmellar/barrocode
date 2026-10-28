@@ -1187,6 +1187,48 @@ input[type="range"]::-moz-range-thumb {
 .view-preset:hover { color: var(--ink); }
 .view-preset--on { color: var(--ink); }
 
+/* Forma · Impresión: the header of the left panel in either workspace */
+.workspace-switch { display: flex; gap: var(--sp-3); }
+.workspace-tab {
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--faint);
+  font: inherit;
+  cursor: pointer;
+  transition: color var(--dur-fast);
+}
+.workspace-tab:hover { color: var(--ink-2); }
+.workspace-tab--on, .workspace-tab--on:hover { color: var(--ink); }
+
+/* ── Forma (shaper) ──────────────────────────────────────────────────────── */
+/* Same width as the print workspace's left panel (LEFT_W in App.tsx) */
+.shaper-panel { width: 300px; }
+.shaper-bar { left: calc(var(--sp-3) * 2 + 300px); right: var(--sp-3); top: var(--sp-3); justify-content: flex-end; }
+.shaper-canvas {
+  position: absolute;
+  top: calc(var(--sp-3) * 2 + 40px);
+  left: calc(var(--sp-3) * 2 + 300px);
+  width: calc(100% - var(--sp-3) * 3 - 300px);
+  height: calc(100% - var(--sp-3) * 3 - 40px);
+  overflow: hidden;
+}
+.shaper-canvas line,
+.shaper-canvas path,
+.shaper-canvas circle { vector-effect: non-scaling-stroke; }
+.shaper-grid line { stroke: var(--border); stroke-width: 1; }
+.shaper-grid-major line { stroke: var(--border-strong); }
+.shaper-axes line { stroke: var(--faint); stroke-width: 1; }
+.shaper-shape { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
+.shaper-seam { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
+.shaper-value { color: var(--ink); font-variant-numeric: tabular-nums; }
+.shaper-note {
+  margin: var(--sp-2) var(--sp-4) 0;
+  white-space: normal;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
 /* ── Lissajous figure ────────────────────────────────────────────────────── */
 /* Absolute so the buffer size set in device pixels never sizes the box */
 .lissajous-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }

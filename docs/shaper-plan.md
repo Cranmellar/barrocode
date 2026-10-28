@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: propuesta, sin código.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0 hecha (ver sección 6); el resto, propuesta.
 
 ---
 
@@ -24,7 +24,7 @@ Las ideas no tienen licencia; solo copiar código la tiene. Si se copia código 
 
 ### 3.1 Dónde vive en la UI
 
-Un selector de **espacio de trabajo** en la barra superior: *Forma* · *Impresión*. Es un `useState<'forma' | 'impresion'>` en `App.tsx`, sin router (la convención del proyecto lo prohíbe y no hace falta).
+Un selector de **espacio de trabajo**, *Forma* · *Impresión*, como encabezado del panel izquierdo de los dos espacios (igual que *Onda* encabeza el derecho). Es un `useState<'forma' | 'impresion'>` en `App.tsx`, sin router (la convención del proyecto lo prohíbe y no hace falta). Se probó en la barra superior y no cabía: con los dos paneles abiertos esa barra ya recorta el resumen a 1280 y 1440 px, y el selector (≈160 px) dejaba *G-code* y *Descargar* bajo el panel derecho.
 
 - *Impresión* es la app actual, sin cambios.
 - *Forma* reemplaza el escenario 3D por `ShaperView`, a pantalla completa, con el mismo sistema de paneles flotantes, tokens y tipografía.
@@ -55,7 +55,7 @@ src/shaper/
 
 Reglas de la frontera:
 
-- **Dependencia en un solo sentido.** `App.tsx` importa solo `ShaperView`. El shaper no importa nada de `src/lib/` ni de `src/components/` salvo `NumInput` e `icons`. El radio que la onda actual puede seguir llega como prop (`waveRadiusMM`, calculado en `App` con `cornerRadius`).
+- **Dependencia en un solo sentido.** `App.tsx` importa solo `ShaperView` (y, desde F1, tipos con `import type`, que no pesan). El shaper no importa nada de `src/lib/` ni de `src/components/` salvo `NumInput` e `icons`. El radio que la onda actual puede seguir llega como prop (`waveRadiusMM`, calculado en `App` con `cornerRadius`).
 - **El contrato es un string SVG.** Lo que sale del shaper entra por `parseSVG`, igual que un archivo. No se toca `ParsedSVG`, `generateWaveLayers` ni nada aguas abajo. El SVG lleva `width`/`height` en mm, así que `mmPerUnit = 1` y la escala deja de ser ambigua.
 - **Estado propio y plano.** Un `ShapeDoc` en `App` (al lado de `parsedSVG`, no dentro de `PrintParams`): `{ source: 'family' | 'path', family, familyParams, seed, commands, sizeMM, seamAngle }`. Se guarda en la sesión (`SavedSession.shape`) para que reabrir permita seguir editando, no solo ver un SVG congelado.
 - **Carga diferida.** `ShaperView` con `React.lazy`, para que *Impresión* no pague el peso del shaper. La build ya separa `vendor` en otro chunk, así que no empeora el caso `file://`.
@@ -111,6 +111,7 @@ Cada fase termina con `npm test` y `npm run build` en verde y algo usable. "Sesi
 - `toSvg.ts` y un círculo fijo de 80 mm; *Enviar a impresión* lo carga con `doParse` y `scaleFactor = 1`.
 - *Editar forma* en *Impresión* vuelve al shaper.
 - **Hecho cuando:** el círculo se imprime a 80 mm de diámetro en el visor (cotas) sin tocar la escala, y el chunk inicial de *Impresión* no crece más de 1 kB.
+- **Hecho (2026-10-28).** En Chromium: *Enviar a impresión* deja el factor de escala en 1 y, con las amplitudes en 0, el visor mide 80,0 × 80,0 mm (la ruta, 251,4 mm = 80π). `ShaperView` es su propio chunk (≈3 kB) y solo se descarga al abrir *Forma*; el chunk inicial creció ≈2,5 kB sin comprimir, ≈1,0 kB gzip, la mitad del ayudante de carga diferida de Vite. Los atajos de *Impresión* (`K`, `G`, flechas…) no actúan en *Forma*; `?` sí. Con el panel izquierdo plegado el selector no se ve: hay que abrir el panel. El `ShapeDoc` aún vive dentro de `ShaperView` (el círculo es fijo); F1 lo sube a `App`.
 
 ### F1 — Familias con sliders (SuperformulaSVG) (1–2 sesiones)
 
