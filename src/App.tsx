@@ -522,11 +522,12 @@ export default function App() {
     setTimeout(commit, PANEL_LEAVE_MS);
   }
 
-  const insets = {
+  // Stable identity: Preview2D redraws the scene whenever it changes.
+  const insets = useMemo(() => ({
     left:  STAGE_GAP * 2 + (shown.left ? LEFT_W : RAIL_W),
     right: STAGE_GAP * 2 + (shown.right ? RIGHT_W : RAIL_W),
     top:   STAGE_GAP * 2 + BAR_H,
-  };
+  }), [shown.left, shown.right]);
 
   const doParse = useCallback((raw: string, spacing: number, pathState: PathState[] = [], adoptScale = false) => {
     try {
