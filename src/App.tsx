@@ -607,7 +607,7 @@ export default function App() {
         title={selectedKf ? 'Keyframe anterior (←)' : 'Keyframe anterior'} aria-label="Keyframe anterior"><Chevron dir="left" /></button>
       <span className="kf-nav-label">
         {selectedKf
-          ? <><span className="kf-badge" style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
+          ? <><span className={`kf-badge${selectedKf.smooth ? ' kf-smooth' : ''}`} style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
                 {selectedIdx + 1}
               </span>
               de {keyframes.length}</>
@@ -692,6 +692,17 @@ export default function App() {
             <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
               onChange={v => updateKf('scaleY', v)} />
           </div>
+        </div>
+      </div>
+
+      <div className="kf-group kf-group-ease">
+        <div className="kf-field" title="Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, los tramos son rectos.">
+          <label>Transición</label>
+          <label className="kf-switch">
+            <input type="checkbox" checked={Boolean(selectedKf.smooth)}
+              onChange={e => updateKf('smooth', e.target.checked)} />
+            Suave
+          </label>
         </div>
       </div>
 
@@ -875,6 +886,7 @@ export default function App() {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
                 color: keyframeColor(selectedKf.t),
+                smooth: Boolean(selectedKf.smooth),
                 onDone: () => setSelectedKfId(null),
               }}
               autoKeyAt={autoKey ? `${Math.round(timelineProgress * 100)} %, capa ${layerAtT(toolpath, timelineProgress) + 1}` : null}

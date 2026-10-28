@@ -840,7 +840,7 @@ export function Preview2D({
                   return (
                     <div
                       key={kf.id}
-                      className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}${born[kf.id] ? ' kf-born' : ''}`}
+                      className={`kf-badge kf-marker${kf.smooth ? ' kf-smooth' : ''}${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}${born[kf.id] ? ' kf-born' : ''}`}
                       style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}
                       onMouseDown={e => {
                         e.preventDefault();
@@ -853,7 +853,7 @@ export function Preview2D({
                 })}
 
                 {leavingKfs.map(({ kf, number }) => (
-                  <div key={`leave-${kf.id}`} className="kf-badge kf-marker kf-leave" aria-hidden="true"
+                  <div key={`leave-${kf.id}`} className={`kf-badge kf-marker kf-leave${kf.smooth ? ' kf-smooth' : ''}`} aria-hidden="true"
                     style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}>{number}</div>
                 ))}
 

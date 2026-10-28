@@ -11,7 +11,7 @@ interface Props {
   morph: number;
   // Default values: sliders mark them and snap to them.
   defaults: PrintParams;
-  editingKf: { number: number; label: string; color: string; onDone: () => void } | null;
+  editingKf: { number: number; label: string; color: string; smooth: boolean; onDone: () => void } | null;
   // Keyframes exist but none is selected: the panel shows the wave at the
   // extruder (this position), and editing it creates a keyframe there.
   autoKeyAt: string | null;
@@ -180,7 +180,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       {figure}
       {editingKf ? (
         <div className="liss-context liss-context--kf">
-          <span className="kf-badge" style={{ '--kf-c': editingKf.color } as React.CSSProperties}>
+          <span className={`kf-badge${editingKf.smooth ? ' kf-smooth' : ''}`} style={{ '--kf-c': editingKf.color } as React.CSSProperties}>
             {editingKf.number}
           </span>
           <span className="liss-context-text">Editando {editingKf.label}</span>

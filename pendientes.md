@@ -96,7 +96,7 @@ Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket
 
 **C — Edición más potente**
 
-- [ ] **KF-C1 — Suavizado por tramo.** Campo opcional `ease` en `WaveKeyframe` (*lineal* / *suave* / *mantener*) que modifica `alpha` en `lerpLocal`. Por defecto lineal, así que las snapshots no cambian. Evita el quiebre de pendiente en la pared en cada keyframe.
+- [x] **KF-C1 — Keyframes suaves.** Hecho como propiedad del keyframe, no del tramo: `smooth?: boolean` en `WaveKeyframe`, interruptor *Transición · Suave* en el editor. En un keyframe suave los valores llegan y salen con pendiente cero, así que la pared no hace quiebre ahí; los tramos entre dos keyframes normales siguen rectos (Hermite cúbica en `segmentAlpha`, `waveGenerator.ts`). Los keyframes suaves se dibujan redondos en la línea de tiempo, el visor 3D y las insignias. Por defecto apagado, así que las snapshots no cambian. Se descartó *mantener* (valor constante y salto en el siguiente): un salto de centro o giro a mitad de capa extruiría una cuerda recta a través de la pieza. Un keyframe nuevo nace sin suavizado, también al partir un tramo suave.
 - [ ] **KF-C2 — Duplicar y copiar.** "Duplicar en el extrusor" (`D`) y, por sección del panel (N, T, Z, transformación), "copiar del keyframe anterior".
 - [ ] **KF-C3 — Arrastrar el pivote en el visor 3D**, aplicado al keyframe seleccionado. Es el mismo ticket de *Pivot drag* (Ola 3), marcado hecho sin estarlo.
 - [ ] **KF-C4 — Fase con keyframes** (opcional): `lissPhaseOffset` y `phaseShiftPerLayer` interpolables, para rampas de torsión de la textura.

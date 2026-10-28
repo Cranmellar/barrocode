@@ -94,6 +94,17 @@ function lerpLocal(loF: LocalParams, hiF: LocalParams, alpha: number): LocalPara
   };
 }
 
+// Fraction of the way from lo to hi at segment fraction a. A cubic Hermite
+// whose end slopes are 0 at a smooth keyframe and 1 (straight) otherwise:
+// both straight gives a, both smooth gives smoothstep.
+export function segmentAlpha(lo: WaveKeyframe, hi: WaveKeyframe, a: number): number {
+  const m0 = lo.smooth ? 0 : 1;
+  const m1 = hi.smooth ? 0 : 1;
+  if (m0 === 1 && m1 === 1) return a;
+  const a2 = a * a, a3 = a2 * a;
+  return (a3 - 2 * a2 + a) * m0 + (3 * a2 - 2 * a3) + (a3 - a2) * m1;
+}
+
 // Tolerance in t under which the timeline cursor counts as sitting on a keyframe,
 // so "add" never creates a second keyframe on top of an existing one.
 const KF_MATCH_TOL = 0.005;
@@ -126,7 +137,7 @@ export function getParamsAtT(
       const alpha = (sorted[i + 1].t - sorted[i].t) > 0
         ? (t - sorted[i].t) / (sorted[i + 1].t - sorted[i].t)
         : 0;
-      return lerpLocal(expanded[i], expanded[i + 1], alpha);
+      return lerpLocal(expanded[i], expanded[i + 1], segmentAlpha(sorted[i], sorted[i + 1], alpha));
     }
   }
   return expanded[expanded.length - 1];
@@ -155,7 +166,7 @@ export function createKeyframeSampler(
     const alpha = (sorted[cursor + 1].t - sorted[cursor].t) > 0
       ? (t - sorted[cursor].t) / (sorted[cursor + 1].t - sorted[cursor].t)
       : 0;
-    return lerpLocal(expanded[cursor], expanded[cursor + 1], alpha);
+    return lerpLocal(expanded[cursor], expanded[cursor + 1], segmentAlpha(sorted[cursor], sorted[cursor + 1], alpha));
   };
 }
 

@@ -319,8 +319,9 @@ export function drawScene(
       ctx.translate(kx, ky);
       ctx.scale(pop, pop);
       ctx.beginPath();
-      ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0);
-      ctx.closePath();
+      // Smooth keyframes are round, as on the timeline; same area as the diamond.
+      if (kf.smooth) ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+      else { ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); }
       ctx.fillStyle   = keyframeColor(kf.t);
       ctx.strokeStyle = isSelected ? palette.ink : palette.surface;
       ctx.lineWidth   = 2;

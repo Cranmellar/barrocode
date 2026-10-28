@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath, WaveKeyframe } from '../../types';
-import { cornerRadius, generateWaveLayers, roundCorners } from '../waveGenerator';
+import { cornerRadius, createKeyframeSampler, generateWaveLayers, getParamsAtT, roundCorners, segmentAlpha } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
 import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
 
@@ -208,5 +208,42 @@ describe('roundCorners', () => {
         }
       }
     }
+  });
+});
+
+describe('keyframe interpolation', () => {
+  const kf = (t: number, ampN: number, smooth?: boolean): WaveKeyframe =>
+    ({ id: `k${t}`, t, ampN, ampT: 0, wlN: 20, wlT: 20, delta: 0, smooth });
+
+  it('is straight between plain keyframes and smoothstep between smooth ones', () => {
+    for (const a of [0, 0.1, 0.25, 0.5, 0.8, 1]) {
+      expect(segmentAlpha(kf(0, 0), kf(1, 0), a)).toBeCloseTo(a);
+      expect(segmentAlpha(kf(0, 0, true), kf(1, 0, true), a)).toBeCloseTo(a * a * (3 - 2 * a));
+    }
+  });
+
+  it('leaves a smooth keyframe flat and a plain one straight', () => {
+    const slope = (lo: WaveKeyframe, hi: WaveKeyframe, a: number) =>
+      (segmentAlpha(lo, hi, a + 1e-6) - segmentAlpha(lo, hi, a - 1e-6)) / 2e-6;
+    // Smooth start, plain end, and the reverse.
+    expect(slope(kf(0, 0, true), kf(1, 0), 1e-6)).toBeCloseTo(0, 4);
+    expect(slope(kf(0, 0, true), kf(1, 0), 1 - 1e-6)).toBeCloseTo(1, 4);
+    expect(slope(kf(0, 0), kf(1, 0, true), 1e-6)).toBeCloseTo(1, 4);
+    expect(slope(kf(0, 0), kf(1, 0, true), 1 - 1e-6)).toBeCloseTo(0, 4);
+    for (let a = 0; a <= 1; a += 0.05) {
+      expect(segmentAlpha(kf(0, 0, true), kf(1, 0), a)).toBeGreaterThanOrEqual(-1e-12);
+      expect(segmentAlpha(kf(0, 0, true), kf(1, 0), a)).toBeLessThanOrEqual(1 + 1e-12);
+    }
+  });
+
+  it('gives the same values through the sampler and through getParamsAtT', () => {
+    const kfs = [kf(0.1, 2, true), kf(0.5, 8), kf(0.9, 4, true)];
+    const sampler = createKeyframeSampler(kfs, PARAMS);
+    for (let i = 0; i <= 100; i++) {
+      const t = i / 100;
+      expect(sampler(t).ampN).toBeCloseTo(getParamsAtT(t, kfs, PARAMS).ampN, 12);
+    }
+    // Leaving a smooth keyframe starts slowly: halfway, short of the straight midpoint (5).
+    expect(getParamsAtT(0.3, kfs, PARAMS).ampN).toBeCloseTo(2 + 6 * 0.375);
   });
 });

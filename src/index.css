@@ -1290,6 +1290,7 @@ input[type="range"]::-moz-range-thumb {
   100% { transform: translate(-50%, -50%) scale(1); }
 }
 @keyframes kf-leave { to { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
+.kf-badge.kf-smooth::before { border-radius: 50%; }
 .kf-badge.kf-selected::before,
 .kf-nav-label .kf-badge::before,
 .liss-context--kf .kf-badge::before { border-color: var(--ink); }
@@ -1364,6 +1365,7 @@ input[type="range"]::-moz-range-thumb {
   border-right: 1px solid var(--border);
 }
 .kf-group:last-child { border-right: none; }
+.kf-group-ease { flex: 0 0 auto; }
 .kf-group .kf-field {
   border-right: none;
   border-bottom: 1px solid var(--border);
@@ -1408,6 +1410,15 @@ input[type="range"]::-moz-range-thumb {
   border-right: 1px solid var(--border);
 }
 .kf-field:last-child { border-right: none; }
+.kf-field .kf-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: 24px;
+  cursor: pointer;
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+}
 .kf-field label {
   font-size: var(--fs-sm);
   color: var(--muted);
@@ -1534,7 +1545,8 @@ label.num-scrub { cursor: ew-resize; touch-action: none; }
 label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration: underline dotted var(--faint); text-underline-offset: 3px; }
 
 /* On/off options read as switches; still a native checkbox for keyboard and forms. */
-.param-check input[type="checkbox"] {
+.param-check input[type="checkbox"],
+.kf-switch input[type="checkbox"] {
   -webkit-appearance: none;
   appearance: none;
   position: relative;
@@ -1545,7 +1557,8 @@ label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration:
   background: var(--border-strong);
   transition: background var(--dur) var(--ease);
 }
-.param-check input[type="checkbox"]::after {
+.param-check input[type="checkbox"]::after,
+.kf-switch input[type="checkbox"]::after {
   content: '';
   position: absolute;
   left: 2px;
@@ -1557,10 +1570,14 @@ label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration:
   box-shadow: var(--shadow-sm);
   transition: transform var(--dur) var(--ease), width var(--dur-fast) var(--ease);
 }
-.param-check input[type="checkbox"]:checked { background: var(--accent); }
-.param-check input[type="checkbox"]:checked::after { transform: translateX(12px); }
-.param-check input[type="checkbox"]:active::after { width: 15px; }
-.param-check input[type="checkbox"]:checked:active::after { transform: translateX(9px); }
+.param-check input[type="checkbox"]:checked,
+.kf-switch input[type="checkbox"]:checked { background: var(--accent); }
+.param-check input[type="checkbox"]:checked::after,
+.kf-switch input[type="checkbox"]:checked::after { transform: translateX(12px); }
+.param-check input[type="checkbox"]:active::after,
+.kf-switch input[type="checkbox"]:active::after { width: 15px; }
+.param-check input[type="checkbox"]:checked:active::after,
+.kf-switch input[type="checkbox"]:checked:active::after { transform: translateX(9px); }
 
 /* ── Hide number spinners ────────────────────────────────────────────────── */
 code, kbd { font-family: var(--font-ui); }
