@@ -24,6 +24,11 @@ const _S5 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path
 const _S6 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M409.7 409.7c33.2-33.2 23.8-100.2-17.9-169.7 41.7-69.6 51.1-136.5 18-169.7C376.4 37 309.4 46.5 240 88.2 170.4 46.5 103.5 37 70.3 70.2 37 103.6 46.5 170.5 88.2 240c-41.7 69.5-51.1 136.5-18 169.7 33.3 33.2 100.2 23.8 169.8-17.9 69.5 41.7 136.5 51.1 169.7 18Z" fill="#55555D"/></svg>`;
 const _S7 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m349.4 276.5 54.7 18.2a57.7 57.7 0 1 0 0-109.4l-54.7 18.2a57.4 57.4 0 0 1-27.1 2.4c5.1-7 12-13 20.8-17.5l51.6-25.8a57.7 57.7 0 1 0-77.3-77.3l-25.8 51.6a57.4 57.4 0 0 1-17.5 20.8 57.4 57.4 0 0 1 2.4-27.1l18.2-54.7a57.6 57.6 0 1 0-109.4 0l18.2 54.7a57.4 57.4 0 0 1 2.4 27.1 57.3 57.3 0 0 1-17.5-20.8l-25.8-51.6a57.7 57.7 0 1 0-77.3 77.3l51.5 25.8a57.4 57.4 0 0 1 21 17.5c-8.7 1.4-18 .7-27.2-2.4l-54.7-18.2a57.7 57.7 0 1 0 0 109.4l54.7-18.2a57.4 57.4 0 0 1 27.1-2.4 57.3 57.3 0 0 1-20.8 17.5l-51.6 25.8a57.7 57.7 0 1 0 77.3 77.3l25.8-51.5a57.4 57.4 0 0 1 17.5-21c1.4 8.7.7 18-2.4 27.2l-18.2 54.7a57.7 57.7 0 1 0 109.4 0l-18.2-54.7a57.4 57.4 0 0 1-2.4-27.1c7 5.1 13 12 17.5 20.9l25.8 51.5a57.7 57.7 0 1 0 77.4-77.4l-51.6-25.7a57.4 57.4 0 0 1-21-17.5c8.7-1.4 18-.7 27.2 2.4Z" fill="#55555D"/><path d="M240 300a60 60 0 1 1 0-120 60 60 0 0 1 0 120Z" fill="#55555D"/></svg>`;
 const _S8 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M211.5 154.6a30 30 0 0 0 57 0l15.5-46.7a46.4 46.4 0 1 0-88 0l15.5 46.7Z" fill="#55555D"/><path d="M268.5 325.4a30 30 0 0 0-57 0L196 372.1a46.4 46.4 0 1 0 88 0l-15.5-46.7Z" fill="#55555D"/><path d="M372.1 196l-46.7 15.5a30 30 0 0 0 0 57l46.7 15.5c29.8 10 60.9-12 61.1-43.3v-1.3a46.4 46.4 0 0 0-61-43.4Z" fill="#55555D"/><path d="M107.9 284l46.7-15.5a30 30 0 0 0 0-57L107.9 196a46.4 46.4 0 1 0 0 88.1Z" fill="#55555D"/><path d="M320.5 199.7l44-22a46.4 46.4 0 0 0 12.6-73.9l-.9-.9a46.4 46.4 0 0 0-74 12.5l-22 44a30 30 0 0 0 40.3 40.3Z" fill="#55555D"/><path d="M159.5 280.3l-44 22a46.4 46.4 0 0 0-12.5 74l.8.8a46.4 46.4 0 0 0 74-12.6l22-44a30 30 0 0 0-40.3-40.2Z" fill="#55555D"/><path d="M364.6 302.3l-44-22a30 30 0 0 0-40.3 40.2l22 44a46.4 46.4 0 0 0 73.9 12.6l.8-.9a46.4 46.4 0 0 0-12.4-74Z" fill="#55555D"/><path d="M115.4 177.7l44 22a30 30 0 0 0 40.3-40.2l-22-44a46.4 46.4 0 1 0-62.2 62.2Z" fill="#55555D"/></svg>`;
+const _P1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M0 0h480v480H0Z" fill="#55555D"/></svg>`;
+const _P2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M240 32.2 480 447.8H0Z" fill="#55555D"/></svg>`;
+const _P3 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M240 0a240 240 0 1 1 0 480 240 240 0 1 1 0-480Z" fill="#55555D"/></svg>`;
+const _P4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M240 11.7 480 186.1 388.3 468.3H91.7L0 186.1Z" fill="#55555D"/></svg>`;
+const _P5 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m240 0 207.8 120v240L240 480 32.2 360V120Z" fill="#55555D"/></svg>`;
 const svgUri = (s: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
 
 const SAMPLES = [
@@ -35,6 +40,11 @@ const SAMPLES = [
   { uri: svgUri(_S6), raw: _S6, name: 'muestra-6.gcode' },
   { uri: svgUri(_S7), raw: _S7, name: 'muestra-7.gcode' },
   { uri: svgUri(_S8), raw: _S8, name: 'muestra-8.gcode' },
+  { uri: svgUri(_P1), raw: _P1, name: 'cuadrado.gcode' },
+  { uri: svgUri(_P2), raw: _P2, name: 'triangulo.gcode' },
+  { uri: svgUri(_P3), raw: _P3, name: 'circulo.gcode' },
+  { uri: svgUri(_P4), raw: _P4, name: 'pentagono.gcode' },
+  { uri: svgUri(_P5), raw: _P5, name: 'hexagono.gcode' },
 ];
 
 const DEFAULT_PARAMS: PrintParams = {
