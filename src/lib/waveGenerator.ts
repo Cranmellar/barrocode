@@ -20,6 +20,9 @@
  * The phase is integrated rather than computed as 2π·s/wl: with a wavelength
  * that varies along the path, 2π·s/wl(s) has derivative 2π(1/wl − s·wl'/wl²),
  * so the local frequency overshoots badly far from s = 0.
+ *
+ * On a closed path each cyc_X is scaled so the path holds a whole number of
+ * cycles and the wave meets itself at the seam (wl changes by ≤ wl/2L).
  */
 
 import type {
@@ -273,13 +276,16 @@ export function generateWaveLayers(
 
   const useKeyframes = keyframes.length > 0;
   const kfSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
+  // Walks the same t values as kfSampler, one path ahead, to count cycles.
+  const cycleSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
   let flatIdx = 0;
 
   // getPointAtLength works in float32, so a closed source can miss its start
   // by a little more than 0.001 units on large coordinates.
-  const closed = enabled.map(({ points: pts, totalLength }) => pts.length > 1 && (params.closePath ||
+  const loops = enabled.map(({ points: pts, totalLength }) => pts.length > 1 &&
     Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y)
-      <= Math.max(0.001, totalLength * 1e-5)));
+      <= Math.max(0.001, totalLength * 1e-5));
+  const closed = loops.map(l => l || params.closePath);
 
   const layers: WaveLayer[] = [];
   // Absolute Z of each point on the previous layer, in sampling order.
@@ -300,43 +306,59 @@ export function generateWaveLayers(
       const below = prevZ[pi];
       const pathZ: number[] = new Array(n);
       layerZ.push(pathZ);
+      const arcAt = (p: SampledPoint) => reverse ? path.totalLength - p.arcLength : p.arcLength;
+      const pathLocal: LocalParams = {
+        ampN: (path.ampNOverride ?? params.lissAmpN) / sf,
+        ampT: (path.ampTOverride ?? params.lissAmpT) / sf,
+        ampZ: params.lissAmpZ,  // Z amplitude stays in mm (not scaled by sf)
+        wlN:  (path.wlNOverride  ?? params.lissWlN)  / sf,
+        wlT:  (path.wlTOverride  ?? params.lissWlT)  / sf,
+        wlZ:  params.lissWlZ / sf,
+        delta: params.lissDelta,
+        phaseZ: params.lissPhaseZ,
+        centerX: params.centerX, centerY: params.centerY,
+        scaleX:  params.scaleX,  scaleY:  params.scaleY,
+        rotation: params.rotation,
+      };
+      // Wavelengths in SVG units; keyframe values are still in mm.
+      const wavelengths = (lp: LocalParams) => useKeyframes
+        ? [lp.wlN / sf, lp.wlT / sf, lp.wlZ / sf]
+        : [lp.wlN, lp.wlT, lp.wlZ];
+
+      // A closed path holds a whole number of cycles of each wave, so it
+      // ends in the phase it started with instead of up to 2·amp to the
+      // side, which left a step at the seam on every layer.
+      let fitN = 1, fitT = 1, fitZ = 1;
+      if (loops[pi]) {
+        let cN = 0, cT = 0, cZ = 0, prev = 0;
+        pts.forEach((p, i) => {
+          const s = arcAt(p), ds = s - prev;
+          prev = s;
+          const [wN, wT, wZ] = wavelengths(cycleSampler ? cycleSampler((flatIdx + i) / tDenom) : pathLocal);
+          cN += ds / wN; cT += ds / wT; cZ += ds / wZ;
+        });
+        const fit = (c: number) => c > 0 ? Math.max(1, Math.round(c)) / c : 1;
+        fitN = fit(cN); fitT = fit(cT); fitZ = fit(cZ);
+      }
+
       let prevS = 0, cycN = 0, cycT = 0, cycZ = 0;
 
       const result: WavePoint[] = pts.map((p, i) => {
-        const s = reverse ? path.totalLength - p.arcLength : p.arcLength;
+        const s = arcAt(p);
         const ds = s - prevS;
         prevS = s;
 
-        let lp: LocalParams;
-        if (kfSampler) {
-          lp = kfSampler(flatIdx / tDenom);
-        } else {
-          lp = {
-            ampN: (path.ampNOverride ?? params.lissAmpN) / sf,
-            ampT: (path.ampTOverride ?? params.lissAmpT) / sf,
-            ampZ: params.lissAmpZ,  // Z amplitude stays in mm (not scaled by sf)
-            wlN:  (path.wlNOverride  ?? params.lissWlN)  / sf,
-            wlT:  (path.wlTOverride  ?? params.lissWlT)  / sf,
-            wlZ:  params.lissWlZ / sf,
-            delta: params.lissDelta,
-            phaseZ: params.lissPhaseZ,
-            centerX: params.centerX, centerY: params.centerY,
-            scaleX:  params.scaleX,  scaleY:  params.scaleY,
-            rotation: params.rotation,
-          };
-        }
+        const lp = kfSampler ? kfSampler(flatIdx / tDenom) : pathLocal;
         flatIdx++;
 
         const aN = useKeyframes ? lp.ampN / sf : lp.ampN;
         const aT = useKeyframes ? lp.ampT / sf : lp.ampT;
         const aZ = lp.ampZ;  // always mm — not converted to SVG units
-        const wN = useKeyframes ? lp.wlN  / sf : lp.wlN;
-        const wT = useKeyframes ? lp.wlT  / sf : lp.wlT;
-        const wZ = useKeyframes ? lp.wlZ  / sf : lp.wlZ;
+        const [wN, wT, wZ] = wavelengths(lp);
 
-        cycN += TWO_PI * ds / wN;
-        cycT += TWO_PI * ds / wT;
-        cycZ += TWO_PI * ds / wZ;
+        cycN += TWO_PI * fitN * ds / wN;
+        cycT += TWO_PI * fitT * ds / wT;
+        cycZ += TWO_PI * fitZ * ds / wZ;
 
         const wavePt = lissajousPoint(
           p, aN, aT, aZ, cycN, cycT, cycZ, lp.delta, lp.phaseZ, phaseBase,

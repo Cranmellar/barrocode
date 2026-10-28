@@ -168,6 +168,9 @@ SampledPath[] + PrintParams + WaveKeyframe[]
        • per point: createKeyframeSampler() lerps between keyframes
          (cursor-based, t must increase monotonically)
        • phase integrated per path: cycX += 2π·ds/wlX (no chirp when wl varies)
+       • closed paths: each cycX scaled so the path holds a whole number of
+         cycles (pre-pass, works with keyframed wl), so the wave meets itself
+         at the seam; it used to end up to 2·amp to the side
        • lissajousPoint(): offsetN = ampN*sin(cycN + δ + phase)
                            offsetT = ampT*sin(cycT + phase)
                            zOffset = ampZ*sin(cycZ + phaseZ + phase)   (mm)
