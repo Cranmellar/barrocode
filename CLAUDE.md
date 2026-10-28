@@ -28,7 +28,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 | `npm run preview` | Local static preview of `dist/` |
 | `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-Tests cover `lib/` only (no DOM, so `svgParser` is untested) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI only runs `npm test` and `npm run build` on `main`, so a pull request gets no automated check.
+Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI only runs `npm test` and `npm run build` on `main`, so a pull request gets no automated check.
 
 ---
 
@@ -42,9 +42,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 ---
 
-## Current state (verified 2026-10-27 on branch `claude/modest-gauss-ety6d2`, on top of `main` @ `883e209`)
+## Current state (verified 2026-10-28 on branch `claude/keen-turing-ysrsj5`, on top of `main` @ `96a8132`)
 
-- `npm test` (116 tests) and `npm run build` pass (≈87 kB app JS + 141 kB vendor; gzip ≈75 kB).
+- `npm test` (176 tests) and `npm run build` pass (≈107 kB app JS + 141 kB vendor; gzip ≈83 kB).
 - Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
@@ -65,6 +65,12 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
   - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
   - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
+- **Trajectory accidents (Oct 2026, branch `claude/keen-turing-ysrsj5`)**, recorded in `pendientes.md` → *Accidentes de trayectoria*. Found by running the eight samples through the real pipeline and measuring the layer-0 toolpath; all four families fixed:
+  - Subpaths of one `<path>` are sampled separately (`splitSubpaths`); the jump between them used to print as a bead across the part.
+  - Closed paths hold a whole number of wave cycles and share one seam frame (`joinSeamFrame`), so the contour closes; it used to end up to 2·amp beside its start.
+  - Corners tighter than the wave can follow are filleted before the wave (`roundCorners`, `cornerRadius`); they used to fold into loops (with z-hops) or jump.
+  - Soft-join transitions shorter than 0.05 mm are skipped; their steps extruded less than E's printed resolution.
+  - A sweep over Z wave, phase shift, alternate direction, keyframes, large T and scale 0.5 now gives no false crossing, closed seams and steps ≤ 3 mm. Left as known: keyframes that change the amplitude along a layer leave a ≈ 0.5 mm seam step, and fillets visibly shorten very sharp tips (a 30° point loses ≈ 15 mm at amplitude 3).
 - **Some `pendientes.md` tickets are ticked `[x]` but not implemented** — treat them as open:
   - NumInput refresh while focused during wheel (`NumInput.tsx` still guards `setRaw` with `!focusedRef.current`).
   - Shift = fine adjust on wheel (no `shiftKey` handling anywhere).
@@ -99,6 +105,9 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 12. Fix the stale `pendientes.md` checkmarks listed in "Current state".
 
 ### Lower priority / needs a decision
+
+- Sharp tips lose length to corner rounding (a 30° point, ≈ 15 mm at amplitude 3). Option: fade the amplitude near a tip instead of growing the fillet (`roundCorners` in `waveGenerator.ts`). The owner hasn't chosen yet.
+- With keyframes that change the amplitude along a layer, a closed path's end has the next layer's amplitude, so the seam steps by ≈ 0.5 mm. It continues smoothly into the layer above; closing it would need the amplitude held over the seam.
 
 - E ignores the real bead thickness: with the Z wave the gap to the layer below ranges from 0.5× to ≈ 1.6× `layerHeight`, but E only follows XY distance. Scale E by the local gap (extends NP-0a).
 - `parseSVG` can't detect `visibility:hidden`: the measuring container is itself `visibility:hidden`.
