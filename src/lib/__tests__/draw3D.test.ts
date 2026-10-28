@@ -36,10 +36,12 @@ describe('project', () => {
 
 describe('keyframeAt', () => {
   const view = { azimuth: 0, elevation: 90, scale: 1, offsetX: 0, offsetY: 0 };
-  const flatPoints = [0, 1, 2].map(i => ({ x: i * 100, y: 0, z: 0, layerIndex: i }));
+  const toolpath = [0, 1, 2].map(i =>
+    ({ index: i, paths: [[{ x: i * 100, y: 0, z: 0 }]] }) as unknown as ToolpathLayer);
+  const flatPoints = flattenPoints(toolpath);
   const kf = (id: string, t: number) => ({ id, t }) as WaveKeyframe;
   const scene = {
-    view, flatPoints, keyframes: [kf('b', 1), kf('a', 0.5)],
+    view, toolpath, flatPoints, keyframes: [kf('b', 1), kf('a', 0.5)],
     selectedKfId: null, layerCap: 2, layerSolo: false,
   };
 
@@ -63,10 +65,11 @@ describe('layerAtT', () => {
   const toolpath = [layer(0, [3]), layer(1, [2, 3]), layer(2, [2])];
 
   it('picks the layer of the point the extruder is drawn at', () => {
-    const flat = flattenPoints(toolpath);
+    const layerOfFlat = [0, 0, 0, 1, 1, 1, 1, 1, 2, 2];
+    expect(flattenPoints(toolpath)).toHaveLength(layerOfFlat.length);
     for (let i = 0; i <= 200; i++) {
       const t = i / 200;
-      expect(layerAtT(toolpath, t)).toBe(flat[Math.floor(t * (flat.length - 1))].layerIndex);
+      expect(layerAtT(toolpath, t)).toBe(layerOfFlat[Math.floor(t * (layerOfFlat.length - 1))]);
     }
   });
 

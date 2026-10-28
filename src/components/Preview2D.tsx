@@ -592,7 +592,7 @@ export function Preview2D({
   const kfUnder = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     return keyframeAt(
-      { view, flatPoints, keyframes, selectedKfId, layerCap: visibleCap, layerSolo },
+      { view, toolpath, flatPoints, keyframes, selectedKfId, layerCap: visibleCap, layerSolo },
       e.clientX - rect.left, e.clientY - rect.top,
     );
   };
