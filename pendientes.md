@@ -128,6 +128,10 @@ Ya existe no planaridad parcial: oscilación Z por punto (`lissAmpZ`), z-hop par
 
 Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 → NP-3.
 
+### Módulo *Forma* (shaper)
+
+- [ ] **SH — Generador y editor de formas.** Plan completo, decisiones abiertas (D-S1…D-S7) y fases F0–F6 en [docs/shaper-plan.md](docs/shaper-plan.md). Empezar por cerrar las decisiones; F0–F3 resuelven el cuello de botella sin la edición de trazado.
+
 ### Contenido / assets
 
 - [ ] **Biblioteca de SVG samples** — *parcial: hay 8 muestras en un carrusel ‹ › con miniatura.* Falta la grilla de pads, si se quiere. Actualizar la carpeta de samples y mostrar 12 (o más) pads pequeños con vistas mini de cada sample (tomando el ícono del propio SVG), para elegir visualmente. Alternativa: flechas left/right para navegar entre samples.

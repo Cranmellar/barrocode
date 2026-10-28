@@ -471,6 +471,7 @@ When you need context, this is where to look:
 - [pendientes.md](pendientes.md) — **actionable backlog**, prioritized in waves. Read before starting any new ticket; cross-check its checkmarks with "Current state" above.
 - [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 - [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md) — graphical overhaul: diagnosis of the current UI, layout proposal, open decisions (D-1…D-6) and phased plan. Check it before any UI/CSS work.
+- [docs/shaper-plan.md](docs/shaper-plan.md) — proposal for *Forma*, an in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, open decisions (D-S1…D-S7) and phases F0–F6. Not started.
 - `docs/ui-interactive-mockup.html`, `docs/ui-image-prompt.md` — UI design references, not shipped.
 
 ---
