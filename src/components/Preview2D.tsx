@@ -15,7 +15,7 @@
 
 import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type Dispatch, type ReactNode, type SetStateAction } from 'react';
 import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
-import { findKeyframeAt } from '../lib/waveGenerator';
+import { findKeyframeAt, partCentreMM } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
@@ -30,6 +30,8 @@ interface Props {
   toolpath: ToolpathLayer[];
   params: PrintParams;
   viewBox: SVGViewBox | null;
+  // Changes when another SVG is loaded, so the camera frames the new part.
+  partKey: string | null;
   timelineProgress: number;
   onTimelineChange: (v: number) => void;
   // The user moved the extruder by hand (slider or a click on the lane).
@@ -153,7 +155,7 @@ function uid() {
 }
 
 export function Preview2D({
-  sampledPaths, toolpath, params, viewBox,
+  sampledPaths, toolpath, params, viewBox, partKey,
   timelineProgress, onTimelineChange, onScrub,
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeBusy, gcodeFilename, toast, onToast,
@@ -203,6 +205,11 @@ export function Preview2D({
   useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
   const svgH = viewBox?.height ?? 200;
+  const pivotBase = useMemo(
+    () => partCentreMM(sampledPaths, params, svgH),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sampledPaths, params.scaleFactor, params.originX, params.originY, params.flipY, svgH],
+  );
 
   // ── Keyframes appearing and disappearing ─────────────────────────────────
   // New keyframes pop in on the timeline and in the 3D view; removed ones
@@ -279,6 +286,27 @@ export function Preview2D({
     if (flatPoints.length === 0) return null;
     return boundsOf(flatPoints, p => p.x, p => p.y);
   }, [flatPoints]);
+
+  // The camera turns around the middle of the part, not the bed origin, so
+  // a part placed far out on its artboard doesn't swing off screen.
+  const modelCentre = useMemo(() => {
+    if (!modelBounds) return null;
+    const b = modelBounds;
+    const zMid = (toolpath[0].z + toolpath[toolpath.length - 1].z) / 2;
+    return [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zMid] as const;
+  }, [modelBounds, toolpath]);
+
+  // `from` turned to new angles, with the part's centre left where it was on screen.
+  const orbit = (from: View3D, azimuth: number, elevation: number): View3D => {
+    if (!modelCentre) return { ...from, azimuth, elevation };
+    const [fx, fy] = makeProjector(from.azimuth, from.elevation)(...modelCentre);
+    const [px, py] = makeProjector(azimuth, elevation)(...modelCentre);
+    return {
+      ...from, azimuth, elevation,
+      offsetX: from.offsetX + (fx - px) * from.scale,
+      offsetY: from.offsetY + (fy - py) * from.scale,
+    };
+  };
 
   // ── Keyframe drag (window-level so it works outside the track) ───────────
   useEffect(() => {
@@ -370,9 +398,7 @@ export function Preview2D({
     setShowAngles(from.azimuth !== to.azimuth || from.elevation !== to.elevation);
     // The part's centre travels in a straight line on screen while the
     // camera turns around it, so the part pivots instead of swinging.
-    const b = modelBounds!;
-    const zMid = toolpath.length ? (toolpath[0].z + toolpath[toolpath.length - 1].z) / 2 : 0;
-    const c = [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zMid] as const;
+    const c = modelCentre!;
     const screenOf = (v: View3D) => {
       const [px, py] = makeProjector(v.azimuth, v.elevation)(...c);
       return [v.offsetX + px * v.scale, v.offsetY + py * v.scale];
@@ -413,11 +439,7 @@ export function Preview2D({
     if (reducedMotion() || performance.now() - spinRef.current.t > 60 || Math.hypot(vAz, vEl) < 0.3) return false;
     const step = () => {
       vAz *= 0.9; vEl *= 0.9;
-      setView(v => ({
-        ...v,
-        azimuth: (v.azimuth + vAz + 360) % 360,
-        elevation: Math.max(0, Math.min(89, v.elevation + vEl)),
-      }));
+      setView(v => orbit(v, (v.azimuth + vAz + 360) % 360, Math.max(0, Math.min(89, v.elevation + vEl))));
       if (Math.hypot(vAz, vEl) > 0.05) camAnimRef.current = requestAnimationFrame(step);
       else settle();
     };
@@ -460,13 +482,15 @@ export function Preview2D({
   useEffect(() => { fitRef.current(undefined, undefined, true); }, [insets.left, insets.right]);
 
   const prevLayerCount = useRef(0);
+  const prevPartKey = useRef<string | null>(null);
   useEffect(() => {
-    if (toolpath.length > 0 && toolpath.length !== prevLayerCount.current) {
+    if (toolpath.length > 0 && (toolpath.length !== prevLayerCount.current || partKey !== prevPartKey.current)) {
       prevLayerCount.current = toolpath.length;
+      prevPartKey.current = partKey;
       const t = setTimeout(() => fitView(), 60);
       return () => clearTimeout(t);
     }
-  }, [toolpath.length, fitView]);
+  }, [toolpath.length, partKey, fitView]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -541,12 +565,12 @@ export function Preview2D({
     ctx.save();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
-      ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
+      ...geometry, flatPoints, modelBounds, sampledPaths, svgH, pivotBase, timelineProgress,
       keyframes, selectedKfId, showDims: viewOpts.showDims, kfPop,
       inset: { left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset },
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, pivotBase, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -612,11 +636,11 @@ export function Preview2D({
       sp.vAz = 0.6 * sp.vAz + 0.4 * (-(e.clientX - sp.x) * 0.5 * k);
       sp.vEl = 0.6 * sp.vEl + 0.4 * ((e.clientY - sp.y) * 0.3 * k);
       sp.x = e.clientX; sp.y = e.clientY; sp.t = now;
-      setView(v => ({
-        ...v,
-        azimuth:   (d.startView.azimuth   - dx * 0.5 + 360) % 360,
-        elevation: Math.max(0, Math.min(89, d.startView.elevation + dy * 0.3)),
-      }));
+      setView(orbit(
+        d.startView,
+        (d.startView.azimuth - dx * 0.5 + 360) % 360,
+        Math.max(0, Math.min(89, d.startView.elevation + dy * 0.3)),
+      ));
     }
   };
   const onMouseUp = stopInteracting;

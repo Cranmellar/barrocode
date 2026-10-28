@@ -65,6 +65,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
   - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
   - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
+- **Pivot relative to the part.** `centerX/Y` (params and keyframes) are mm offsets from the centre of the enabled paths' bounding box (`partCentreSVG` / `partCentreMM` in `waveGenerator.ts`), so 0, 0 is the part's geometric centre wherever the SVG placed it on its artboard (Illustrator exports put parts far from the viewBox origin). *Centrar en la pieza* resets it. The 3D camera orbits around the part's centre (`orbit` in `Preview2D`), not the bed origin, and refits when another SVG is loaded (`partKey`). The part itself still prints at its artboard position on the bed.
 - **One `pendientes.md` ticket is ticked `[x]` but not implemented** — treat it as open: pivot drag in the 3D viewport (`Preview2D` has no params `onChange`; nothing draggable for the pivot).
 - **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
@@ -191,7 +192,8 @@ SampledPath[] + PrintParams + WaveKeyframe[]
                            zOffset = ampZ*sin(cycZ + phaseZ + phase)   (mm)
        • Z floor: layer 0 ≥ its base Z; later points ≥ same sample on the
          layer below + layerHeight·MIN_LAYER_GAP (0.5)
-       • applyTransformSVG: scale, then rotate, around pivot in SVG space
+       • applyTransformSVG: scale, then rotate, around pivot in SVG space;
+         pivot = bounding-box centre of the enabled paths + (centerX, centerY)
        • alternateDirection: reverse every other layer
        • closePath: append first point if not closed
      → WaveLayer[] { index, z (mm), paths: WavePoint[][] (SVG units + zOffset mm) }
@@ -320,6 +322,7 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 - `WaveLayer.paths` stores XY in **SVG user units**, measured from the viewBox's top-left corner; `WavePoint.zOffset` is already in **mm**.
 - `svgToMM()` (in `waveGenerator.ts`) converts XY to **mm** only in `buildToolpath`.
 - `lissAmpN/T` and `lissWlN/T/Z` are in **mm** and divided by `scaleFactor` inside the wave math (so the visual amplitude tracks the real-world mm regardless of SVG unit scale); `lissAmpZ` is not (Z is always mm).
+- `centerX/Y` are offsets in mm from the part's bounding-box centre, not bed coordinates; `partCentreMM` gives the bed position of a zero pivot (used by the centre axis in `draw3D` and by `CenterPad`).
 - Transform order: `scaleFactor` (SVG→mm) is separate from `scaleX/Y` (shape scale around pivot) and `rotation` (degrees, counter-clockwise seen from above, around the same pivot). `applyTransformSVG` scales and then rotates in SVG space before `svgToMM` converts; with `flipY` the angle's sign flips there so the bed always sees counter-clockwise. `rotation.test.ts` pins this.
 - Twisting a part shifts each layer by `r · Δθ` at distance `r` from the pivot, so steep twists overhang. That is the user's call; the app doesn't warn or limit it.
 - `flipY`: most printers want Y growing upward; SVG Y grows downward.

@@ -127,7 +127,7 @@ Las vistas y el encuadre se animan; al soltar una rotación la cámara sigue un 
 | Arrastrar la etiqueta de un número | Desliza el valor a izquierda o derecha (con `Shift`, en pasos finos) |
 | Arrastrar un slider de la onda | Se pega al valor por defecto (la marca en la pista) y muestra el valor sobre el control |
 
-Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`).
+El centro de pivote (de la escala y el giro) se mide desde el centro geométrico de la pieza: 0, 0 es el centro de la pieza, esté donde esté en la mesa de trabajo del SVG (por ejemplo, un archivo de Illustrator). *Centrar en la pieza* lo devuelve ahí. Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`). La vista 3D gira alrededor del centro de la pieza.
 
 ### Atajos de teclado
 

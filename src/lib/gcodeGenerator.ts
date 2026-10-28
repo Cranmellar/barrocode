@@ -57,7 +57,7 @@ function buildHeader(params: PrintParams): string {
     `; Nozzle Z offset        : ${params.nozzleHeightOffset} mm`,
     `; Soft join              : ${params.softJoin} (transition ${params.transitionLength} mm)`,
     `; Scale factor           : ${params.scaleFactor}`,
-    `; Center (X/Y)           : ${params.centerX} / ${params.centerY} mm`,
+    `; Pivot from part centre : ${params.centerX} / ${params.centerY} mm`,
     `; Scale X / Y            : ${params.scaleX} / ${params.scaleY}`,
     `; Rotation               : ${params.rotation}°`,
     `; Origin X / Y           : ${params.originX} / ${params.originY} mm`,

@@ -7,7 +7,7 @@ import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
 // The seam ramp is off unless a test asks for it, so flat-Z checks hold.
 function toolpath(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
   const params = { ...PARAMS, softJoin: false, ...overrides };
-  const layers = generateWaveLayers(paths, params, [], VIEWBOX.height);
+  const layers = generateWaveLayers(paths, params, []);
   return buildToolpath(layers, params, VIEWBOX.height);
 }
 

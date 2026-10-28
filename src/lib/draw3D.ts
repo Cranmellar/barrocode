@@ -119,6 +119,8 @@ export interface Scene {
   sampledPaths: SampledPath[];
   params: PrintParams;
   svgH: number;
+  // Bed position of a zero pivot (the part's centre), in mm.
+  pivotBase: { x: number; y: number };
   // Screen margins covered by the floating panels; overlays stay inside them.
   inset: { left: number; right: number; top: number; bottom: number };
   keyframes: WaveKeyframe[];
@@ -190,7 +192,7 @@ export function drawScene(
   geometry?: CanvasImageSource,
 ) {
   const {
-    view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
+    view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH, pivotBase,
     keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims, inset, kfPop,
   } = scene;
   const { azimuth, elevation } = view;
@@ -233,7 +235,7 @@ export function drawScene(
   if (numLayers > 0) {
     // Use the interpolated center at the current timeline position
     const lp = getParamsAtT(timelineProgress, keyframes, params);
-    const cxMM = lp.centerX, cyMM = lp.centerY;
+    const cxMM = pivotBase.x + lp.centerX, cyMM = pivotBase.y + lp.centerY;
     const maxZ = toolpath[numLayers - 1].z + params.layerHeight;
     const [cx0, cy0] = toScreen(cxMM, cyMM, 0);
     const [cx1, cy1] = toScreen(cxMM, cyMM, maxZ);
@@ -253,7 +255,7 @@ export function drawScene(
     ctx.font = '10px GSCode, monospace';
     ctx.fillStyle = palette.muted;
     ctx.textAlign = 'left';
-    ctx.fillText(`centro ${cxMM.toFixed(1)}, ${cyMM.toFixed(1)}`, cx0 + 9, cy0 - 5);
+    ctx.fillText(`centro ${lp.centerX.toFixed(1)}, ${lp.centerY.toFixed(1)}`, cx0 + 9, cy0 - 5);
     ctx.restore();
   }
 

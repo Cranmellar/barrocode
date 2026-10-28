@@ -23,7 +23,7 @@ describe('summarizeGcode', () => {
 
   it('accounts for all extrusion in a generated program', () => {
     const path = sampledPath('a', polyline([[10, 10], [60, 10], [60, 40]]));
-    const layers = generateWaveLayers([path], PARAMS, [], VIEWBOX.height);
+    const layers = generateWaveLayers([path], PARAMS, []);
     const gcode = generateGcode(buildToolpath(layers, PARAMS, VIEWBOX.height), PARAMS);
     const es = [...gcode.matchAll(/E([\d.]+)/g)];
     const last = es[es.length - 1];

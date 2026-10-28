@@ -46,15 +46,15 @@ describe('memo field lists', () => {
     const label = keyframes.length ? 'with keyframes' : 'without keyframes';
 
     it(`WAVE_PARAMS lists every field generateWaveLayers reads — ${label}`, () => {
-      const ref = generateWaveLayers(lemniscate(), BASE, keyframes, VIEWBOX.height);
+      const ref = generateWaveLayers(lemniscate(), BASE, keyframes);
       for (const key of others(WAVE_PARAMS)) {
-        const layers = generateWaveLayers(lemniscate(), perturbed(BASE, key), keyframes, VIEWBOX.height);
+        const layers = generateWaveLayers(lemniscate(), perturbed(BASE, key), keyframes);
         expect(layers, key).toEqual(ref);
       }
     });
 
     it(`TOOLPATH_PARAMS lists every field buildToolpath reads — ${label}`, () => {
-      const layers = generateWaveLayers(lemniscate(), BASE, keyframes, VIEWBOX.height);
+      const layers = generateWaveLayers(lemniscate(), BASE, keyframes);
       const ref = buildToolpath(layers, BASE, VIEWBOX.height);
       for (const key of others(TOOLPATH_PARAMS)) {
         expect(buildToolpath(layers, perturbed(BASE, key), VIEWBOX.height), key).toEqual(ref);
@@ -66,10 +66,10 @@ describe('memo field lists', () => {
     for (const key of WAVE_PARAMS) {
       // totalHeight only counts when useNumLayers is off.
       const base = key === 'totalHeight' ? { ...BASE, useNumLayers: false } : BASE;
-      const ref = generateWaveLayers(lemniscate(), base, [], VIEWBOX.height);
-      expect(generateWaveLayers(lemniscate(), perturbed(base, key), [], VIEWBOX.height), key).not.toEqual(ref);
+      const ref = generateWaveLayers(lemniscate(), base, []);
+      expect(generateWaveLayers(lemniscate(), perturbed(base, key), []), key).not.toEqual(ref);
     }
-    const layers = generateWaveLayers(lemniscate(), BASE, [], VIEWBOX.height);
+    const layers = generateWaveLayers(lemniscate(), BASE, []);
     const ref = buildToolpath(layers, BASE, VIEWBOX.height);
     for (const key of TOOLPATH_PARAMS) {
       expect(buildToolpath(layers, perturbed(BASE, key), VIEWBOX.height), key).not.toEqual(ref);

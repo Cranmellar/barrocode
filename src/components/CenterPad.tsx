@@ -19,8 +19,9 @@ interface Props {
   layers:   WaveLayer[];
   params:   PrintParams;
   svgH:     number;
-  centerX:  number;      // mm — current pivot X
-  centerY:  number;      // mm — current pivot Y
+  base:     { x: number; y: number };  // mm — bed position of a zero pivot (part centre)
+  centerX:  number;      // mm — pivot X, from the part centre
+  centerY:  number;      // mm — pivot Y, from the part centre
   kfT:      number;      // 0-1 — keyframe position in trajectory
   onChange: (x: number, y: number) => void;
 }
@@ -60,7 +61,7 @@ function buildTransform(b: Bounds | null, px: number, py: number, W: number, H: 
   return { cx: W / 2 - ((mnX + mxX) / 2) * s, cy: H / 2 + ((mnY + mxY) / 2) * s, s };
 }
 
-export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChange }: Props) {
+export function CenterPad({ layers, params, svgH, base, centerX, centerY, kfT, onChange }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const tRef      = useRef<T2>({ cx: 36, cy: 36, s: 1 });
   const dragging  = useRef(false);
@@ -99,7 +100,8 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.scale(dpr, dpr);
 
     // Freeze the framing while dragging so the view does not shift under the cursor.
-    const T = dragging.current ? tRef.current : buildTransform(bounds, centerX, centerY, W, H);
+    const pivotX = base.x + centerX, pivotY = base.y + centerY;
+    const T = dragging.current ? tRef.current : buildTransform(bounds, pivotX, pivotY, W, H);
     tRef.current = T;
 
     // ── Background ──────────────────────────────────────────────────────────
@@ -152,7 +154,7 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     // ── Center crosshair ─────────────────────────────────────────────────────
     ctx.save();
     ctx.globalAlpha = 1;
-    const [ccx, ccy] = w2s(centerX, centerY, T);
+    const [ccx, ccy] = w2s(pivotX, pivotY, T);
 
     // Circle ring
     ctx.strokeStyle = palette.nAxis;
@@ -185,13 +187,14 @@ export function CenterPad({ layers, params, svgH, centerX, centerY, kfT, onChang
     ctx.fillText(`L${layerIdx + 1}`, W - 3, H - 3);
     ctx.restore();
 
-  }, [layers, params, svgH, centerX, centerY, layerIdx, size, bounds, dragEnd]);
+  }, [layers, params, svgH, base, centerX, centerY, layerIdx, size, bounds, dragEnd]);
 
   // ── Drag interaction ────────────────────────────────────────────────────────
   function hitWorld(e: React.MouseEvent<HTMLCanvasElement>): [number, number] {
     const canvas = canvasRef.current!;
     const rect   = canvas.getBoundingClientRect();
-    return s2w(e.clientX - rect.left - canvas.clientLeft, e.clientY - rect.top - canvas.clientTop, tRef.current);
+    const [x, y] = s2w(e.clientX - rect.left - canvas.clientLeft, e.clientY - rect.top - canvas.clientTop, tRef.current);
+    return [x - base.x, y - base.y];
   }
 
   function endDrag() {

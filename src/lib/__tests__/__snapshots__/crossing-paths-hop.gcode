@@ -11,7 +11,7 @@
 ; Nozzle Z offset        : 1 mm
 ; Soft join              : true (transition 10 mm)
 ; Scale factor           : 1
-; Center (X/Y)           : 0 / 0 mm
+; Pivot from part centre : 0 / 0 mm
 ; Scale X / Y            : 1 / 1
 ; Rotation               : 0°
 ; Origin X / Y           : 0 / 0 mm

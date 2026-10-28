@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT, findKeyframeAt, WAVE_PARAMS } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreMM, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
@@ -244,10 +244,15 @@ export default function App() {
   const waveKey = WAVE_PARAMS.map(k => params[k]).join('|');
   const layers = useMemo(
     () => parsedSVG
-      ? generateWaveLayers(parsedSVG.paths, params, keyframes, parsedSVG.viewBox.height)
+      ? generateWaveLayers(parsedSVG.paths, params, keyframes)
       : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [parsedSVG, keyframes, waveKey],
+  );
+  const pivotBase = useMemo(
+    () => parsedSVG ? partCentreMM(parsedSVG.paths, params, svgH) : { x: 0, y: 0 },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [parsedSVG, params.scaleFactor, params.originX, params.originY, params.flipY, svgH],
   );
   const toolpathKey = TOOLPATH_PARAMS.map(k => params[k]).join('|');
   const toolpath = useMemo(
@@ -754,6 +759,7 @@ export default function App() {
             layers={layers}
             params={params}
             svgH={svgH}
+            base={pivotBase}
             centerX={selectedKf.centerX ?? params.centerX}
             centerY={selectedKf.centerY ?? params.centerY}
             kfT={selectedKf.t}
@@ -804,6 +810,7 @@ export default function App() {
         toolpath={toolpath}
         params={params}
         viewBox={parsedSVG?.viewBox ?? null}
+        partKey={parsedSVG?.raw ?? null}
         timelineProgress={timelineProgress}
         onTimelineChange={setTimeline}
         onScrub={scrubTimeline}
