@@ -58,8 +58,9 @@ export function KeyframeAddIcon({ size = 16, dashed = false }: { size?: number; 
   return (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
       strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path className="kfi-diamond" d="M8 1.4 14.6 8 8 14.6 1.4 8Z" strokeDasharray={dashed ? '2.2 2' : undefined} />
-      <path className="kfi-plus" d="M8 5.3v5.4M5.3 8h5.4" />
+      <path className="kfi-diamond" d="M8 1.4 14.6 8 8 14.6 1.4 8Z"
+        strokeWidth={dashed ? 1 : undefined} strokeDasharray={dashed ? '1.4 2.3' : undefined} />
+      <path className="kfi-plus" d="M8 5.3v5.4M5.3 8h5.4" strokeWidth={dashed ? 1.3 : undefined} />
     </svg>
   );
 }
