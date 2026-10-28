@@ -7,6 +7,7 @@ Esta guía describe el flujo de uso de BarroCode desde la carga del SVG hasta la
 ```mermaid
 flowchart TD
   A["Cargar SVG"] --> B["Revisar trayectos detectados"]
+  F0["Crear la forma en Forma"] --> B
   B --> C["Ajustar parámetros de impresión"]
   C --> D["Ajustar Lissajous"]
   D --> E["Crear keyframes si hace falta"]
@@ -29,6 +30,19 @@ Elementos soportados:
 - `<rect>`
 
 Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
+
+### O crear la forma en *Forma*
+
+El selector **Forma · Impresión**, arriba del panel izquierdo, cambia de espacio de trabajo. *Forma* dibuja la línea central de la pieza ya en milímetros, sin pasar por otro programa:
+
+- **Familias**: *Lóbulos* (número, profundidad, agudeza), *Polígono* (lados, estrella, radio de esquina en mm) y *Superfórmula* (m, n1, n2, n3). Debajo, **Diámetro exterior** (dos veces la distancia del centro al punto más lejano), **Giro**, **Costura** (el ángulo donde empieza y termina cada capa) y **Sentido horario**.
+- **Descubrir** (barra superior): nueve variaciones de la familia. Clic adopta una; **Más como esta** sortea cerca de la forma actual; **Otra tanda**, en todo el rango.
+- **Imprimibilidad**: marca en rojo los tramos más cerrados de lo que la onda de *Impresión* puede seguir y propone cómo arreglarlo. **Onda** (barra superior) dibuja la franja que barre la onda: donde dos franjas se tocan, las paredes chocarán.
+- **Editar puntos**: convierte la forma en nodos. Arrastra un nodo o las asas del elegido; doble clic en la línea añade un nodo; `Supr` lo borra. Con **Simetría**, cada cambio se repite en todas las repeticiones. El panel muestra el nodo elegido y la lista de comandos del trazado.
+- **Importar**: **Abrir en Forma** (junto al nombre del archivo, en *Impresión*) o **Abrir SVG…** traen los contornos cerrados de un SVG como nodos, al tamaño que se imprimen. Los trazados abiertos quedan fuera.
+- **Enviar a impresión** carga la forma en *Impresión* con el factor de escala en 1; **Editar forma** vuelve a ella.
+
+En *Forma*, `Ctrl+Z` deshace y `Ctrl+Shift+Z` rehace (en *Impresión* no hay deshacer). La forma se guarda en el navegador y vuelve al abrir la app.
 
 ## 2. Revisar Trayectos
 
@@ -140,10 +154,12 @@ El centro de pivote (de la escala y el giro) se mide desde el centro geométrico
 | `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
 | `G` | Abre o cierra el panel de G-code |
 | `?` | Abre la ayuda |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | En *Forma*: deshace / rehace |
+| `Supr` / `Esc` | En *Forma*: borra / suelta el nodo elegido (o cierra *Descubrir*) |
 
 ### Sesión
 
-BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estado de cada trayecto) un segundo después de cada cambio. Al volver a abrir la app aparece **Sesión anterior** con *Restaurar* o *Descartar*. Descartar el SVG con la ✕ también borra la sesión guardada.
+BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estado de cada trayecto) un segundo después de cada cambio. Al volver a abrir la app aparece **Sesión anterior** con *Restaurar* o *Descartar*. Descartar el SVG con la ✕ también borra la sesión guardada. La forma de *Forma* se guarda aparte y vuelve sola.
 
 ## 7. Exportar
 

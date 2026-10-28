@@ -129,9 +129,9 @@ export function HelpDialog({ open, onClose }: Props) {
             <h3 id="help-steps">Flujo en 4 pasos</h3>
             <ol className="help-steps">
               <li>
-                <strong>Carga un SVG</strong> — arrástralo a cualquier parte de la ventana o usa
+                <strong>Carga un SVG</strong> — arrástralo a cualquier parte de la ventana o usa{' '}
                 <em>Cargar SVG</em>; también puedes elegir una muestra con <kbd>‹</kbd> <kbd>›</kbd> y hacer clic para cargarla.
-                Puedes activar o desactivar cada trayecto en la lista.
+                Puedes activar o desactivar cada trayecto en la lista. O crea la forma en <em>Forma</em> (abajo).
               </li>
               <li>
                 <strong>Configura la impresión</strong> (panel izquierdo: Pieza, Trayecto, Máquina) — capas, altura de capa,
@@ -144,10 +144,35 @@ export function HelpDialog({ open, onClose }: Props) {
                 onda resultante.
               </li>
               <li>
-                <strong>Revisa y exporta</strong> — inspecciona la trayectoria en 3D y pulsa
+                <strong>Revisa y exporta</strong> — inspecciona la trayectoria en 3D y pulsa{' '}
                 <em>Descargar</em> arriba a la derecha (<em>G-code</em> muestra el programa).
               </li>
             </ol>
+          </section>
+
+          <section aria-labelledby="help-forma">
+            <h3 id="help-forma">Forma: crear la pieza</h3>
+            <p>
+              El selector <em>Forma · Impresión</em>, arriba del panel izquierdo, cambia de espacio de trabajo.
+              En <em>Forma</em> dibujas la línea central que <em>Impresión</em> ondula y apila, ya en milímetros.
+            </p>
+            <dl className="help-defs">
+              <dt>Familias</dt>
+              <dd>Lóbulos, Polígono y Superfórmula, con diámetro exterior, giro, costura (dónde empieza cada capa) y sentido.</dd>
+              <dt>Descubrir</dt>
+              <dd>nueve variaciones de la familia; clic para adoptar una, <em>Más como esta</em> para afinar alrededor.</dd>
+              <dt>Imprimibilidad</dt>
+              <dd>en rojo, los tramos más cerrados de lo que la onda actual puede seguir; <em>Onda</em> muestra la franja que barre.</dd>
+              <dt>Editar puntos</dt>
+              <dd>
+                convierte la forma en nodos: arrastra nodos y asas, doble clic en la línea añade uno. Con simetría,
+                cada cambio se repite en todas las repeticiones.
+              </dd>
+              <dt>Importar</dt>
+              <dd><em>Abrir en Forma</em> (en Impresión) o <em>Abrir SVG…</em> traen los contornos cerrados de un SVG como nodos.</dd>
+              <dt>Enviar a impresión</dt>
+              <dd>carga la forma en Impresión a su tamaño real; <em>Editar forma</em> vuelve a ella.</dd>
+            </dl>
           </section>
 
           <section aria-labelledby="help-axes">
@@ -196,6 +221,9 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row"><kbd>K</kbd></th><td>añadir keyframe en el extrusor (o seleccionar el que ya está ahí)</td></tr>
                 <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
                 <tr><th scope="row"><kbd>G</kbd></th><td>mostrar u ocultar el G-code</td></tr>
+                <tr><th scope="row"><kbd>Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></th><td>en Forma: deshacer · rehacer</td></tr>
+                <tr><th scope="row">Doble clic en la línea</th><td>en Forma, con nodos: añadir un nodo</td></tr>
+                <tr><th scope="row"><kbd>Supr</kbd> · <kbd>Esc</kbd></th><td>en Forma: borrar · soltar el nodo elegido (o cerrar Descubrir)</td></tr>
               </tbody>
             </table>
           </section>

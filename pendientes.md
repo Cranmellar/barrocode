@@ -128,6 +128,10 @@ Ya existe no planaridad parcial: oscilación Z por punto (`lissAmpZ`), z-hop par
 
 Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 → NP-3.
 
+### Módulo *Forma* (shaper)
+
+- [ ] **SH — Generador y editor de formas.** Plan completo, decisiones abiertas (D-S1…D-S7) y fases F0–F6 en [docs/shaper-plan.md](docs/shaper-plan.md). F0 hecha (selector *Forma · Impresión*, ida y vuelta) y F1 hecha (lóbulos, polígono o estrella redondeados, superfórmula; diámetro, giro, costura y sentido). F2 hecha (avisos de imprimibilidad contra la onda actual, tramos marcados en el lienzo). F3 hecha (*Descubrir*: grilla de 3×3 variaciones con semilla, *Más como esta*, *Otra tanda*). F4 hecha (*Editar puntos*: nodos con asas, simetría radial, añadir y borrar, lista de comandos, deshacer en *Forma*). F5 hecha (varios contornos, *Abrir en Forma* / *Importar*, forma guardada en `barrocode.shape`; las ocho muestras van y vuelven con el mismo tamaño). F6 hecha (franja de la onda en el lienzo, ayuda y `docs/usage.md`, revisión a 1024–1440 px, teclado y rendimiento). Plan completo; queda abierta la licencia (D-S4). Siguientes pasos posibles en la sección 8 del plan: composición por campos de distancia y forma que cambia con la altura. F0–F3 resuelven el cuello de botella sin la edición de trazado.
+
 ### Contenido / assets
 
 - [ ] **Biblioteca de SVG samples** — *parcial: hay 8 muestras en un carrusel ‹ › con miniatura.* Falta la grilla de pads, si se quiere. Actualizar la carpeta de samples y mostrar 12 (o más) pads pequeños con vistas mini de cada sample (tomando el ícono del propio SVG), para elegir visualmente. Alternativa: flechas left/right para navegar entre samples.

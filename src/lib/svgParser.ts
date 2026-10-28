@@ -21,25 +21,15 @@ function getHiddenContainer(): HTMLDivElement {
   return _hiddenContainer;
 }
 
-/**
- * Transform a DOMPoint from element-local coordinates into SVG root user-unit
- * coordinates, accounting for any CSS/SVG transforms on the element and its
- * ancestors up to (but not including) the SVG viewport transform.
- *
- * We use getScreenCTM() for both and cancel the common viewport factor so
- * that what remains is purely the element→SVG-user-units mapping.
- */
-function elementPointToSVGUnits(
-  rawPoint: DOMPoint,
-  elScreenCTM: DOMMatrix,
-  svgScreenCTM: DOMMatrix,
-): { x: number; y: number } {
-  // M = svgScreenCTM^(-1) · elScreenCTM
-  // This maps element coords → SVG root user-unit coords.
-  const m = svgScreenCTM.inverse().multiply(elScreenCTM);
-  const result = rawPoint.matrixTransform(m);
-  return { x: result.x, y: result.y };
-}
+// Where the outline turns evenly (a sample and both its neighbours turn by
+// amounts within TURN_SPREAD of each other, none more than MAX_TURN), the
+// chord between a sample's neighbours stands in for its tangent: on a
+// circular arc it is exactly the tangent. Anywhere else (corners, kinks, the
+// ends of an open path) the tangent is measured on the curve either side.
+// roundCorners finds a corner that falls between two samples by the jump of
+// those measured tangents across it, so samples near a corner must keep them.
+const TURN_SPREAD = (1 * Math.PI) / 180;
+const MAX_TURN = (45 * Math.PI) / 180;
 
 /**
  * Sample one SVGGeometryElement at regular arc-length intervals.
@@ -53,13 +43,23 @@ function sampleElement(
   el: SVGGeometryElement,
   svgEl: SVGSVGElement,
   spacing: number,
+  tangents: boolean,
 ): SampledPoint[] {
   const totalLen = el.getTotalLength();
   if (totalLen <= 0) return [];
 
   const elCTM = el.getScreenCTM();
   const svgCTM = svgEl.getScreenCTM();
-  const hasTransform = !!(elCTM && svgCTM);
+  // Element coordinates → SVG root user units: both screen CTMs include the
+  // viewport transform, which cancels out.
+  const toRoot = elCTM && svgCTM ? svgCTM.inverse().multiply(elCTM) : null;
+  // Each call can cost a fraction of a millisecond on a path with curves or
+  // arcs (Chromium measures every curve before t again on each call), so a
+  // sample gets one, and the two for a measured tangent only where needed.
+  const at = (t: number) => {
+    const p = el.getPointAtLength(t);
+    return toRoot ? p.matrixTransform(toRoot) : p;
+  };
 
   // Number of evenly-spaced samples along the arc.
   const nSegments = Math.max(2, Math.ceil(totalLen / spacing));
@@ -68,34 +68,30 @@ function sampleElement(
   // Epsilon for finite-difference tangent (must be small relative to spacing).
   const eps = Math.min(step * 0.05, 0.5, totalLen * 0.005);
 
+  const ts = Array.from({ length: nSegments + 1 }, (_, i) => Math.min(i * step, totalLen));
+  const pos = ts.map(at);
+  const turns = pos.map((p, i) => (i > 0 && i < nSegments ? turn(pos[i - 1], p, pos[i + 1]) : Infinity));
+  // A chord next to a corner crosses it and turns little itself; its
+  // neighbour's turn gives it away.
+  const even = (i: number) => {
+    if (i <= 0 || i >= nSegments) return false;
+    const hi = Math.max(turns[i - 1], turns[i], turns[i + 1]);
+    return hi <= MAX_TURN && hi - Math.min(turns[i - 1], turns[i], turns[i + 1]) <= TURN_SPREAD;
+  };
+
   const points: SampledPoint[] = [];
-
-  for (let i = 0; i <= nSegments; i++) {
-    const t = Math.min(i * step, totalLen);
-
-    const rawP = el.getPointAtLength(t);
-    const rawP0 = el.getPointAtLength(Math.max(0, t - eps));
-    const rawP1 = el.getPointAtLength(Math.min(totalLen, t + eps));
-
-    let px: number, py: number;
-    let ax: number, ay: number, bx: number, by: number;
-
-    if (hasTransform) {
-      const p = elementPointToSVGUnits(rawP as DOMPoint, elCTM!, svgCTM!);
-      const p0 = elementPointToSVGUnits(rawP0 as DOMPoint, elCTM!, svgCTM!);
-      const p1 = elementPointToSVGUnits(rawP1 as DOMPoint, elCTM!, svgCTM!);
-      px = p.x; py = p.y;
-      ax = p0.x; ay = p0.y;
-      bx = p1.x; by = p1.y;
-    } else {
-      px = rawP.x; py = rawP.y;
-      ax = rawP0.x; ay = rawP0.y;
-      bx = rawP1.x; by = rawP1.y;
+  pos.forEach((p, i) => {
+    let dx = 0, dy = 0;
+    if (tangents) {
+      let a: { x: number; y: number }, b: { x: number; y: number };
+      if (even(i)) {
+        a = pos[i - 1]; b = pos[i + 1];
+      } else {
+        a = at(Math.max(0, ts[i] - eps)); b = at(Math.min(totalLen, ts[i] + eps));
+      }
+      dx = b.x - a.x; dy = b.y - a.y;
     }
 
-    // Unit tangent via central finite difference.
-    let dx = bx - ax;
-    let dy = by - ay;
     const mag = Math.sqrt(dx * dx + dy * dy);
     if (mag > 1e-12) {
       dx /= mag;
@@ -109,21 +105,24 @@ function sampleElement(
     // Unit normal: 90° counter-clockwise from tangent.
     // In SVG space (Y-down), CCW rotation means: normal = (-dy, dx).
     // This produces oscillation to the left/right of the travel direction.
-    const nx = -dy;
-    const ny = dx;
-
     points.push({
-      x: px,
-      y: py,
+      x: p.x,
+      y: p.y,
       tangentX: dx,
       tangentY: dy,
-      normalX: nx,
-      normalY: ny,
-      arcLength: t,
+      normalX: -dy,
+      normalY: dx,
+      arcLength: ts[i],
     });
-  }
+  });
 
   return points;
+}
+
+/** Angle (radians) between the chords a→b and b→c. */
+function turn(a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }): number {
+  const ux = b.x - a.x, uy = b.y - a.y, vx = c.x - b.x, vy = c.y - b.y;
+  return Math.abs(Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy));
 }
 
 const PARAMS_PER_COMMAND: Record<string, number> = {
@@ -295,7 +294,12 @@ function parseXML(svgString: string): Document {
   return doc;
 }
 
-export function parseSVG(svgString: string, spacing: number): ParsedSVG {
+/**
+ * `tangents` false never measures a tangent (one getPointAtLength per sample)
+ * and leaves every point's tangent and normal meaningless; for callers that
+ * only need the positions.
+ */
+export function parseSVG(svgString: string, spacing: number, tangents = true): ParsedSVG {
   const doc = parseXML(svgString);
 
   // Detect parser errors (malformed XML).
@@ -370,7 +374,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
 
     for (const part of parts) {
       const len = part.el.getTotalLength();
-      const pts = len > 0 ? sampleElement(part.el, liveSvgEl, spacing) : [];
+      const pts = len > 0 ? sampleElement(part.el, liveSvgEl, spacing, tangents) : [];
       if (part.el !== el) part.el.remove();
       if (pts.length < 2) continue;
       for (const p of pts) { p.x -= viewBox.x; p.y -= viewBox.y; }

@@ -302,6 +302,13 @@ export function cornerRadius(ampN: number, ampT: number, wlT: number): number {
   return CORNER_RADIUS_FACTOR * Math.max(Math.abs(ampN) / margin, Math.abs(ampT));
 }
 
+/** Corner radius (mm) for the whole part: the tightest any keyframe needs, else the global wave's. */
+export function waveCornerRadius(params: PrintParams, keyframes: WaveKeyframe[]): number {
+  return keyframes.length > 0
+    ? Math.max(0, ...keyframes.map(k => cornerRadius(k.ampN, k.ampT, k.wlT)))
+    : cornerRadius(params.lissAmpN, params.lissAmpT, params.lissWlT);
+}
+
 interface FramePoint { x: number; y: number; tx: number; ty: number; seg: number }
 
 function turnAngle(a: FramePoint, b: FramePoint, c: FramePoint): number {
@@ -565,7 +572,7 @@ export function generateWaveLayers(
   const sf = params.scaleFactor > 0 ? params.scaleFactor : 1;
   const useKeyframes = keyframes.length > 0;
 
-  const kfRadius = Math.max(0, ...keyframes.map(k => cornerRadius(k.ampN, k.ampT, k.wlT)));
+  const kfRadius = waveCornerRadius(params, keyframes);
   const enabled = sampledPaths.filter(p => p.enabled).map(path => {
     const radius = useKeyframes ? kfRadius : cornerRadius(
       path.ampNOverride ?? params.lissAmpN,

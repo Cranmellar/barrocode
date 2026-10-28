@@ -28,7 +28,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 | `npm run preview` | Local static preview of `dist/` |
 | `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI runs `npm test` and `npm run build` on every pull request (`ci.yml`) and again before deploying `main`.
+Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/` and `src/shaper/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI runs `npm test` and `npm run build` on every pull request (`ci.yml`) and again before deploying `main`.
 
 ---
 
@@ -42,9 +42,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 ---
 
-## Current state (verified 2026-10-28 on branch `claude/nice-edison-frd7w6`, on top of `main` @ `dddc17b`)
+## Current state (verified 2026-10-28 on branch `claude/pensive-allen-uv6qzc`, on top of `main` @ `d5202be`)
 
-- `npm test` (187 tests) and `npm run build` pass (≈127 kB app JS + 141 kB vendor + 37 kB CSS; gzip ≈97 kB).
+- `npm test` (407 tests) and `npm run build` pass (≈134 kB app JS + 141 kB vendor + 43 kB CSS, gzip ≈101 kB, loaded at start; Forma is a separate ≈41 kB chunk, ≈16 kB gzip, loaded when first opened).
 - Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
@@ -68,6 +68,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - **Part centred on the bed.** `svgToMM` puts the centre of the enabled paths' bounding box (`partCentreSVG` in `waveGenerator.ts`) at (`originX`, `originY`), shown as *Posición X / Y* in *Escala y posición*; default 0, 0. Where the SVG placed the part on its artboard no longer matters (Illustrator exports put parts far from the viewBox origin). `centerX/Y` (pivot, params and keyframes) are mm offsets from that centre; *Centrar en la pieza* resets them. The 3D camera orbits around the part's centre (`orbit` in `Preview2D`), not the bed origin, and refits when another SVG is loaded (`partKey`). Disabling a path re-centres the rest.
 - **Pivot drag in the 3D viewport is not implemented** (`Preview2D` has no params `onChange`). `pendientes.md` lists it open (Ola 3, KF-C3); it was once ticked by mistake.
 - **Keyframe polish (Oct 2026)**: arrow keys jump between keyframes while one is selected, numbers stay stable mid-drag, *Borrar todos* needs a second click, the timeline shows "capa N · H mm", dragged keyframes snap to layer starts, auto-key, smooth keyframes (`smooth`), phase offset/shift held per keyframe, deleting the last keyframe adopts its values, loading another SVG keeps only the keyframes' wave. Open: KF-B2, KF-B3, KF-C2, KF-C3 in `pendientes.md`.
+- **Forma workspace (shaper), phase F0** of [docs/shaper-plan.md](docs/shaper-plan.md). The left panel's header switches between *Forma* and *Impresión* (`workspace` in `App.tsx`). *Forma* is `src/shaper/`, loaded lazily as its own chunk; it generates three families (lobes, rounded polygon or star, superformula; `shaper/lib/families.ts`) at an exact outer diameter, with rotation, seam angle and direction (`shapePoints` in `shape.ts`), drawn on a mm grid with the seam and direction marked. The `ShapeDoc` (flat) lives in `App` as `shape`. *Enviar a impresión* hands `App` an SVG whose user unit is 1 mm (`shapeToSvg`), loaded through `doParse` like a file, so `scaleFactor` becomes 1; *Editar forma* goes back while that SVG is the loaded one (`sentShapeSvg`). Boundary: `App` imports only `ShaperView` (plus the `ShapeDoc` type); the shaper imports nothing from `src/lib/` and only `NumInput` from `src/components/`. The print shortcuts are off in *Forma*. *Imprimibilidad* (`shaper/lib/printability.ts`, `components/PrintCheck.tsx`) marks the stretches tighter than the current wave can follow, measured like `roundCorners` at `sampleSpacing`; `App` passes `waveCornerRadius(params, keyframes)` (`waveGenerator.ts`) as `waveLimit`. *Descubrir* (`components/DiscoveryGrid.tsx`, `lib/discovery.ts`) shows nine seeded variations of the active family (mulberry32), each with its printability; *Más como esta* narrows the window around the current shape. Slider ranges and discovery ranges share `FAMILY_PARAMS` (`shape.ts`). *Editar puntos* turns a family into editable nodes (`ShapeDoc.path`; `lib/pathModel.ts`, fitted by `lib/fit.ts` with exact radial symmetry), edited on the canvas and in `components/PathPanel.tsx`, with undo in Forma only. A shape can have several closed contours (`ShapeDoc.contours`), each printed as its own path. *Abrir en Forma* (Impresión) and *Importar* (Forma) bring an SVG's closed paths in: `svgOutlines` in `App.tsx` samples them with `parseSVG(raw, spacing, false)` and Forma fits them to nodes. The shape persists under `barrocode.shape`. *Onda* draws the band the current wave sweeps (±N, `waveBand`), so walls that will touch show before sending. The help dialog and `docs/usage.md` cover Forma. Phases F0–F6 are done; the plan's only open decision is a licence for BarroCode (D-S4), needed before copying code from a reference project.
 - **Icons** (`components/icons.tsx`, one inline-SVG set) on panel tabs, headers, rails and keyframe fields; the export and add-keyframe buttons fill with `--signal-ramp`.
 - **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
@@ -161,6 +162,7 @@ Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G
 7. **Keyframe drag and `CenterPad` drag** call `setKeyframes` on every `mousemove`, so each move runs the full pipeline, about the cost of a slider tick. The timeline keyframe drag now applies moves once per animation frame, but in Chromium that measured within noise (60 moves at 60 layers: ≈5.4–6.7 s of main thread before, ≈5.1–5.9 s after): Chromium already delivers at most one `mousemove` per frame and React batches updates within a task. The real cost is the pipeline itself, ≈85 ms per frame at 60 layers. `CenterPad` drag is unchanged. `CenterPad.partBounds` also passes every point through `svgToMM` each time the layers or params change; take the bounds from the shared toolpath instead.
 
 Lower priority:
+- ~~Loading an SVG with curves or arcs was slow.~~ **Done.** Chromium measures every curve before `t` again on each `getPointAtLength` call (0.2–0.7 ms on the samples' arcs and cubics, 0.004 ms on lines), and `sampleElement` made three calls per sample. Now each sample gets one, and where the outline turns evenly (the sample and both neighbours within 1° of each other, none over 45°) the chord between its neighbours is the tangent, exact on a circular arc; elsewhere it keeps the two measured ones, which `roundCorners` needs to see a corner between samples. Load, click to idle: sample 4 ≈1955 → ≈700 ms, 5 ≈2710 → ≈1050, 7 ≈3290 → ≈1260, 2/3/6/8 to about a third. Against the old tangents, on the eight samples at N 3 and 6 mm: tangents within 0.3°, waved layer within 0.02 mm, the same corners rounded (a sharp five-point star at three rotations: identical); default G-code for samples 1, 4, 8: same lines and E, coordinates within 0.01 mm.
 - Editing `sampleSpacing` re-parses the SVG on every keystroke or wheel tick, with three `getPointAtLength` calls per sample. Debounce it by ≈300 ms.
 - Autosave runs `JSON.stringify` on the raw SVG 1 s after every change. Store the raw SVG under its own key, and only when it changes.
 - The whole tree re-renders on each timeline tick, with no `React.memo`. This costs less than 3 ms, small next to the canvas.
@@ -184,8 +186,10 @@ SVG string
        • a <path> with several subpaths (a contour with a hole) is split by
          splitSubpaths() into one SampledPath per subpath (id-1, id-2…);
          sampled whole, the jump between them printed as a bead
-       • arc-length sampling via getTotalLength + getPointAtLength
-       • finite-difference tangent/normal per sample
+       • arc-length sampling via getTotalLength + getPointAtLength: one call
+         per sample, two more for a tangent measured either side where the
+         outline doesn't turn evenly; elsewhere the chord between the
+         neighbouring samples (`tangents` false skips tangents entirely)
        • getScreenCTM() for transforms
        • points shifted by −viewBox.x/y so the viewBox corner is (0, 0)
      → ParsedSVG { paths: SampledPath[], viewBox, mmPerUnit, raw }
@@ -272,9 +276,9 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ Cargar SVG · ‹    │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
-│ file name         │ │ Descargar (signal), ?            │ │ small Lissajous    │
-│ ‹ sample ›        │ └──────────────────────────────────┘ │ context line       │
+│ Forma · Impresión │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ small Lissajous    │
+│ file name         │ └──────────────────────────────────┘ │ context line       │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
 │ Trayecto │Máquina │   G-code opens as a drawer here  │a│ │                    │
@@ -315,6 +319,20 @@ src/
     gcodeStats.ts           GcodeStats type; summary read back from G-code (test oracle)
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
+  shaper/                   Forma workspace (docs/shaper-plan.md), its own lazy chunk
+    ShaperView.tsx          Only export App uses: left panel, mm grid canvas, send button
+    components/FamilyPanel.tsx  Family tabs, family sliders, size / rotation / seam / direction
+    lib/families.ts         Lobes, rounded polygon or star, superformula outlines
+    components/PrintCheck.tsx   Printability warning, tightest curve, box
+    components/DiscoveryGrid.tsx  3×3 seeded variations over the canvas
+    components/PathPanel.tsx  Path mode: selected node, symmetry, snap, size, direction, command list
+    lib/shape.ts            ShapeDoc, shapePoints (size, rotation, seam, direction), path data, label
+    lib/printability.ts     checkShape: stretches tighter than the wave can follow
+    lib/discovery.ts        Seeded PRNG and variations within FAMILY_PARAMS ranges
+    lib/pathModel.ts        PathNode: move, split, delete, straight/smooth, reverse, seam, symmetry, d
+    lib/fit.ts              Family outline → few nodes within 0.2 mm, exact radial symmetry
+    lib/toSvg.ts            ShapeDoc → SVG with 1 user unit = 1 mm
+    lib/__tests__/          Vitest specs for the shaper's lib
 docs/                       usage, architecture, fabrication notes, research notes,
                             perf spec, UI mockup/prompt (design references)
 pendientes.md               Prioritised backlog (some checkmarks stale — see "Current state")
@@ -345,7 +363,7 @@ Keyframes (`WaveKeyframe[]`) override Lissajous (phase included) and pivot/scale
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 - `savedSession: SavedSession | null` — last autosaved session (`localStorage` key `barrocode.session`, written 1 s after changes), offered for restore while no SVG is loaded
 
-Other `localStorage` keys: `barrocode.leftTab` (active left-panel tab in `PathParams`), `barrocode.panels` (which side panels are open, in `App.tsx`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
+Other `localStorage` keys: `barrocode.shape` (Forma's shape and the last SVG it sent, written 1 s after changes and restored at start), `barrocode.leftTab` (active left-panel tab in `PathParams`), `barrocode.panels` (which side panels are open, in `App.tsx`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
 
 Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. `←/→` move the extruder, or jump to the previous/next keyframe while one is selected. They are ignored while typing in text/number fields.
 
@@ -373,7 +391,7 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 4. **Canvas rendering** lives inside `useEffect` with the full dependency array — the canvas redraws on every relevant change. Expensive *geometry* may be memoized (`layers` and `toolpath` in `App.tsx`, `flatPoints` in `Preview2D`); the drawing itself is not.
 5. **Stable-refs pattern for window-level handlers.** Refs are updated in a separate `useEffect([dep])`, then read inside a `useEffect([])` that attaches `window` listeners once. See `Preview2D.tsx` keyframe drag code for the canonical example.
 6. **Spanish UI throughout.** Labels, tooltips, section titles, error messages — all Spanish. Code, identifiers, and comments — English. (Existing files mix in some Spanish comments; keep new comments English.)
-7. **No undo/redo.** State changes are permanent until the user changes them again.
+7. **No undo/redo** in Impresión: state changes are permanent until the user changes them again. Forma is the exception (the owner's call, `docs/shaper-plan.md` D-S1): `ShaperView` keeps a stack of `ShapeDoc`.
 8. **Default to writing no comments.** Only add a comment when the WHY is non-obvious (a hidden constraint, a workaround, a subtle invariant). Never explain WHAT well-named code already says, and never reference the current task / fix / caller.
 9. **Don't add error handling for impossible scenarios.** Trust internal code. Only validate at boundaries (user input, SVG parsing).
 10. **No backwards-compat shims.** This project has no public API; just change the code.
@@ -387,6 +405,7 @@ These are documented hazards. Fix them when you touch the area, but don't go on 
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the canvas boundary on fast moves.
 - **Z-hop crossing detection** uses a spatial grid; it only `console.warn`s above 3000 points (`WARN_PTS`), never skips.
+- **`roundCorners` restarts a loop at a near-tie.** When it fillets a corner on a closed path's seam, it restarts the loop at the fillet sample nearest the old start; on a symmetric fillet two samples are about as near, so a tiny change in the input (a tangent off by 0.1°) can pick the other one and shift the whole wave by one sample (sample 2 at N 3 mm: up to 0.8 mm). Either result is valid; compare geometry, not point by point, when checking a change.
 
 ---
 
@@ -471,6 +490,7 @@ When you need context, this is where to look:
 - [pendientes.md](pendientes.md) — **actionable backlog**, prioritized in waves. Read before starting any new ticket; cross-check its checkmarks with "Current state" above.
 - [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 - [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md) — graphical overhaul: diagnosis of the current UI, layout proposal, open decisions (D-1…D-6) and phased plan. Check it before any UI/CSS work.
+- [docs/shaper-plan.md](docs/shaper-plan.md) — plan and record of *Forma*, the in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, decisions (D-S1…D-S7, only D-S4 open), phases F0–F6 (all done, with what was measured) and possible next steps.
 - `docs/ui-interactive-mockup.html`, `docs/ui-image-prompt.md` — UI design references, not shipped.
 
 ---
