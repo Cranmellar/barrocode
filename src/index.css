@@ -273,6 +273,68 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .stage-summary-sep { color: var(--faint); }
+.stage-summary { transition: opacity var(--dur) var(--ease); }
+.stage-summary--stale { opacity: 0.55; }
+
+/* Thin indeterminate bar under the export group while the G-code is being
+   regenerated. The delay keeps it from flashing on quick edits. */
+.bar-group--end { position: relative; }
+.gcode-progress {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -7px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: rgba(74,74,81,0.10);
+  animation: fade-in var(--dur-fast) 150ms both;
+}
+.gcode-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: indeterminate 1100ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes indeterminate { from { left: -38%; } to { left: 100%; } }
+
+/* Short notices (download, session restored) above the timeline dock */
+.toast-region {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  animation: toast-in var(--dur) var(--ease) both;
+}
+.toast-leave { animation: toast-out 180ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes toast-in  { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes toast-out { to   { opacity: 0; transform: translateY(4px) scale(0.98); } }
+
+/* Button label swap (Copiar → Copiado) */
+.btn-label { display: inline-flex; align-items: center; gap: 6px; animation: label-in var(--dur) var(--ease) both; }
+.btn-label--ok { color: var(--ok); }
+.gcode-copy { min-width: 96px; }
+@keyframes label-in { from { opacity: 0; transform: translateY(4px); } }
+.check-draw path { stroke-dasharray: 14; stroke-dashoffset: 14; animation: check-draw 260ms 60ms var(--ease) forwards; }
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
 
 /* Timeline dock: keyframe editor (when one is selected) above the timeline row */
 .dock {
@@ -1384,6 +1446,8 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-color: var(--border) transparent;
   min-height: 0;
 }
+.gcode-textarea { transition: opacity var(--dur) var(--ease); }
+.gcode-textarea--stale { opacity: 0.45; }
 .gcode-textarea::-webkit-scrollbar { width: 4px; }
 .gcode-textarea::-webkit-scrollbar-thumb { background: var(--border); }
 

@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 
 interface Props {
   gcode: string;
+  // A newer G-code is on its way; the text shown is about to change.
+  stale?: boolean;
   onClose: () => void;
 }
 
@@ -23,7 +25,7 @@ function summarize(gcode: string) {
   return { lines, text, kb: (new Blob([gcode]).size / 1024).toFixed(1) };
 }
 
-export function GcodeOutput({ gcode, onClose }: Props) {
+export function GcodeOutput({ gcode, stale, onClose }: Props) {
   const [copied, setCopied] = useState(false);
   const info = useMemo(() => (gcode ? summarize(gcode) : null), [gcode]);
 
@@ -47,8 +49,15 @@ export function GcodeOutput({ gcode, onClose }: Props) {
         <div className="gcode-actions">
           {gcode && (
             <>
-              <button className="btn-small" onClick={handleCopy}>
-                {copied ? '✓ Copiado' : 'Copiar'}
+              <button className="btn-small gcode-copy" onClick={handleCopy}>
+                {copied
+                  ? <span key="done" className="btn-label btn-label--ok">
+                      <svg className="check-draw" width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                        strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M3.5 8.5 6.5 11.5 12.5 4.5" />
+                      </svg>Copiado
+                    </span>
+                  : <span key="idle" className="btn-label">Copiar</span>}
               </button>
             </>
           )}
@@ -60,7 +69,7 @@ export function GcodeOutput({ gcode, onClose }: Props) {
         </div>
       </div>
       <textarea
-        className="gcode-textarea"
+        className={`gcode-textarea${stale ? ' gcode-textarea--stale' : ''}`}
         readOnly
         value={info?.text ?? '; Carga un SVG para generar G-code.'}
         spellCheck={false}

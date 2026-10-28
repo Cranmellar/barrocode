@@ -8,7 +8,7 @@ import { keyframeColor } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
-import { Preview2D, STAGE_GAP, KeyframeAddIcon } from './components/Preview2D';
+import { Preview2D, STAGE_GAP, KeyframeAddIcon, type Toast } from './components/Preview2D';
 import { PathList } from './components/PathList';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
@@ -90,6 +90,7 @@ const RAIL_W  = 44;
 const BAR_H   = 40;
 const NARROW_W = 1280;
 const TIMELINE_GLIDE_MS = 220;
+const TOAST_MS = 2200;
 // Matches the panel-leave animation in index.css.
 const PANEL_LEAVE_MS = 140;
 
@@ -190,6 +191,8 @@ export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
   const [gcode, setGcode] = useState('');
+  // True from an edit until its debounced G-code is ready.
+  const [gcodeBusy, setGcodeBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gcodeFilename, setGcodeFilename] = useState('barrocode.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
@@ -386,6 +389,19 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  // One short notice at a time; a new one replaces the current one.
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const showToast = useCallback((text: string) => {
+    toastTimersRef.current.forEach(clearTimeout);
+    const id = performance.now();
+    setToast({ id, text });
+    toastTimersRef.current = [
+      setTimeout(() => setToast(t => t?.id === id ? { ...t, leaving: true } : t), TOAST_MS),
+      setTimeout(() => setToast(t => t?.id === id ? null : t), TOAST_MS + 200),
+    ];
+  }, []);
+
   const [panels, setPanels] = useState(loadPanels);
   const [dropping, setDropping] = useState(false);
 
@@ -460,11 +476,14 @@ export default function App() {
     if (gcodeTimerRef.current !== null) clearTimeout(gcodeTimerRef.current);
     if (toolpath.length === 0) {
       setGcode('');
+      setGcodeBusy(false);
       return;
     }
+    setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
       setGcode(generateGcode(toolpath, params));
+      setGcodeBusy(false);
     }, 400);
     return () => {
       if (gcodeTimerRef.current !== null) {
@@ -516,6 +535,7 @@ export default function App() {
     setGcodeFilename(savedSession.filename);
     doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
     setSavedSession(null);
+    showToast(`Sesión restaurada: ${savedSession.filename.replace(/\.gcode$/i, '')}`);
   }
 
   function discardSession() {
@@ -693,7 +713,10 @@ export default function App() {
         centerTab={centerTab}
         onTabChange={setCenterTab}
         gcode={gcode}
+        gcodeBusy={gcodeBusy}
         gcodeFilename={gcodeFilename}
+        toast={toast}
+        onToast={showToast}
         selectedKfId={selectedKfId}
         onKfSelect={selectKf}
         onAddKeyframe={addKeyframe}

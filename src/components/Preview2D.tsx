@@ -36,7 +36,11 @@ interface Props {
   centerTab: 'preview' | 'gcode';
   onTabChange: (tab: 'preview' | 'gcode') => void;
   gcode: string;
+  // An edit is waiting for its G-code; the shown G-code and stats are stale.
+  gcodeBusy: boolean;
   gcodeFilename: string;
+  toast: Toast | null;
+  onToast: (text: string) => void;
   selectedKfId: string | null;
   onKfSelect: (id: string | null) => void;
   onAddKeyframe: () => void;
@@ -51,6 +55,33 @@ interface Props {
 }
 
 export const STAGE_GAP = 12;
+
+export interface Toast { id: number; text: string; leaving?: boolean }
+
+function formatSize(bytes: number): string {
+  return bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+// Counts up or down to a new value instead of jumping.
+function useCountUp(value: number | null, ms = 420): number | null {
+  const [shown, setShown] = useState(value);
+  const shownRef = useRef(value);
+  useEffect(() => {
+    const from = shownRef.current;
+    const set = (v: number | null) => { shownRef.current = v; setShown(v); };
+    if (value === null || from === null || from === value || reducedMotion()) { set(value); return; }
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / ms);
+      set(from + (value - from) * (1 - (1 - p) ** 3));
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [value, ms]);
+  return shown;
+}
 
 // "Add keyframe": a plus inside the keyframe diamond. `dashed` is the
 // placeholder drawn on the timeline at the extruder.
@@ -119,7 +150,7 @@ export function Preview2D({
   sampledPaths, toolpath, params, viewBox,
   timelineProgress, onTimelineChange,
   keyframes, onKeyframesChange,
-  centerTab, onTabChange, gcode, gcodeFilename,
+  centerTab, onTabChange, gcode, gcodeBusy, gcodeFilename, toast, onToast,
   selectedKfId, onKfSelect, onAddKeyframe, onHelp,
   insets, timelineLead, timelineActions, timelineEditor,
 }: Props) {
@@ -601,6 +632,7 @@ export function Preview2D({
   const shownCap = Math.min(layerCap ?? numLayers, numLayers);
 
   const stats = useMemo(() => (gcode ? summarizeGcode(gcode) : null), [gcode]);
+  const shownTime = useCountUp(stats ? stats.timeSec : null);
   const crossings = toolpath.reduce((n, l) => n + l.crossings, 0);
 
   return (
@@ -658,14 +690,14 @@ export function Preview2D({
 
         <div className="bar-group bar-group--end">
           {toolpath.length > 0 && modelBounds && (
-            <span className="stage-summary" title={[
+            <span className={`stage-summary${gcodeBusy ? ' stage-summary--stale' : ''}`} title={[
               stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
               stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
               `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
               crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
               `Tiempo estimado a ${params.printSpeed} mm/min, sin aceleraciones`,
             ].filter(Boolean).join('\n')}>
-              {stats && <>{formatDuration(stats.timeSec)}<span className="stage-summary-sep"> · </span></>}
+              {shownTime !== null && <>{formatDuration(shownTime)}<span className="stage-summary-sep"> · </span></>}
               {fmtMM(modelBounds.maxX - modelBounds.minX)}×{fmtMM(modelBounds.maxY - modelBounds.minY)}×{fmtMM(numLayers * params.layerHeight)} mm
             </span>
           )}
@@ -674,10 +706,14 @@ export function Preview2D({
             onClick={() => onTabChange(centerTab === 'gcode' ? 'preview' : 'gcode')}
             title="Ver el G-code (G)">G-code</button>
           <button className="btn-primary btn-signal" disabled={!gcode}
-            onClick={() => downloadGcode(gcode, gcodeFilename)}
+            onClick={() => {
+              downloadGcode(gcode, gcodeFilename);
+              onToast(`${gcodeFilename} descargado · ${formatSize(new Blob([gcode]).size)}`);
+            }}
             title={`Descargar ${gcodeFilename}`}>↓ Descargar</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
             aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
+          {gcodeBusy && gcode && <span className="gcode-progress" role="progressbar" aria-label="Generando G-code" />}
         </div>
       </div>
 
@@ -719,12 +755,23 @@ export function Preview2D({
       {centerTab === 'gcode' && (
         <div className="gcode-drawer"
           style={{ left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset }}>
-          <GcodeOutput gcode={gcode} onClose={() => onTabChange('preview')} />
+          <GcodeOutput gcode={gcode} stale={gcodeBusy} onClose={() => onTabChange('preview')} />
           {toolpath.length > 0 && (
             <canvas ref={topdownRef} width={160} height={120} className="gcode-topdown" />
           )}
         </div>
       )}
+
+      <div className="toast-region" aria-live="polite"
+        style={{ left: insets.left, right: insets.right, bottom: bottomInset + STAGE_GAP }}>
+        {toast && (
+          <div key={toast.id} className={`toast${toast.leaving ? ' toast-leave' : ''}`}>
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3.5 8.5 6.5 11.5 12.5 4.5" /></svg>
+            {toast.text}
+          </div>
+        )}
+      </div>
 
       {hasDock && (
         <div className="dock" ref={dockRef} style={{ left: insets.left, right: insets.right, bottom: STAGE_GAP }}>
