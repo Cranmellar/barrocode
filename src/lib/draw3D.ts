@@ -78,6 +78,39 @@ export function flattenPoints(toolpath: ToolpathLayer[]): FlatPoint[] {
   return pts;
 }
 
+// Index of the layer the extruder sits on at timeline position t: the same
+// point the preview draws it at, counted without flattening.
+export function layerAtT(toolpath: ToolpathLayer[], t: number): number {
+  const sizes = toolpath.map(l => l.paths.reduce((n, p) => n + p.length, 0));
+  const total = sizes.reduce((a, b) => a + b, 0);
+  let idx = Math.min(total - 1, Math.floor(t * (total - 1)));
+  for (let i = 0; i < toolpath.length; i++) {
+    if (idx < sizes[i]) return toolpath[i].index;
+    idx -= sizes[i];
+  }
+  return toolpath.length > 0 ? toolpath[toolpath.length - 1].index : 0;
+}
+
+// Timeline position of each layer's first point (its seam), nudged past
+// rounding so layerAtT lands on that layer.
+export function layerStartTs(toolpath: ToolpathLayer[]): number[] {
+  const sizes = toolpath.map(l => l.paths.reduce((n, p) => n + p.length, 0));
+  const denom = Math.max(1, sizes.reduce((a, b) => a + b, 0) - 1);
+  const ts: number[] = [];
+  let start = 0;
+  for (const n of sizes) {
+    ts.push(Math.min(1, (start + 1e-6) / denom));
+    start += n;
+  }
+  return ts;
+}
+
+// "capa 23 · 34.5 mm": the 1-based layer and the part's height at its top,
+// which for the last layer matches the height under Cotas.
+export function layerLabel(layerIndex: number, layerHeight: number): string {
+  return `capa ${layerIndex + 1} · ${parseFloat(((layerIndex + 1) * layerHeight).toFixed(1))} mm`;
+}
+
 export interface Scene {
   view: View3D;
   toolpath: ToolpathLayer[];
@@ -122,14 +155,14 @@ export type MarkerScene = Pick<Scene,
 
 export interface KeyframeMarker { kf: WaveKeyframe; number: number; x: number; y: number; r: number }
 
-// Screen position of each visible keyframe diamond, in drawing order (the
-// last one is on top).
+// Screen position of each visible keyframe diamond, numbered by its place in
+// `keyframes`, in drawing order (the last one is on top).
 export function keyframeMarkers(scene: MarkerScene): KeyframeMarker[] {
   const { view, flatPoints: flat, keyframes, selectedKfId, layerCap, layerSolo } = scene;
   if (flat.length === 0) return [];
   const toScreen = screenMapper(view);
   const markers: KeyframeMarker[] = [];
-  [...keyframes].sort((a, b) => a.t - b.t).forEach((kf, i) => {
+  keyframes.forEach((kf, i) => {
     const pt = flat[Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)))];
     if (layerSolo ? pt.layerIndex !== layerCap : pt.layerIndex > layerCap) return;
     const [x, y] = toScreen(pt.x, pt.y, pt.z);
@@ -286,8 +319,9 @@ export function drawScene(
       ctx.translate(kx, ky);
       ctx.scale(pop, pop);
       ctx.beginPath();
-      ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0);
-      ctx.closePath();
+      // Smooth keyframes are round, as on the timeline; same area as the diamond.
+      if (kf.smooth) ctx.arc(0, 0, r * 0.8, 0, Math.PI * 2);
+      else { ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); }
       ctx.fillStyle   = keyframeColor(kf.t);
       ctx.strokeStyle = isSelected ? palette.ink : palette.surface;
       ctx.lineWidth   = 2;

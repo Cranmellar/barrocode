@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath, WaveKeyframe } from '../../types';
-import { cornerRadius, generateWaveLayers, roundCorners } from '../waveGenerator';
+import { cornerRadius, createKeyframeSampler, generateWaveLayers, getParamsAtT, roundCorners, segmentAlpha } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
 import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
 
@@ -208,5 +208,72 @@ describe('roundCorners', () => {
         }
       }
     }
+  });
+});
+
+describe('keyframe interpolation', () => {
+  const kf = (t: number, ampN: number, smooth?: boolean): WaveKeyframe =>
+    ({ id: `k${t}`, t, ampN, ampT: 0, wlN: 20, wlT: 20, delta: 0, smooth });
+
+  it('is straight between plain keyframes and smoothstep between smooth ones', () => {
+    for (const a of [0, 0.1, 0.25, 0.5, 0.8, 1]) {
+      expect(segmentAlpha(kf(0, 0), kf(1, 0), a)).toBeCloseTo(a);
+      expect(segmentAlpha(kf(0, 0, true), kf(1, 0, true), a)).toBeCloseTo(a * a * (3 - 2 * a));
+    }
+  });
+
+  it('leaves a smooth keyframe flat and a plain one straight', () => {
+    const slope = (lo: WaveKeyframe, hi: WaveKeyframe, a: number) =>
+      (segmentAlpha(lo, hi, a + 1e-6) - segmentAlpha(lo, hi, a - 1e-6)) / 2e-6;
+    // Smooth start, plain end, and the reverse.
+    expect(slope(kf(0, 0, true), kf(1, 0), 1e-6)).toBeCloseTo(0, 4);
+    expect(slope(kf(0, 0, true), kf(1, 0), 1 - 1e-6)).toBeCloseTo(1, 4);
+    expect(slope(kf(0, 0), kf(1, 0, true), 1e-6)).toBeCloseTo(1, 4);
+    expect(slope(kf(0, 0), kf(1, 0, true), 1 - 1e-6)).toBeCloseTo(0, 4);
+    for (let a = 0; a <= 1; a += 0.05) {
+      expect(segmentAlpha(kf(0, 0, true), kf(1, 0), a)).toBeGreaterThanOrEqual(-1e-12);
+      expect(segmentAlpha(kf(0, 0, true), kf(1, 0), a)).toBeLessThanOrEqual(1 + 1e-12);
+    }
+  });
+
+  it('gives the same values through the sampler and through getParamsAtT', () => {
+    const kfs = [kf(0.1, 2, true), kf(0.5, 8), kf(0.9, 4, true)];
+    const sampler = createKeyframeSampler(kfs, PARAMS);
+    for (let i = 0; i <= 100; i++) {
+      const t = i / 100;
+      expect(sampler(t).ampN).toBeCloseTo(getParamsAtT(t, kfs, PARAMS).ampN, 12);
+    }
+    // Leaving a smooth keyframe starts slowly: halfway, short of the straight midpoint (5).
+    expect(getParamsAtT(0.3, kfs, PARAMS).ampN).toBeCloseTo(2 + 6 * 0.375);
+  });
+});
+
+describe('keyframed phase', () => {
+  // Straight line along +X: the first point of each layer sits at
+  // y = 100 + ampN·sin(phaseBase), since its arc phase is 0.
+  const line = sampledPath('line', polyline([[20, 100], [180, 100]]));
+  const base = { ...PARAMS, numLayers: 5, lissAmpN: 3 };
+  const kf = (t: number, phase: Partial<WaveKeyframe>): WaveKeyframe =>
+    ({ id: `k${t}`, t, ampN: 3, ampT: 0, wlN: 20, wlT: 20, delta: 0, ...phase });
+  const firstYs = (params: PrintParams, kfs: WaveKeyframe[]) =>
+    generateWaveLayers([line], params, kfs, VIEWBOX.height).map(l => l.paths[0][0].y);
+
+  it('matches the global phase when every keyframe holds the same values', () => {
+    const params = { ...base, lissPhaseOffset: 0.4, phaseShiftPerLayer: 0.7 };
+    const kfs = [kf(0, { phaseOffset: 0.4, phaseShift: 0.7 }), kf(1, { phaseOffset: 0.4, phaseShift: 0.7 })];
+    const want = firstYs(params, []);
+    firstYs({ ...base }, kfs).forEach((y, i) => expect(y).toBeCloseTo(want[i], 9));
+  });
+
+  it('adds up the per-layer shift sampled at each layer start', () => {
+    const shift = 0.6;
+    const ys = firstYs(base, [kf(0, { phaseShift: 0 }), kf(1, { phaseShift: shift })]);
+    const n = line.points.length;
+    const tDenom = base.numLayers * n - 1;
+    let phase = 0;
+    ys.forEach((y, li) => {
+      expect(y).toBeCloseTo(100 + 3 * Math.sin(phase), 9);
+      phase += shift * (li * n) / tDenom;
+    });
   });
 });

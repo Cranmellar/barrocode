@@ -4,7 +4,7 @@ import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
-import { keyframeColor } from './lib/draw3D';
+import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
@@ -91,6 +91,8 @@ const BAR_H   = 40;
 const NARROW_W = 1280;
 const TIMELINE_GLIDE_MS = 220;
 const TOAST_MS = 2200;
+// How long "Borrar todos" waits for its confirming second click.
+const CLEAR_CONFIRM_MS = 3000;
 // Matches the panel-leave animation in index.css.
 const PANEL_LEAVE_MS = 140;
 
@@ -173,19 +175,22 @@ function hasSeenHelp() {
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
-type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ';
-type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ';
+type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ'
+  | 'lissPhaseOffset' | 'phaseShiftPerLayer';
+type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ' | 'phaseOffset' | 'phaseShift';
 
 const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
   ['lissAmpN', 'ampN'], ['lissAmpT', 'ampT'], ['lissAmpZ', 'ampZ'],
   ['lissWlN', 'wlN'],   ['lissWlT', 'wlT'],   ['lissWlZ', 'wlZ'],
   ['lissDelta', 'delta'], ['lissPhaseZ', 'phaseZ'],
+  ['lissPhaseOffset', 'phaseOffset'], ['phaseShiftPerLayer', 'phaseShift'],
 ];
 
+// Placement fields a keyframe can hold besides its wave.
+const KF_TRANSFORM_FIELDS = ['centerX', 'centerY', 'scaleX', 'scaleY', 'rotation'] as const;
+
 // Everything the Lissajous panel edits; its "Reiniciar" restores only these.
-const LISS_PANEL_FIELDS: Array<LissKey | 'lissPhaseOffset' | 'phaseShiftPerLayer'> = [
-  ...KF_LISS_FIELDS.map(([pk]) => pk), 'lissPhaseOffset', 'phaseShiftPerLayer',
-];
+const LISS_PANEL_FIELDS: LissKey[] = KF_LISS_FIELDS.map(([pk]) => pk);
 
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
@@ -196,6 +201,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [gcodeFilename, setGcodeFilename] = useState('barrocode.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
+  // Sorted by t, except during a timeline drag, which sorts on release. A
+  // keyframe's number is its index + 1, so it keeps its number while being
+  // dragged past a neighbour.
   const [keyframes, setKeyframes] = useState<WaveKeyframe[]>([]);
   const [centerTab, setCenterTab] = useState<'preview' | 'gcode'>('preview');
   const [sampleIndex, setSampleIndex] = useState(0);
@@ -249,10 +257,15 @@ export default function App() {
   );
 
   // While a keyframe is selected the Lissajous panel shows and edits that
-  // keyframe's wave; global values are overridden whenever keyframes exist.
-  const lissParams: PrintParams = selectedKf
+  // keyframe's wave. With keyframes but none selected it shows the wave
+  // interpolated at the extruder, and editing it keys it there (auto-key):
+  // the global values have no effect once keyframes exist.
+  const autoKey = keyframes.length > 0 && !selectedKf;
+  const shownWave: Partial<Record<KfLissKey, number>> | null =
+    selectedKf ?? (autoKey ? getParamsAtT(timelineProgress, keyframes, params) : null);
+  const lissParams: PrintParams = shownWave
     ? KF_LISS_FIELDS.reduce<PrintParams>(
-        (acc, [pk, kk]) => ({ ...acc, [pk]: selectedKf[kk] ?? params[pk] }),
+        (acc, [pk, kk]) => ({ ...acc, [pk]: shownWave[kk] ?? params[pk] }),
         params,
       )
     : params;
@@ -261,7 +274,7 @@ export default function App() {
   const [lissMorph, setLissMorph] = useState(0);
   function setLissParams(next: PrintParams, morph = false) {
     if (morph) setLissMorph(n => n + 1);
-    if (!selectedKf) { setParams(next); return; }
+    if (!shownWave) { setParams(next); return; }
     const kfPatch: Partial<Record<KfLissKey, number>> = {};
     const globalNext = { ...next };
     for (const [pk, kk] of KF_LISS_FIELDS) {
@@ -269,7 +282,18 @@ export default function App() {
       globalNext[pk] = params[pk];
     }
     setParams(globalNext);
-    setKeyframes(keyframes.map(k => k.id === selectedKf.id ? { ...k, ...kfPatch } : k));
+    if (Object.keys(kfPatch).length === 0) return;
+    const target = selectedKf ?? kfAtCursor;
+    if (target) {
+      setKeyframes(keyframes.map(k => k.id === target.id ? { ...k, ...kfPatch } : k));
+      setSelectedKfId(target.id);
+      return;
+    }
+    const newKf = { ...snapshotKeyframe(timelineProgress), ...kfPatch };
+    const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
+    setKeyframes(updated);
+    setSelectedKfId(newKf.id);
+    showToast(`Keyframe ${updated.indexOf(newKf) + 1} creado en el ${Math.round(newKf.t * 100)} %`);
   }
 
   function resetLissParams() {
@@ -278,15 +302,14 @@ export default function App() {
     setLissParams(next, true);
   }
 
-  const sortedKfs = [...keyframes].sort((a, b) => a.t - b.t);
   const kfAtCursor = findKeyframeAt(keyframes, timelineProgress);
-  const selectedIdx = selectedKf ? sortedKfs.findIndex(k => k.id === selectedKf.id) : -1;
+  const selectedIdx = selectedKf ? keyframes.indexOf(selectedKf) : -1;
   const prevKf = selectedKf
-    ? sortedKfs[selectedIdx - 1] ?? null
-    : [...sortedKfs].reverse().find(k => k.t < timelineProgress) ?? null;
+    ? keyframes[selectedIdx - 1] ?? null
+    : [...keyframes].reverse().find(k => k.t < timelineProgress) ?? null;
   const nextKf = selectedKf
-    ? sortedKfs[selectedIdx + 1] ?? null
-    : sortedKfs.find(k => k.t > timelineProgress) ?? null;
+    ? keyframes[selectedIdx + 1] ?? null
+    : keyframes.find(k => k.t > timelineProgress) ?? null;
 
   // Selecting a keyframe moves the extruder onto it, so the preview shows
   // the wave being edited.
@@ -296,35 +319,64 @@ export default function App() {
     if (kf) glideTimeline(kf.t);
   }
 
-  function addKeyframe() {
-    if (kfAtCursor) {
-      selectKf(kfAtCursor.id === selectedKfId ? null : kfAtCursor.id);
-      return;
-    }
-    // Snapshot the wave currently shown at this t, so adding a keyframe
-    // between existing ones doesn't change the shape.
-    const lp = getParamsAtT(timelineProgress, keyframes, params);
-    const newKf: WaveKeyframe = {
-      id: uid(), t: timelineProgress,
+  // A new keyframe holds the wave currently shown at t, so adding one
+  // between existing ones doesn't change the shape.
+  function snapshotKeyframe(t: number): WaveKeyframe {
+    const lp = getParamsAtT(t, keyframes, params);
+    return {
+      id: uid(), t,
       ampN: lp.ampN, ampT: lp.ampT, ampZ: lp.ampZ,
       wlN: lp.wlN, wlT: lp.wlT, wlZ: lp.wlZ,
       delta: lp.delta, phaseZ: lp.phaseZ,
       centerX: lp.centerX, centerY: lp.centerY,
       scaleX: lp.scaleX, scaleY: lp.scaleY,
       rotation: lp.rotation,
+      phaseOffset: lp.phaseOffset, phaseShift: lp.phaseShift,
     };
+  }
+
+  function addKeyframe() {
+    if (kfAtCursor) {
+      selectKf(kfAtCursor.id === selectedKfId ? null : kfAtCursor.id);
+      return;
+    }
+    const newKf = snapshotKeyframe(timelineProgress);
     const updated = [...keyframes, newKf].sort((a, b) => a.t - b.t);
     setKeyframes(updated);
     setSelectedKfId(newKf.id);
   }
 
+  // Once the last keyframe goes, the global values take over again; they
+  // take that keyframe's values so the part doesn't change shape.
+  function adoptAsGlobal(kf: WaveKeyframe) {
+    const next = { ...params };
+    for (const [pk, kk] of KF_LISS_FIELDS) next[pk] = kf[kk] ?? params[pk];
+    for (const k of KF_TRANSFORM_FIELDS) next[k] = kf[k] ?? params[k];
+    next.scaleUniform = params.scaleUniform && next.scaleX === next.scaleY;
+    setParams(next);
+    showToast('Último keyframe borrado: su onda pasa a ser la global');
+  }
+
   function deleteKeyframe() {
-    if (!selectedKfId) return;
-    setKeyframes(keyframes.filter(k => k.id !== selectedKfId));
+    const kf = keyframes.find(k => k.id === selectedKfId);
+    if (!kf) return;
+    if (keyframes.length === 1) adoptAsGlobal(kf);
+    setKeyframes(keyframes.filter(k => k.id !== kf.id));
     setSelectedKfId(null);
   }
 
+  // There is no undo, so clearing every keyframe takes a second click.
+  const [clearArmed, setClearArmed] = useState(false);
+  useEffect(() => {
+    if (!clearArmed) return;
+    const id = setTimeout(() => setClearArmed(false), CLEAR_CONFIRM_MS);
+    return () => clearTimeout(id);
+  }, [clearArmed]);
+  useEffect(() => setClearArmed(false), [keyframes, selectedKfId]);
+
   function clearAllKeyframes() {
+    if (!clearArmed) { setClearArmed(true); return; }
+    if (keyframes.length === 1) adoptAsGlobal(keyframes[0]);
     setKeyframes([]);
     setSelectedKfId(null);
   }
@@ -350,9 +402,13 @@ export default function App() {
   const selectedKfIdRef = useRef(selectedKfId);
   const helpOpenRef = useRef(helpOpen);
   const addKeyframeRef = useRef(addKeyframe);
+  const deleteKeyframeRef = useRef(deleteKeyframe);
+  const neighbourKfRef = useRef({ prev: prevKf, next: nextKf, select: selectKf });
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
   useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
+  useEffect(() => { deleteKeyframeRef.current = deleteKeyframe; }, [keyframes, params, selectedKfId]);
+  useEffect(() => { neighbourKfRef.current = { prev: prevKf, next: nextKf, select: selectKf }; }, [keyframes, timelineProgress, selectedKfId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -372,14 +428,19 @@ export default function App() {
         addKeyframeRef.current();
       } else if (key === 'g') {
         setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
+      } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]') && id) {
+        // With a keyframe open the arrows walk between keyframes, so the
+        // extruder never drifts away from the one being edited.
+        const { prev, next, select } = neighbourKfRef.current;
+        const target = key === 'arrowleft' ? prev : next;
+        if (target) select(target.id);
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]')) {
         const step = (e.shiftKey ? 0.001 : 0.01) * (key === 'arrowleft' ? -1 : 1);
         setTimeline(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
       } else if (key === 'escape' && id) {
         setSelectedKfId(null);
       } else if ((key === 'delete' || key === 'backspace') && id) {
-        setKeyframes(prev => prev.filter(k => k.id !== id));
-        setSelectedKfId(null);
+        deleteKeyframeRef.current();
       } else {
         return;
       }
@@ -454,8 +515,23 @@ export default function App() {
     }
   }, []);
 
+  // A new SVG keeps the keyframes' wave but not their placement, which was
+  // set for the previous part: centre, scale and rotation fall back to the
+  // global values.
+  function keepWaveOnly() {
+    const placed = keyframes.some(k => KF_TRANSFORM_FIELDS.some(f => k[f] !== undefined));
+    if (!placed) return;
+    setKeyframes(keyframes.map(k => {
+      const wave = { ...k };
+      for (const f of KF_TRANSFORM_FIELDS) delete wave[f];
+      return wave;
+    }));
+    showToast('Keyframes conservados; centro, escala y giro vuelven a los globales');
+  }
+
   function handleFile(file: File) {
     setSavedSession(null);
+    keepWaveOnly();
     setGcodeFilename(file.name.replace(/\.svg$/i, '.gcode'));
     const reader = new FileReader();
     reader.onload = ev => doParse(ev.target?.result as string, params.sampleSpacing, [], true);
@@ -530,7 +606,7 @@ export default function App() {
     if (!savedSession) return;
     const p = { ...DEFAULT_PARAMS, ...savedSession.params };
     setParams(p);
-    setKeyframes(savedSession.keyframes);
+    setKeyframes([...savedSession.keyframes].sort((a, b) => a.t - b.t));
     setSelectedKfId(null);
     setGcodeFilename(savedSession.filename);
     doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
@@ -553,6 +629,7 @@ export default function App() {
 
   function loadSample() {
     setSavedSession(null);
+    keepWaveOnly();
     const s = SAMPLES[sampleIndex];
     setGcodeFilename(s.name);
     doParse(s.raw, params.sampleSpacing);
@@ -562,10 +639,10 @@ export default function App() {
     <div className="kf-nav">
       <button className="btn-icon" disabled={!prevKf}
         onClick={() => prevKf && selectKf(prevKf.id)}
-        title="Keyframe anterior (←)" aria-label="Keyframe anterior"><Chevron dir="left" /></button>
+        title={selectedKf ? 'Keyframe anterior (←)' : 'Keyframe anterior'} aria-label="Keyframe anterior"><Chevron dir="left" /></button>
       <span className="kf-nav-label">
         {selectedKf
-          ? <><span className="kf-badge" style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
+          ? <><span className={`kf-badge${selectedKf.smooth ? ' kf-smooth' : ''}`} style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
                 {selectedIdx + 1}
               </span>
               de {keyframes.length}</>
@@ -573,7 +650,7 @@ export default function App() {
       </span>
       <button className="btn-icon" disabled={!nextKf}
         onClick={() => nextKf && selectKf(nextKf.id)}
-        title="Keyframe siguiente (→)" aria-label="Keyframe siguiente"><Chevron dir="right" /></button>
+        title={selectedKf ? 'Keyframe siguiente (→)' : 'Keyframe siguiente'} aria-label="Keyframe siguiente"><Chevron dir="right" /></button>
     </div>
   );
 
@@ -589,7 +666,7 @@ export default function App() {
           : `Fijar la onda en ${Math.round(timelineProgress * 100)} % del recorrido (K). Entre keyframes los valores se interpolan.`}
       >
         {kfAtCursor
-          ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${sortedKfs.indexOf(kfAtCursor) + 1}`
+          ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${keyframes.indexOf(kfAtCursor) + 1}`
           : <><KeyframeAddIcon />Keyframe</>}
       </button>
       {selectedKf && (
@@ -604,9 +681,12 @@ export default function App() {
         </button>
       )}
       {!selectedKf && keyframes.length > 0 && (
-        <button className="btn-reset kf-clear-btn" onClick={clearAllKeyframes}
-          title="Eliminar todos los keyframes">
-          Borrar todos
+        <button className={`btn-reset kf-clear-btn${clearArmed ? ' kf-clear-btn--armed' : ''}`}
+          onClick={clearAllKeyframes} onBlur={() => setClearArmed(false)}
+          title={clearArmed ? 'Pulsa otra vez para borrar todos los keyframes' : 'Eliminar todos los keyframes'}>
+          {clearArmed
+            ? keyframes.length === 1 ? '¿Borrar el keyframe?' : `¿Borrar los ${keyframes.length}?`
+            : 'Borrar todos'}
         </button>
       )}
     </div>
@@ -616,7 +696,7 @@ export default function App() {
     <div className="kf-editor">
       <div className="kf-group">
         <div className="kf-field">
-          <label>Posición</label>
+          <label>Posición <span className="kf-field-hint">{layerLabel(layerAtT(toolpath, selectedKf.t), params.layerHeight)}</span></label>
           <div className="kf-field-input-row">
             <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
               onChange={v => moveSelectedKf(v / 100)} />
@@ -647,6 +727,17 @@ export default function App() {
             <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
               onChange={v => updateKf('scaleY', v)} />
           </div>
+        </div>
+      </div>
+
+      <div className="kf-group kf-group-ease">
+        <div className="kf-field" title="Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, los tramos son rectos.">
+          <label>Transición</label>
+          <label className="kf-switch">
+            <input type="checkbox" checked={Boolean(selectedKf.smooth)}
+              onChange={e => updateKf('smooth', e.target.checked)} />
+            Suave
+          </label>
         </div>
       </div>
 
@@ -830,9 +921,10 @@ export default function App() {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
                 color: keyframeColor(selectedKf.t),
+                smooth: Boolean(selectedKf.smooth),
                 onDone: () => setSelectedKfId(null),
               }}
-              waveLocked={keyframes.length > 0 && !selectedKf}
+              autoKeyAt={autoKey ? `${Math.round(timelineProgress * 100)} %, capa ${layerAtT(toolpath, timelineProgress) + 1}` : null}
               figure={<div className="liss-figure"><LissajousPreview params={lissParams} morph={lissMorph} /></div>}
               headerExtra={
                 <button className="btn-icon" onClick={() => togglePanel('right')}

@@ -173,8 +173,9 @@ export function HelpDialog({ open, onClose }: Props) {
               número y color, iguales en la línea de tiempo, la vista 3D y los paneles.
               Selecciona uno (clic en su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
               derecho; su posición, giro, escala y centro sobre la línea de tiempo. Arrastra su rombo
-              para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
-              los ajustes por trayecto se ignoran.
+              para moverlo: se ajusta al inicio de cada capa (con <kbd>Alt</kbd>, libre). Entre keyframes los valores se interpolan. Sin ninguno seleccionado,
+              el panel derecho muestra la onda en el extrusor; si cambias un valor ahí, se crea un
+              keyframe en ese punto. Con keyframes activos, los ajustes por trayecto se ignoran.
             </p>
           </section>
 
@@ -191,7 +192,7 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Arrastrar la etiqueta de un número</th><td>desliza el valor a izquierda o derecha</td></tr>
                 <tr><th scope="row"><kbd>‹</kbd> <kbd>›</kbd> en un panel</th><td>ocultar o mostrar el panel</td></tr>
                 <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>
-                <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd></th><td>mover el extrusor 1 % (con <kbd>Shift</kbd>, 0,1 %)</td></tr>
+                <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd></th><td>mover el extrusor 1 % (con <kbd>Shift</kbd>, 0,1 %); con un keyframe seleccionado, ir al anterior o al siguiente</td></tr>
                 <tr><th scope="row"><kbd>K</kbd></th><td>añadir keyframe en el extrusor (o seleccionar el que ya está ahí)</td></tr>
                 <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
                 <tr><th scope="row"><kbd>G</kbd></th><td>mostrar u ocultar el G-code</td></tr>
