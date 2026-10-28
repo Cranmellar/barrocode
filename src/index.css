@@ -48,11 +48,13 @@
   --err:           #DC2626;
   --err-bg:        rgba(220,38,38,0.07);
 
-  /* Type */
-  --fs-xs:  10px;
-  --fs-sm:  11px;
-  --fs-md:  12px;
-  --fs-lg:  14px;
+  /* Type: Geist for the interface, GSCode for numbers and code */
+  --font-ui:   'Geist Variable', system-ui, sans-serif;
+  --font-mono: 'GSCode', 'Cascadia Code', ui-monospace, monospace;
+  --fs-xs:  11px;
+  --fs-sm:  12px;
+  --fs-md:  13px;
+  --fs-lg:  15px;
   --fs-xl:  18px;
   --fw-regular: 450;
   --fw-strong:  600;
@@ -77,7 +79,7 @@
   --dur-slow: 320ms;
   --ease:     cubic-bezier(0.2, 0, 0, 1);
 
-  font-family: 'GSCode', 'Cascadia Code', ui-monospace, monospace;
+  font-family: var(--font-ui);
   font-size: var(--fs-md);
   font-weight: var(--fw-regular);
   font-variation-settings: 'wght' 450;
@@ -147,16 +149,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .panel-rail--left  { left: var(--sp-3); }
 .panel-rail--right { right: var(--sp-3); }
 
-.panel-top {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2);
-  padding: var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-4);
-  border-bottom: 1px solid var(--border);
-  flex-shrink: 0;
-}
-.panel-logo { height: 15px; width: auto; display: block; }
-.panel-top-actions,
 .panel-header-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
 .panel-scroll {
@@ -208,6 +200,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   padding: var(--sp-3) var(--sp-3) var(--sp-2);
 }
 .file-row { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.file-row .sample-nav { flex: 1; min-width: 0; }
+.file-current { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; padding-left: 2px; }
 .file-load { flex-shrink: 0; }
 .file-name {
   flex: 1;
@@ -458,7 +452,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 2px;
+  padding: 1px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--field);
@@ -466,11 +460,12 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .sample-nav-load {
   flex: 1;
   min-width: 0;
-  height: 36px;
+  height: 24px;
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
-  padding: 0 var(--sp-2);
+  justify-content: center;
+  gap: 6px;
+  padding: 0 var(--sp-1);
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
@@ -479,13 +474,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   transition: background var(--dur-fast);
 }
 .sample-nav-load:hover { background: var(--surface-2); }
+.sample-nav .btn-icon { width: 24px; height: 24px; }
 .sample-nav-load img { display: block; flex-shrink: 0; }
 .sample-nav-title {
   font-size: var(--fs-sm);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   color: var(--ink);
 }
-.sample-nav-sub { font-size: var(--fs-sm); color: var(--muted); }
 
 /* ── Session restore banner ──────────────────────────────────────────────── */
 .session-banner {
@@ -549,10 +544,10 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 
 /* Number inputs — precise, rectangular */
 .param-row input[type="number"] {
-  width: 76px;
+  width: 60px;
   flex-shrink: 0;
   height: 26px;
-  padding: 0 var(--sp-2);
+  padding: 0 6px;
   background: var(--field);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
@@ -936,15 +931,9 @@ input[type="range"]::-moz-range-thumb {
   writing-mode: vertical-lr;
   direction: rtl;
 }
-/* Layer colour key: the same ramp the layers are drawn with, bottom = layer 1 */
-.layer-ramp {
-  position: absolute;
-  top: 7px;
-  bottom: 7px;
-  left: calc(50% + 8px);
-  width: 3px;
-  border-radius: 2px;
-}
+/* The thumb takes the colour of the top visible layer */
+.layer-slider input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; background: var(--thumb-c, var(--ink)); }
+.layer-slider input[type="range"]::-moz-range-thumb     { width: 16px; height: 16px; background: var(--thumb-c, var(--ink)); }
 .layer-slider-value {
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
@@ -1306,3 +1295,11 @@ input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
+
+/* Numbers, values and code use the monospaced face. Scoped to the stage so
+   it outranks the `font: inherit` resets in the field rules above. */
+.app-stage :is(
+  input[type="number"], .slider-value, .layer-slider-value, .stage-summary,
+  .timeline-pct, .gcode-info, .gcode-textarea, .path-len, .kf-badge,
+  .kf-drag-label, .sample-nav-title, .file-name, .help-body code, .help-body kbd
+) { font-family: var(--font-mono); }

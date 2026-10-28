@@ -315,11 +315,13 @@ export function drawScene(
     const mx = (inset.left + W - inset.right) / 2, my = (inset.top + H - inset.bottom) / 2;
     ctx.textAlign = 'center';
     ctx.fillStyle = palette.ink2;
-    ctx.font = '14px GSCode, monospace';
-    ctx.fillText('Arrastra un SVG aquí', mx, my - 10);
+    ctx.font = '600 24px "Geist Variable", sans-serif';
+    ctx.fillText('barrocode', mx, my - 30);
+    ctx.font = '15px "Geist Variable", sans-serif';
+    ctx.fillText('Arrastra un SVG aquí', mx, my + 4);
     ctx.fillStyle = palette.muted;
-    ctx.font = '12px GSCode, monospace';
-    ctx.fillText('o elige una muestra en el panel izquierdo', mx, my + 12);
+    ctx.font = '13px "Geist Variable", sans-serif';
+    ctx.fillText('o elige una muestra en el panel izquierdo', mx, my + 26);
   }
 
   // ── Orientation gizmo (bottom-right) ───────────────────────────────────

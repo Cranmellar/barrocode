@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
-import logoUrl from './assets/logo.svg';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, WAVE_PARAMS } from './lib/waveGenerator';
@@ -653,6 +652,7 @@ export default function App() {
         selectedKfId={selectedKfId}
         onKfSelect={selectKf}
         onAddKeyframe={addKeyframe}
+        onHelp={() => setHelpOpen(true)}
         insets={insets}
         timelineLead={kfNav}
         timelineActions={kfActions}
@@ -662,22 +662,6 @@ export default function App() {
       {/* ── Panel izquierdo ── */}
       {shown.left ? (
         <aside className="float-panel panel-left" style={{ width: LEFT_W }}>
-          <div className="panel-top">
-            <img className="panel-logo" src={logoUrl} alt="BarroCode" />
-            <span className="panel-top-actions">
-              <button
-                className="btn-icon"
-                onClick={() => setHelpOpen(true)}
-                aria-label="Ayuda: cómo usar BarroCode"
-                aria-haspopup="dialog"
-                aria-expanded={helpOpen}
-                title="Ayuda (?)"
-              >?</button>
-              <button className="btn-icon" onClick={() => togglePanel('left')}
-                title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
-            </span>
-          </div>
-
           <div ref={leftScroll.ref} className={`panel-scroll${leftScroll.more ? ' scroll-more' : ''}`}>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
@@ -698,44 +682,47 @@ export default function App() {
                   title="Cargar un SVG. También puedes arrastrarlo a cualquier parte de la ventana.">
                   {parsedSVG ? 'Cambiar SVG' : 'Cargar SVG'}
                 </button>
-                {parsedSVG && (
+                <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
+                  style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
+
+                <div className="sample-nav">
+                  <button
+                    className="btn-icon"
+                    onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
+                    aria-label="Muestra anterior"
+                  ><Chevron dir="left" /></button>
+                  <button
+                    className="sample-nav-load"
+                    onClick={loadSample}
+                    title={`Cargar muestra ${sampleIndex + 1} de ${SAMPLES.length}`}
+                  >
+                    <img src={SAMPLES[sampleIndex].uri} width={20} height={20} alt="" />
+                    <span className="sample-nav-title">{sampleIndex + 1}/{SAMPLES.length}</span>
+                  </button>
+                  <button
+                    className="btn-icon"
+                    onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
+                    aria-label="Muestra siguiente"
+                  ><Chevron dir="right" /></button>
+                </div>
+
+                <button className="btn-icon" onClick={() => togglePanel('left')}
+                  title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
+              </div>
+
+              {parsedSVG && (
+                <div className="file-current">
                   <span className="file-name" title={gcodeFilename.replace(/\.gcode$/i, '')}>
                     {gcodeFilename.replace(/\.gcode$/i, '')}
                   </span>
-                )}
-                {parsedSVG && (
                   <button className="btn-icon" title="Descartar el SVG" aria-label="Descartar el SVG" onClick={clearSVG}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                       <line x1="2" y1="2" x2="10" y2="10" /><line x1="10" y1="2" x2="2" y2="10" />
                     </svg>
                   </button>
-                )}
-                <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
-                  style={{ display: 'none' }}
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); }} />
-              </div>
-
-              <div className="sample-nav">
-                <button
-                  className="btn-icon"
-                  onClick={() => setSampleIndex(i => (i + SAMPLES.length - 1) % SAMPLES.length)}
-                  aria-label="Muestra anterior"
-                ><Chevron dir="left" /></button>
-                <button
-                  className="sample-nav-load"
-                  onClick={loadSample}
-                  title={`Cargar muestra ${sampleIndex + 1}`}
-                >
-                  <img src={SAMPLES[sampleIndex].uri} width={28} height={28} alt="" />
-                  <span className="sample-nav-title">Muestra {sampleIndex + 1}</span>
-                  <span className="sample-nav-sub">de {SAMPLES.length}</span>
-                </button>
-                <button
-                  className="btn-icon"
-                  onClick={() => setSampleIndex(i => (i + 1) % SAMPLES.length)}
-                  aria-label="Muestra siguiente"
-                ><Chevron dir="right" /></button>
-              </div>
+                </div>
+              )}
 
               {error && <div className="error-msg">{error}</div>}
             </div>

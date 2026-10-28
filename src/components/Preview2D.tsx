@@ -19,11 +19,10 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
+  type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 import { downloadGcode } from '../lib/gcodeGenerator';
-import { rampColor } from '../lib/palette';
 
 interface Props {
   sampledPaths: SampledPath[];
@@ -41,6 +40,7 @@ interface Props {
   selectedKfId: string | null;
   onKfSelect: (id: string | null) => void;
   onAddKeyframe: () => void;
+  onHelp: () => void;
   // Screen space taken by the floating side panels and the top bar.
   insets: { left: number; right: number; top: number };
   // Keyframe controls placed in the timeline dock: before the track, after
@@ -53,7 +53,6 @@ interface Props {
 export const STAGE_GAP = 12;
 const LAYER_SLIDER_W = 44 + STAGE_GAP;
 
-const RAMP_GRADIENT = `linear-gradient(to top, ${[0, 0.25, 0.5, 0.75, 1].map(t => rampColor(t)).join(', ')})`;
 
 const VIEW_PRESETS = [
   { label: 'Iso',    azimuth: 325, elevation: 28, title: 'Vista isométrica' },
@@ -93,7 +92,7 @@ export function Preview2D({
   timelineProgress, onTimelineChange,
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeFilename,
-  selectedKfId, onKfSelect, onAddKeyframe,
+  selectedKfId, onKfSelect, onAddKeyframe, onHelp,
   insets, timelineLead, timelineActions, timelineEditor,
 }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
@@ -461,6 +460,8 @@ export function Preview2D({
           <button className="btn-primary btn-signal" disabled={!gcode}
             onClick={() => downloadGcode(gcode, gcodeFilename)}
             title={`Descargar ${gcodeFilename}`}>↓ Descargar</button>
+          <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
+            aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
         </div>
       </div>
 
@@ -470,10 +471,10 @@ export function Preview2D({
             {shownCap}<span className="layer-slider-total">/{numLayers}</span>
           </span>
           <div className="layer-slider-track">
-            {viewOpts.layerColors && <span className="layer-ramp" style={{ background: RAMP_GRADIENT }} />}
             <input
               type="range" min={1} max={numLayers} step={1}
               value={shownCap}
+              style={viewOpts.layerColors ? { '--thumb-c': layerColor(shownCap - 1, numLayers) } as CSSProperties : undefined}
               aria-label="Capas visibles"
               onChange={e => {
                 const v = parseInt(e.target.value, 10);
