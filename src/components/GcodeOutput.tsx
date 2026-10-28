@@ -1,9 +1,8 @@
 import { useMemo, useState } from 'react';
-import { downloadGcode } from '../lib/gcodeGenerator';
 
 interface Props {
   gcode: string;
-  filename?: string;
+  onClose: () => void;
 }
 
 // Laying out a multi-MB textarea freezes the page for seconds, so only the
@@ -20,11 +19,11 @@ function summarize(gcode: string) {
   const text = headEnd === -1
     ? gcode
     : `${gcode.slice(0, headEnd)}\n\n; … ${hidden.toLocaleString()} líneas más. ` +
-      'Usa «Copiar» o «↓ .gcode» para obtener el programa completo.';
+      'Usa «Copiar» o «Descargar» para obtener el programa completo.';
   return { lines, text, kb: (new Blob([gcode]).size / 1024).toFixed(1) };
 }
 
-export function GcodeOutput({ gcode, filename = 'barrocode.gcode' }: Props) {
+export function GcodeOutput({ gcode, onClose }: Props) {
   const [copied, setCopied] = useState(false);
   const info = useMemo(() => (gcode ? summarize(gcode) : null), [gcode]);
 
@@ -51,13 +50,13 @@ export function GcodeOutput({ gcode, filename = 'barrocode.gcode' }: Props) {
               <button className="btn-small" onClick={handleCopy}>
                 {copied ? '✓ Copiado' : 'Copiar'}
               </button>
-              <button className="btn-primary"
-                onClick={() => downloadGcode(gcode, filename)}
-                disabled={!gcode}>
-                ↓ .gcode
-              </button>
             </>
           )}
+          <button className="btn-icon" onClick={onClose} title="Cerrar (G)" aria-label="Cerrar G-code">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+              <line x1="2" y1="2" x2="10" y2="10" /><line x1="10" y1="2" x2="2" y2="10" />
+            </svg>
+          </button>
         </div>
       </div>
       <textarea

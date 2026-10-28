@@ -9,6 +9,9 @@ interface Props {
   editingKf: { number: number; label: string; color: string; onDone: () => void } | null;
   // Keyframes exist but none is selected: the wave fields have no effect.
   waveLocked: boolean;
+  // Small figure of the wave, shown under the header.
+  figure?: React.ReactNode;
+  headerExtra?: React.ReactNode;
 }
 
 function Slider({ label, value, min, max, step, unit, hint, onChange }: {
@@ -60,52 +63,33 @@ const LissajousMini = React.memo(function LissajousMini({
 }: {
   ampN: number; ampT: number; wlN: number; wlT: number; delta: number; color?: string;
 }) {
-  const S = 38;   // viewBox size
-  const pad = 4;
-  const draw = S - pad * 2;
+  const W = 56, H = 30;
+  const pad = 3;
+  const drawW = W - pad * 2, drawH = H - pad * 2;
 
-  if (ampN === 0 && ampT === 0) {
-    // Plano: dot + tiny horizontal line
-    return (
-      <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} fill="none">
-        <line x1={S * 0.25} y1={S / 2} x2={S * 0.75} y2={S / 2}
-          stroke={color} strokeWidth="2" strokeLinecap="round" />
-        <circle cx={S / 2} cy={S / 2} r="1.5" fill={color} />
-      </svg>
-    );
-  }
-
-  // Sample the Lissajous figure over 2 full cycles of the longer wavelength
-  const totalArc = Math.max(wlN, wlT) * 2.5;
+  // The bead as it is laid along a straight stretch of path: arc length
+  // runs left to right, T pushes it along, N swings it sideways.
+  const totalArc = Math.max(wlN, wlT) * 2;
   const nPts = 280;
   const xs: number[] = [];
   const ys: number[] = [];
-
   for (let i = 0; i <= nPts; i++) {
     const s = (i / nPts) * totalArc;
-    xs.push(ampT > 0 ? ampT * Math.sin(TWO_PI * s / wlT) : 0);
+    xs.push(s + (ampT > 0 ? ampT * Math.sin(TWO_PI * s / wlT) : 0));
     ys.push(ampN * Math.sin(TWO_PI * s / wlN + delta));
   }
 
-  // Normalise to [0, draw] inside viewBox — keep zero-amplitude axes centred
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (let i = 0; i < xs.length; i++) {
-    if (xs[i] < minX) minX = xs[i]; if (xs[i] > maxX) maxX = xs[i];
-    if (ys[i] < minY) minY = ys[i]; if (ys[i] > maxY) maxY = ys[i];
-  }
-  const rangeX = maxX - minX;
-  const rangeY = maxY - minY;
+  let minX = Infinity, maxX = -Infinity;
+  for (const x of xs) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+  const rangeX = maxX - minX || 1;
+  const halfH = drawH * 0.5;
+  const px = (x: number) => pad + ((x - minX) / rangeX) * drawW;
+  const py = (y: number) => H / 2 - (ampN > 0 ? (y / ampN) * halfH : 0);
 
-  const px = (x: number) =>
-    rangeX > 0.001 ? pad + ((x - minX) / rangeX) * draw : S / 2;
-  const py = (y: number) =>
-    rangeY > 0.001 ? pad + (1 - (y - minY) / rangeY) * draw : S / 2;
-
-  // Build SVG path
   const d = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${px(x).toFixed(1)},${py(ys[i]).toFixed(1)}`).join(' ');
 
   return (
-    <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} fill="none">
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none">
       <path d={d} stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
@@ -124,7 +108,7 @@ const PRESETS = [
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function LissajousParams({ params, onChange, onReset, editingKf, waveLocked }: Props) {
+export function LissajousParams({ params, onChange, onReset, editingKf, waveLocked, figure, headerExtra }: Props) {
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
@@ -135,12 +119,16 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
   return (
     <div className="lissajous-params">
       <div className="panel-header">
-        <span>Lissajous</span>
-        <button className="btn-reset" onClick={onReset} disabled={waveLocked}
-          title={editingKf
-            ? 'Restablece la onda de este keyframe y la fase'
-            : 'Restablece solo los parámetros de la onda'}>Reiniciar</button>
+        <span>Onda</span>
+        <span className="panel-header-actions">
+          <button className="btn-reset" onClick={onReset} disabled={waveLocked}
+            title={editingKf
+              ? 'Restablece la onda de este keyframe y la fase'
+              : 'Restablece solo los parámetros de la onda'}>Restablecer</button>
+          {headerExtra}
+        </span>
       </div>
+      {figure}
       {editingKf ? (
         <div className="liss-context liss-context--kf">
           <span className="kf-badge" style={{ '--kf-c': editingKf.color } as React.CSSProperties}>
@@ -155,7 +143,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
           La onda la definen los keyframes. Selecciona uno en la línea de tiempo para editarla.
         </div>
       ) : (
-        <div className="liss-context">Onda global · se aplica a toda la pieza</div>
+        <div className="liss-context">Onda global: se aplica a toda la pieza</div>
       )}
 
       <fieldset className="liss-fieldset" disabled={waveLocked}>
@@ -208,7 +196,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         {/* ── Eje Z ── */}
         <Sec title="Z · Vertical">
           {params.lissAmpZ > params.layerHeight && (
-            <div style={{ fontSize: 9, color: '#c0392b', marginBottom: 4, lineHeight: 1.3 }}>
+            <div className="warn-note">
               ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
               ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
             </div>

@@ -9,6 +9,7 @@ import type { SampledPath, PrintParams, WaveKeyframe } from '../types';
 import { svgToMM, getParamsAtT } from './waveGenerator';
 import type { ToolpathLayer } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
+import { palette, rampColor, withAlpha } from './palette';
 
 export interface View3D {
   azimuth: number;
@@ -18,22 +19,14 @@ export interface View3D {
   offsetY: number;
 }
 
-// Mirrors --ink in index.css; canvas can't read CSS variables.
-const INK = '#1C1C1C';
-
-// Vivid palette: cobalt-blue (bottom) → warm terracotta (top)
 export function layerColor(index: number, total: number, alpha = 1): string {
-  const t = total <= 1 ? 0 : index / (total - 1);
-  const hue = Math.round(218 - 198 * t);   // 218 (cobalt) → 20 (terracotta)
-  const sat = 72 + t * 16;                  // 72 % → 88 %
-  const lit = 50 + t * 12;                  // 50 % → 62 %
-  return `hsla(${hue},${sat.toFixed(0)}%,${lit.toFixed(0)}%,${alpha})`;
+  return rampColor(total <= 1 ? 0 : index / (total - 1), alpha);
 }
 
-// A keyframe takes the layer hue at its position, at a fixed lightness so its
-// dark number stays legible on every hue (the gradient passes through yellow).
+// A keyframe takes the exact layer colour at its position; its number is
+// white, which reads on every colour of the ramp.
 export function keyframeColor(t: number): string {
-  return `hsl(${Math.round(218 - 198 * t)},${Math.round(72 + t * 16)}%,62%)`;
+  return rampColor(t);
 }
 
 // At az = 0 the camera looks along +Y: X to the right, Y away, Z up.
@@ -93,6 +86,8 @@ export interface Scene {
   sampledPaths: SampledPath[];
   params: PrintParams;
   svgH: number;
+  // Screen margins covered by the floating panels; overlays stay inside them.
+  inset: { left: number; right: number; top: number; bottom: number };
   keyframes: WaveKeyframe[];
   selectedKfId: string | null;
   timelineProgress: number;
@@ -161,11 +156,11 @@ export function drawScene(
 ) {
   const {
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims,
+    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims, inset,
   } = scene;
   const { azimuth, elevation } = view;
 
-  ctx.fillStyle = '#EDEDED';
+  ctx.fillStyle = palette.bg;
   ctx.fillRect(0, 0, W, H);
 
   const toScreen = screenMapper(view);
@@ -182,7 +177,7 @@ export function drawScene(
     const step = r > 80 ? 20 : r > 30 ? 10 : 5;
     ctx.save();
     // Solid, at the ink coverage the old 8/6 dash had (0.22 × 8/14).
-    ctx.strokeStyle = 'rgba(110, 110, 110, 0.13)';
+    ctx.strokeStyle = withAlpha(palette.muted, 0.16);
     ctx.lineWidth = 0.9;
     for (let gx = Math.floor((cx - r) / step) * step; gx <= cx + r; gx += step) {
       ctx.beginPath();
@@ -208,7 +203,7 @@ export function drawScene(
     const [cx0, cy0] = toScreen(cxMM, cyMM, 0);
     const [cx1, cy1] = toScreen(cxMM, cyMM, maxZ);
     ctx.save();
-    ctx.strokeStyle = 'rgba(16,14,9,0.55)';
+    ctx.strokeStyle = withAlpha(palette.ink, 0.55);
     ctx.lineWidth = 1.5;
     ctx.setLineDash([5, 5]);
     ctx.beginPath(); ctx.moveTo(cx0, cy0); ctx.lineTo(cx1, cy1); ctx.stroke();
@@ -220,10 +215,10 @@ export function drawScene(
     ctx.moveTo(cx0, cy0 - 6); ctx.lineTo(cx0, cy0 + 6);
     ctx.stroke();
     // Label
-    ctx.font = '700 8px GSCode, monospace';
-    ctx.fillStyle = 'rgba(16,14,9,0.45)';
+    ctx.font = '10px GSCode, monospace';
+    ctx.fillStyle = palette.muted;
     ctx.textAlign = 'left';
-    ctx.fillText(`C (${cxMM.toFixed(1)}, ${cyMM.toFixed(1)})`, cx0 + 8, cy0 - 4);
+    ctx.fillText(`centro ${cxMM.toFixed(1)}, ${cyMM.toFixed(1)}`, cx0 + 9, cy0 - 5);
     ctx.restore();
   }
 
@@ -249,7 +244,7 @@ export function drawScene(
     const [fx, fy] = toScreen(pt.x, pt.y, 0);
 
     ctx.save();
-    ctx.strokeStyle = 'rgba(50,50,50,0.28)';
+    ctx.strokeStyle = withAlpha(palette.ink, 0.28);
     ctx.lineWidth = 1;
     ctx.setLineDash([2, 4]);
     ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(fx, fy); ctx.stroke();
@@ -257,8 +252,8 @@ export function drawScene(
 
     // Dark square like the timeline thumb, so it never reads as a keyframe.
     ctx.save();
-    ctx.fillStyle   = INK;
-    ctx.strokeStyle = '#fff';
+    ctx.fillStyle   = palette.ink;
+    ctx.strokeStyle = palette.surface;
     ctx.lineWidth   = 2.5;
     ctx.beginPath();
     ctx.rect(ex - 6, ey - 6, 12, 12);
@@ -267,10 +262,10 @@ export function drawScene(
 
     // Clear of the selected keyframe diamond (radius 14) that sits on the extruder.
     ctx.save();
-    ctx.font = '700 9px GSCode, monospace';
-    ctx.fillStyle = 'rgba(16,14,9,0.6)';
+    ctx.font = '11px GSCode, monospace';
+    ctx.fillStyle = palette.ink2;
     ctx.textBaseline = 'middle';
-    ctx.fillText(`Z ${pt.z.toFixed(1)}`, ex + 19, ey);
+    ctx.fillText(`z ${pt.z.toFixed(1)}`, ex + 19, ey);
     ctx.restore();
   }
 
@@ -287,10 +282,10 @@ export function drawScene(
       ctx.moveTo(kx, ky - r); ctx.lineTo(kx + r, ky); ctx.lineTo(kx, ky + r); ctx.lineTo(kx - r, ky);
       ctx.closePath();
       ctx.fillStyle   = keyframeColor(kf.t);
-      ctx.strokeStyle = isSelected ? INK : '#fff';
+      ctx.strokeStyle = isSelected ? palette.ink : palette.surface;
       ctx.lineWidth   = 2;
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = INK;
+      ctx.fillStyle = palette.surface;
       ctx.fillText(String(number), kx, ky + 0.5);
     }
     ctx.restore();
@@ -299,7 +294,7 @@ export function drawScene(
   // SVG centerlines (no wave layers yet)
   if (numLayers === 0 && sampledPaths.length > 0) {
     ctx.save();
-    ctx.strokeStyle = 'rgba(16,14,9,0.22)';
+    ctx.strokeStyle = withAlpha(palette.ink, 0.25);
     ctx.setLineDash([4, 5]);
     ctx.lineWidth = 1.2;
     for (const path of sampledPaths) {
@@ -317,58 +312,39 @@ export function drawScene(
 
   // Empty state
   if (sampledPaths.length === 0 && numLayers === 0) {
-    ctx.fillStyle = 'rgba(16,14,9,0.2)';
-    ctx.font = '700 10px GSCode, monospace';
+    const mx = (inset.left + W - inset.right) / 2, my = (inset.top + H - inset.bottom) / 2;
     ctx.textAlign = 'center';
-    ctx.fillText('CARGA UN SVG PARA COMENZAR', W / 2, H / 2);
+    ctx.fillStyle = palette.ink2;
+    ctx.font = '24px GSCode, monospace';
+    ctx.fillText('barrocode', mx, my - 30);
+    ctx.font = '14px GSCode, monospace';
+    ctx.fillText('Arrastra un SVG aquí', mx, my + 4);
+    ctx.fillStyle = palette.muted;
+    ctx.font = '12px GSCode, monospace';
+    ctx.fillText('o elige una muestra en el panel izquierdo', mx, my + 26);
   }
-
-  // Layer legend (compact, top-left — freed from gizmo corner)
-  if (numLayers > 1 && layerColors) {
-    ctx.save();
-    ctx.font = '700 8px GSCode, monospace';
-    const step = numLayers <= 8 ? 1 : Math.ceil(numLayers / 8);
-    let ly = 12;
-    for (let li = 0; li < numLayers; li += step) {
-      ctx.fillStyle = layerColor(li, numLayers);
-      ctx.fillRect(10, ly, 6, 6);
-      ctx.fillStyle = 'rgba(16,14,9,0.45)';
-      ctx.textAlign = 'left';
-      ctx.fillText(`${li + 1}`, 20, ly + 5.5);
-      ly += 11;
-    }
-    ctx.restore();
-  }
-
-  // Rotation info — Swiss caption
-  ctx.save();
-  ctx.font = '700 8px GSCode, monospace';
-  ctx.fillStyle = 'rgba(16,14,9,0.3)';
-  ctx.textAlign = 'left';
-  ctx.fillText(`AZ ${view.azimuth.toFixed(0)}°  EL ${view.elevation.toFixed(0)}°`, 10, H - 8);
-  ctx.restore();
 
   // ── Orientation gizmo (bottom-right) ───────────────────────────────────
   {
     // GR = circle radius; GL = axis arm length (must be < GR so labels stay inside)
-    const GR = 20, GL = 11;
-    const GX = W - GR - 8, GY = H - GR - 8;
+    const GR = 24, GL = 13;
+    const GX = inset.left + GR + 4, GY = H - inset.bottom - GR - 4;
 
     // Frosted circle background
     ctx.save();
     ctx.beginPath();
     ctx.arc(GX, GY, GR, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(241,241,241,0.90)';
+    ctx.fillStyle = withAlpha(palette.surface, 0.9);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(135,135,135,0.30)';
+    ctx.strokeStyle = palette.border;
     ctx.lineWidth = 0.75;
     ctx.stroke();
 
     // Axis definitions: world direction, stroke color, label
     const axes: [number, number, number, string, string][] = [
-      [1, 0, 0, '#C83838', 'X'],
-      [0, 1, 0, '#2E9B2E', 'Y'],
-      [0, 0, 1, '#2E60C8', 'Z'],
+      [1, 0, 0, palette.err, 'X'],
+      [0, 1, 0, palette.ok, 'Y'],
+      [0, 0, 1, palette.nAxis, 'Z'],
     ];
 
     // Sort back-to-front so nearer axes paint over farther ones
@@ -401,7 +377,7 @@ export function drawScene(
       // Label — placed at GL * 1.45 so it stays within GR
       const [lx2, ly2] = project(wx * GL * 1.45, wy * GL * 1.45, wz * GL * 1.45, azimuth, elevation);
       ctx.globalAlpha = 0.92;
-      ctx.font = 'bold 7px GSCode, monospace';
+      ctx.font = '10px GSCode, monospace';
       ctx.fillStyle = color;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -439,9 +415,9 @@ function drawDimensions(
   const [mx, my] = toScreen((b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, 0);
 
   ctx.save();
-  ctx.strokeStyle = 'rgba(16,14,9,0.55)';
+  ctx.strokeStyle = withAlpha(palette.ink, 0.55);
   ctx.lineWidth = 1;
-  ctx.font = '700 9px GSCode, monospace';
+  ctx.font = '11px GSCode, monospace';
   ctx.textBaseline = 'middle';
 
   const label = (text: string, x: number, y: number, align: CanvasTextAlign) => {
@@ -449,9 +425,9 @@ function drawDimensions(
     const w = ctx.measureText(text).width;
     let left = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
     if (left < 4) { x += 4 - left; left = 4; }
-    ctx.fillStyle = 'rgba(237,237,237,0.85)';
+    ctx.fillStyle = withAlpha(palette.bg, 0.85);
     ctx.fillRect(left - 3, y - 7, w + 6, 14);
-    ctx.fillStyle = INK;
+    ctx.fillStyle = palette.ink;
     ctx.fillText(text, x, y + 0.5);
   };
 
@@ -518,9 +494,8 @@ function drawDimensions(
 export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene) {
   const { view, toolpath, params, isInteracting, layerCap, layerSolo, layerColors } = scene;
   const numLayers = toolpath.length;
-  // Single-colour mode uses --accent.
   const colorOf = (li: number, alpha = 1) =>
-    layerColors ? layerColor(li, numLayers, alpha) : `rgba(74,78,140,${alpha})`;
+    layerColors ? layerColor(li, numLayers, alpha) : withAlpha(palette.ink2, alpha);
   const shown = (li: number) => layerSolo ? li === layerCap : li <= layerCap;
   const { scale } = view;
   const toScreen = screenMapper(view);
@@ -534,7 +509,7 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
     const alpha = ghost ? 0.14 : 0.60 + (li / Math.max(1, numLayers - 1)) * 0.40;
 
     ctx.save();
-    ctx.strokeStyle = ghost ? 'rgb(90,90,90)' : colorOf(li);
+    ctx.strokeStyle = ghost ? palette.muted : colorOf(li);
     ctx.globalAlpha = alpha;
     ctx.lineWidth   = ghost ? 1 : Math.max(1.5, 5.5 / Math.sqrt(Math.max(scale, 0.05)));
     ctx.lineJoin    = 'round';
@@ -571,7 +546,7 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
     ctx.setLineDash([3, 6]);
     ctx.lineWidth = 1.1;
     ctx.globalAlpha = 0.38;
-    ctx.strokeStyle = 'rgba(50, 50, 50, 0.85)';
+    ctx.strokeStyle = withAlpha(palette.ink, 0.85);
     for (let li = 0; li < numLayers; li++) {
       if (!shown(li)) continue;
       const layer = toolpath[li];
@@ -617,7 +592,7 @@ export function drawTopDown(
   toolpath: ToolpathLayer[], flatPoints: FlatPoint[],
 ) {
   ctx.clearRect(0, 0, W, H);
-  ctx.fillStyle = '#F5F5F5';
+  ctx.fillStyle = palette.surface;
   ctx.fillRect(0, 0, W, H);
 
   const pad = 10;

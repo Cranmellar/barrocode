@@ -42,55 +42,58 @@ function Sec({ title, children }: { title: string; children: React.ReactNode }) 
 
 type GroupId = 'pieza' | 'trayecto' | 'maquina';
 
-const GROUPS_KEY = 'barrocode.leftGroups';
-const ALL_OPEN: Record<GroupId, boolean> = { pieza: true, trayecto: true, maquina: true };
+const TAB_KEY = 'barrocode.leftTab';
+const TABS: { id: GroupId; title: string }[] = [
+  { id: 'pieza', title: 'Pieza' },
+  { id: 'trayecto', title: 'Trayecto' },
+  { id: 'maquina', title: 'Máquina' },
+];
 
-function loadGroups(): Record<GroupId, boolean> {
+function loadTab(): GroupId {
   try {
-    const saved = JSON.parse(localStorage.getItem(GROUPS_KEY) ?? 'null');
-    return saved ? { ...ALL_OPEN, ...saved } : ALL_OPEN;
+    const saved = localStorage.getItem(TAB_KEY);
+    return TABS.some(t => t.id === saved) ? saved as GroupId : 'pieza';
   } catch {
-    return ALL_OPEN;
+    return 'pieza';
   }
 }
 
-function Group({ title, summary, open, onToggle, children }: {
-  title: string; summary: string; open: boolean;
-  onToggle: (open: boolean) => void; children: React.ReactNode;
-}) {
-  return (
-    <details className="param-group" open={open}
-      onToggle={e => onToggle((e.currentTarget as HTMLDetailsElement).open)}>
-      <summary className="param-group-head">
-        <span className="param-group-title">{title}</span>
-        <span className="param-group-summary">{summary}</span>
-      </summary>
-      {children}
-    </details>
-  );
-}
-
 export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
-  const [groups, setGroups] = useState(loadGroups);
+  const [tab, setTab] = useState(loadTab);
 
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
 
-  function toggleGroup(id: GroupId, open: boolean) {
-    if (groups[id] === open) return;
-    const next = { ...groups, [id]: open };
-    setGroups(next);
-    try { localStorage.setItem(GROUPS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+  function selectTab(id: GroupId) {
+    setTab(id);
+    try { localStorage.setItem(TAB_KEY, id); } catch { /* storage unavailable */ }
   }
 
   const effLayers = layerCount(params);
   const height = +(effLayers * params.layerHeight).toFixed(1);
 
+  const summaries: Record<GroupId, string> = {
+    pieza: `${effLayers} capas · ${height} mm`,
+    trayecto: [
+      params.softJoin ? 'unión suave' : 'sin unión',
+      params.zHopHeight > 0 ? `z-hop ${params.zHopHeight} mm` : 'sin z-hop',
+    ].join(' · '),
+    maquina: `${params.printSpeed} mm/min${params.generateE ? ` · E ×${params.extrusionMultiplier}` : ' · sin E'}`,
+  };
+
   return (
     <div className="path-params">
-      <Group title="Pieza" open={groups.pieza} onToggle={v => toggleGroup('pieza', v)}
-        summary={`${effLayers} capas · ${height} mm`}>
+      <div className="panel-tabs" role="tablist" aria-label="Parámetros">
+        {TABS.map(t => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id}
+            className={`panel-tab${tab === t.id ? ' panel-tab--on' : ''}`}
+            onClick={() => selectTab(t.id)} title={summaries[t.id]}>
+            {t.title}
+          </button>
+        ))}
+      </div>
+      {tab === 'pieza' && (<>
         <Sec title="Capas">
           <Num label="Altura de capa" value={params.layerHeight}
             min={0.1} step={0.1} unit="mm"
@@ -144,13 +147,9 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
         </Sec>
 
         <CenterScaleParams params={params} onChange={onChange} />
-      </Group>
+      </>)}
 
-      <Group title="Trayecto" open={groups.trayecto} onToggle={v => toggleGroup('trayecto', v)}
-        summary={[
-          params.softJoin ? 'unión suave' : 'sin unión',
-          params.zHopHeight > 0 ? `z-hop ${params.zHopHeight} mm` : 'sin z-hop',
-        ].join(' · ')}>
+      {tab === 'trayecto' && (<>
         <Sec title="Dirección">
           <Check label="Invertir dirección" checked={params.reversePath}
             onChange={v => set('reversePath', v)} />
@@ -197,10 +196,9 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
             hint="Distancia entre puntos de muestra sobre el trayecto (unidades SVG)"
             onChange={v => set('sampleSpacing', v)} />
         </Sec>
-      </Group>
+      </>)}
 
-      <Group title="Máquina" open={groups.maquina} onToggle={v => toggleGroup('maquina', v)}
-        summary={`${params.printSpeed} mm/min${params.generateE ? ` · E ×${params.extrusionMultiplier}` : ' · sin E'}`}>
+      {tab === 'maquina' && (<>
         <Sec title="Velocidades">
           <Num label="Vel. impresión" value={params.printSpeed}
             min={1} step={50} unit="mm/min"
@@ -245,7 +243,7 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
               min={1} step={5} unit="mm"
               onChange={v => set('primingLength', v)} />}
         </Sec>
-      </Group>
+      </>)}
     </div>
   );
 }
