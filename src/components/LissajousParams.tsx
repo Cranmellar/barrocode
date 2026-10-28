@@ -63,52 +63,33 @@ const LissajousMini = React.memo(function LissajousMini({
 }: {
   ampN: number; ampT: number; wlN: number; wlT: number; delta: number; color?: string;
 }) {
-  const S = 38;   // viewBox size
-  const pad = 4;
-  const draw = S - pad * 2;
+  const W = 56, H = 30;
+  const pad = 3;
+  const drawW = W - pad * 2, drawH = H - pad * 2;
 
-  if (ampN === 0 && ampT === 0) {
-    // Plano: dot + tiny horizontal line
-    return (
-      <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} fill="none">
-        <line x1={S * 0.25} y1={S / 2} x2={S * 0.75} y2={S / 2}
-          stroke={color} strokeWidth="2" strokeLinecap="round" />
-        <circle cx={S / 2} cy={S / 2} r="1.5" fill={color} />
-      </svg>
-    );
-  }
-
-  // Sample the Lissajous figure over 2 full cycles of the longer wavelength
-  const totalArc = Math.max(wlN, wlT) * 2.5;
+  // The bead as it is laid along a straight stretch of path: arc length
+  // runs left to right, T pushes it along, N swings it sideways.
+  const totalArc = Math.max(wlN, wlT) * 2;
   const nPts = 280;
   const xs: number[] = [];
   const ys: number[] = [];
-
   for (let i = 0; i <= nPts; i++) {
     const s = (i / nPts) * totalArc;
-    xs.push(ampT > 0 ? ampT * Math.sin(TWO_PI * s / wlT) : 0);
+    xs.push(s + (ampT > 0 ? ampT * Math.sin(TWO_PI * s / wlT) : 0));
     ys.push(ampN * Math.sin(TWO_PI * s / wlN + delta));
   }
 
-  // Normalise to [0, draw] inside viewBox — keep zero-amplitude axes centred
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (let i = 0; i < xs.length; i++) {
-    if (xs[i] < minX) minX = xs[i]; if (xs[i] > maxX) maxX = xs[i];
-    if (ys[i] < minY) minY = ys[i]; if (ys[i] > maxY) maxY = ys[i];
-  }
-  const rangeX = maxX - minX;
-  const rangeY = maxY - minY;
+  let minX = Infinity, maxX = -Infinity;
+  for (const x of xs) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
+  const rangeX = maxX - minX || 1;
+  const halfH = drawH * 0.5;
+  const px = (x: number) => pad + ((x - minX) / rangeX) * drawW;
+  const py = (y: number) => H / 2 - (ampN > 0 ? (y / ampN) * halfH : 0);
 
-  const px = (x: number) =>
-    rangeX > 0.001 ? pad + ((x - minX) / rangeX) * draw : S / 2;
-  const py = (y: number) =>
-    rangeY > 0.001 ? pad + (1 - (y - minY) / rangeY) * draw : S / 2;
-
-  // Build SVG path
   const d = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${px(x).toFixed(1)},${py(ys[i]).toFixed(1)}`).join(' ');
 
   return (
-    <svg width={S} height={S} viewBox={`0 0 ${S} ${S}`} fill="none">
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none">
       <path d={d} stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
