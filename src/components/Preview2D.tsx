@@ -13,7 +13,7 @@
  * own lane above it.
  */
 
-import { useRef, useEffect, useCallback, useState, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type ReactNode } from 'react';
 import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
@@ -400,6 +400,20 @@ export function Preview2D({
     }, 150);
   };
 
+  // The highlight of the view presets slides to the active one and fades out
+  // once the camera leaves every preset.
+  const activePreset = VIEW_PRESETS.findIndex(v => view.azimuth === v.azimuth && view.elevation === v.elevation);
+  const presetRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const [presetInd, setPresetInd] = useState({ x: 0, w: 0 });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const b = presetRefs.current[activePreset];
+      if (b) setPresetInd({ x: b.offsetLeft, w: b.offsetWidth });
+    };
+    measure();
+    document.fonts?.ready.then(measure);
+  }, [activePreset]);
+
   const numLayers = toolpath.length;
   const totalPts = flatPoints.length;
   const shownCap = Math.min(layerCap ?? numLayers, numLayers);
@@ -433,9 +447,15 @@ export function Preview2D({
             </svg>
           </button>
           <div className="view-presets" role="group" aria-label="Vistas">
-            {VIEW_PRESETS.map(v => (
-              <button key={v.label}
-                className={`view-preset${view.azimuth === v.azimuth && view.elevation === v.elevation ? ' view-preset--on' : ''}`}
+            <span className="view-presets-ind" aria-hidden="true" style={{
+              width: presetInd.w,
+              transform: `translateX(${presetInd.x}px) scale(${activePreset < 0 ? 0.92 : 1})`,
+              opacity: activePreset < 0 || presetInd.w === 0 ? 0 : 1,
+            }} />
+            {VIEW_PRESETS.map((v, i) => (
+              <button key={v.label} ref={el => { presetRefs.current[i] = el; }}
+                aria-pressed={i === activePreset}
+                className={`view-preset${i === activePreset ? ' view-preset--on' : ''}`}
                 onClick={() => fitView(v.azimuth, v.elevation)}
                 title={v.title}>
                 {v.label}

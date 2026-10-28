@@ -137,8 +137,22 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   flex-direction: column;
   overflow: hidden;
 }
-.panel-left  { left: var(--sp-3); }
-.panel-right { right: var(--sp-3); }
+.panel-left  { left: var(--sp-3); transform-origin: left center; }
+.panel-right { right: var(--sp-3); transform-origin: right center; }
+
+/* Panels slide in when they open and out before they close; the rail
+   that replaces them fades in just after. */
+.panel-left, .panel-right { animation: var(--dur) var(--ease) both; }
+.panel-left  { animation-name: panel-in-left; }
+.panel-right { animation-name: panel-in-right; }
+.panel-left.panel-leave  { animation: panel-out-left 140ms cubic-bezier(0.4, 0, 1, 1) both; }
+.panel-right.panel-leave { animation: panel-out-right 140ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes panel-in-left   { from { opacity: 0; transform: translateX(-12px) scale(0.985); } }
+@keyframes panel-in-right  { from { opacity: 0; transform: translateX(12px) scale(0.985); } }
+@keyframes panel-out-left  { to   { opacity: 0; transform: translateX(-12px) scale(0.985); } }
+@keyframes panel-out-right { to   { opacity: 0; transform: translateX(12px) scale(0.985); } }
+.panel-rail { animation: rail-in var(--dur) var(--ease) 40ms both; }
+@keyframes rail-in { from { opacity: 0; transform: scale(0.9); } }
 .panel-rail {
   bottom: auto;
   align-items: center;
@@ -174,7 +188,19 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   border-radius: var(--radius);
   box-shadow: 0 -8px 0 var(--surface);
 }
+.panel-tabs-ind {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc((100% - 8px) / 3);
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease);
+}
 .panel-tab {
+  position: relative;
   flex: 1;
   height: 26px;
   padding: 0 var(--sp-2);
@@ -189,7 +215,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .panel-tab:hover { color: var(--ink); }
-.panel-tab--on { background: var(--field); color: var(--ink); box-shadow: var(--shadow-sm); }
+.panel-tab--on { color: var(--ink); }
+
+.tab-pane { animation: var(--dur) var(--ease) both; }
+.tab-pane--next { animation-name: pane-in-next; }
+.tab-pane--prev { animation-name: pane-in-prev; }
+@keyframes pane-in-next { from { opacity: 0; transform: translateX(10px); } }
+@keyframes pane-in-prev { from { opacity: 0; transform: translateX(-10px); } }
 
 /* File: load button, current file, samples */
 .file-block {
@@ -974,13 +1006,25 @@ input[type="range"]::-moz-range-thumb {
 .layer-solo--on:hover { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
 
 .view-presets {
+  position: relative;
   display: flex;
   gap: 2px;
   padding: 2px;
   background: var(--surface-3);
   border-radius: var(--radius);
 }
+.view-presets-ind {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease), width var(--dur) var(--ease), opacity var(--dur-fast);
+}
 .view-preset {
+  position: relative;
   height: 24px;
   padding: 0 10px;
   background: transparent;
@@ -995,7 +1039,7 @@ input[type="range"]::-moz-range-thumb {
   transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .view-preset:hover { color: var(--ink); }
-.view-preset--on { background: var(--field); color: var(--ink); box-shadow: var(--shadow-sm); }
+.view-preset--on { color: var(--ink); }
 
 /* ── Lissajous figure ────────────────────────────────────────────────────── */
 /* Absolute so the buffer size set in device pixels never sizes the box */

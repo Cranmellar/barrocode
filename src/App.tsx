@@ -89,6 +89,8 @@ const RIGHT_W = 296;
 const RAIL_W  = 44;
 const BAR_H   = 40;
 const NARROW_W = 1280;
+// Matches the panel-leave animation in index.css.
+const PANEL_LEAVE_MS = 140;
 
 const PANELS_KEY = 'barrocode.panels';
 interface PanelsOpen { left: boolean; right: boolean }
@@ -372,12 +374,21 @@ export default function App() {
   const leftScroll  = useScrollMore<HTMLDivElement>(shown.left);
   const rightScroll = useScrollMore<HTMLDivElement>(shown.right);
 
+  // A closing panel plays its exit before it unmounts and the view reframes.
+  const [leaving, setLeaving] = useState<keyof PanelsOpen | null>(null);
   function togglePanel(side: keyof PanelsOpen) {
+    if (leaving) return;
     const other = side === 'left' ? 'right' : 'left';
     const opening = !shown[side];
     const next = { ...shown, [side]: opening, ...(opening && narrow ? { [other]: false } : {}) };
-    setPanels(next);
-    try { localStorage.setItem(PANELS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+    const commit = () => {
+      setLeaving(null);
+      setPanels(next);
+      try { localStorage.setItem(PANELS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+    };
+    if (opening) { commit(); return; }
+    setLeaving(side);
+    setTimeout(commit, PANEL_LEAVE_MS);
   }
 
   const insets = {
@@ -669,7 +680,7 @@ export default function App() {
 
       {/* ── Panel izquierdo ── */}
       {shown.left ? (
-        <aside className="float-panel panel-left" style={{ width: LEFT_W }}>
+        <aside className={`float-panel panel-left${leaving === 'left' ? ' panel-leave' : ''}`} style={{ width: LEFT_W }}>
           <div ref={leftScroll.ref} className={`panel-scroll${leftScroll.more ? ' scroll-more' : ''}`}>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
@@ -758,7 +769,7 @@ export default function App() {
 
       {/* ── Panel derecho ── */}
       {shown.right ? (
-        <aside className="float-panel panel-right" style={{ width: RIGHT_W }}>
+        <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
             <LissajousParams
               params={lissParams}
