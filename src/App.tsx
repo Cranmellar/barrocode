@@ -311,6 +311,13 @@ export default function App() {
     ? keyframes[selectedIdx + 1] ?? null
     : keyframes.find(k => k.t > timelineProgress) ?? null;
 
+  // Moving the extruder away from the open keyframe closes it, so the next
+  // wave edit auto-keys there instead of changing the keyframe left behind.
+  function scrubTimeline(t: number) {
+    setTimeline(t);
+    if (selectedKf && findKeyframeAt(keyframes, t)?.id !== selectedKf.id) setSelectedKfId(null);
+  }
+
   // Selecting a keyframe moves the extruder onto it, so the preview shows
   // the wave being edited.
   function selectKf(id: string | null) {
@@ -799,6 +806,7 @@ export default function App() {
         viewBox={parsedSVG?.viewBox ?? null}
         timelineProgress={timelineProgress}
         onTimelineChange={setTimeline}
+        onScrub={scrubTimeline}
         keyframes={keyframes}
         onKeyframesChange={setKeyframes}
         centerTab={centerTab}

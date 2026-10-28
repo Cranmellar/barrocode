@@ -32,6 +32,8 @@ interface Props {
   viewBox: SVGViewBox | null;
   timelineProgress: number;
   onTimelineChange: (v: number) => void;
+  // The user moved the extruder by hand (slider or a click on the lane).
+  onScrub: (v: number) => void;
   keyframes: WaveKeyframe[];
   onKeyframesChange: Dispatch<SetStateAction<WaveKeyframe[]>>;
   centerTab: 'preview' | 'gcode';
@@ -152,7 +154,7 @@ function uid() {
 
 export function Preview2D({
   sampledPaths, toolpath, params, viewBox,
-  timelineProgress, onTimelineChange,
+  timelineProgress, onTimelineChange, onScrub,
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeBusy, gcodeFilename, toast, onToast,
   selectedKfId, onKfSelect, onAddKeyframe, onHelp,
@@ -821,7 +823,7 @@ export function Preview2D({
                 ref={trackRef}
                 onMouseDown={e => {
                   const rect = e.currentTarget.getBoundingClientRect();
-                  onTimelineChange(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
+                  onScrub(Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)));
                 }}
               >
                 {!draggingKfId && !findKeyframeAt(keyframes, timelineProgress) && (
@@ -871,7 +873,7 @@ export function Preview2D({
                 type="range" min={0} max={1} step={0.0005}
                 value={timelineProgress}
                 aria-label="Posición del extrusor"
-                onChange={e => onTimelineChange(parseFloat(e.target.value))}
+                onChange={e => onScrub(parseFloat(e.target.value))}
               />
             </div>
             <span className="timeline-pct" title="Posición del extrusor en el recorrido, su capa y la altura de la pieza al terminarla">
