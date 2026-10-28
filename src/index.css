@@ -1015,6 +1015,19 @@ input[type="range"]::-moz-range-thumb {
 .layer-solo--on,
 .layer-solo--on:hover { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
 
+.view-angles {
+  position: absolute;
+  z-index: 3;
+  transform: translateY(50%);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease);
+}
+.view-angles--on { opacity: 1; transition-duration: var(--dur-fast); }
+
 .view-presets {
   position: relative;
   display: flex;

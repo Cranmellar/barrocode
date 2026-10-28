@@ -77,6 +77,8 @@ function popScale(p: number): number {
   return p < 0.6 ? 1.25 * out(p / 0.6) : 1.25 - 0.25 * out((p - 0.6) / 0.4);
 }
 
+const VIEW_TWEEN_MS = 300;
+
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 
@@ -276,8 +278,93 @@ export function Preview2D({
     };
   }, []); // stable — all state accessed through refs
 
+  // ── Camera motion ───────────────────────────────────────────────────────
+  // Presets, "Encuadrar" and panel changes move the camera over VIEW_TWEEN_MS
+  // instead of cutting; releasing a rotation drag lets it coast to a stop.
+  // Both draw with the LOD used while dragging, and show the angles.
+  const viewRef = useRef(view);
+  viewRef.current = view;
+  const camAnimRef = useRef(0);
+  const [presetTarget, setPresetTarget] = useState<number | null>(null);
+  const [showAngles, setShowAngles] = useState(false);
+  const stopCamAnim = () => {
+    cancelAnimationFrame(camAnimRef.current);
+    camAnimRef.current = 0;
+    setPresetTarget(null);
+  };
+  const settle = () => {
+    camAnimRef.current = 0;
+    setIsInteracting(false);
+    setShowAngles(false);
+  };
+
+  const animateView = (to: View3D) => {
+    stopCamAnim();
+    const from = viewRef.current;
+    if (reducedMotion() || flatPoints.length === 0) { setView(to); return; }
+    setPresetTarget(VIEW_PRESETS.findIndex(v => v.azimuth === to.azimuth && v.elevation === to.elevation));
+    if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
+    setIsInteracting(true);
+    setShowAngles(from.azimuth !== to.azimuth || from.elevation !== to.elevation);
+    // The part's centre travels in a straight line on screen while the
+    // camera turns around it, so the part pivots instead of swinging.
+    const b = modelBounds!;
+    const zMid = toolpath.length ? (toolpath[0].z + toolpath[toolpath.length - 1].z) / 2 : 0;
+    const c = [(b.minX + b.maxX) / 2, (b.minY + b.maxY) / 2, zMid] as const;
+    const screenOf = (v: View3D) => {
+      const [px, py] = makeProjector(v.azimuth, v.elevation)(...c);
+      return [v.offsetX + px * v.scale, v.offsetY + py * v.scale];
+    };
+    const [fx, fy] = screenOf(from), [tx, ty] = screenOf(to);
+    const dAz = ((to.azimuth - from.azimuth) % 360 + 540) % 360 - 180;
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / VIEW_TWEEN_MS);
+      if (p >= 1) {
+        setView(to);
+        setPresetTarget(null);
+        settle();
+        return;
+      }
+      const e = 1 - (1 - p) ** 4;
+      const azimuth = (from.azimuth + dAz * e + 360) % 360;
+      const elevation = from.elevation + (to.elevation - from.elevation) * e;
+      const scale = from.scale * (to.scale / from.scale) ** e;
+      const [px, py] = makeProjector(azimuth, elevation)(...c);
+      setView({
+        azimuth, elevation, scale,
+        offsetX: fx + (tx - fx) * e - px * scale,
+        offsetY: fy + (ty - fy) * e - py * scale,
+      });
+      camAnimRef.current = requestAnimationFrame(step);
+    };
+    camAnimRef.current = requestAnimationFrame(step);
+  };
+  const animateViewRef = useRef(animateView);
+  animateViewRef.current = animateView;
+  useEffect(() => () => cancelAnimationFrame(camAnimRef.current), []);
+
+  // Rotation speed of the last drag moves, in degrees per frame.
+  const spinRef = useRef({ vAz: 0, vEl: 0, x: 0, y: 0, t: 0 });
+  const coast = () => {
+    let { vAz, vEl } = spinRef.current;
+    if (reducedMotion() || performance.now() - spinRef.current.t > 60 || Math.hypot(vAz, vEl) < 0.3) return false;
+    const step = () => {
+      vAz *= 0.9; vEl *= 0.9;
+      setView(v => ({
+        ...v,
+        azimuth: (v.azimuth + vAz + 360) % 360,
+        elevation: Math.max(0, Math.min(89, v.elevation + vEl)),
+      }));
+      if (Math.hypot(vAz, vEl) > 0.05) camAnimRef.current = requestAnimationFrame(step);
+      else settle();
+    };
+    camAnimRef.current = requestAnimationFrame(step);
+    return true;
+  };
+
   // ── Auto-fit ────────────────────────────────────────────────────────────
-  const fitView = useCallback((azimuth = view.azimuth, elevation = view.elevation) => {
+  const fitView = useCallback((azimuth = view.azimuth, elevation = view.elevation, animate = false) => {
     const canvas = canvasRef.current;
     if (!canvas || flatPoints.length === 0) return;
     const rect = canvas.getBoundingClientRect();
@@ -296,17 +383,19 @@ export function Preview2D({
       (height - margin * 2) / (maxY - minY || 1),
       20,
     );
-    setView(v => ({
-      ...v, azimuth, elevation, scale,
+    const target = {
+      azimuth, elevation, scale,
       offsetX: left + width / 2 - ((minX + maxX) / 2) * scale,
       offsetY: insets.top + height / 2 - ((minY + maxY) / 2) * scale,
-    }));
+    };
+    if (animate) animateViewRef.current(target);
+    else setView(target);
   }, [flatPoints, toolpath.length, view.azimuth, view.elevation, insets.left, insets.right, insets.top]);
 
   // Opening or closing a side panel reframes the part in the new free area.
   const fitRef = useRef(fitView);
   useEffect(() => { fitRef.current = fitView; }, [fitView]);
-  useEffect(() => { fitRef.current(); }, [insets.left, insets.right]);
+  useEffect(() => { fitRef.current(undefined, undefined, true); }, [insets.left, insets.right]);
 
   const prevLayerCount = useRef(0);
   useEffect(() => {
@@ -409,7 +498,10 @@ export function Preview2D({
 
   // ── Mouse interaction ─────────────────────────────────────────────────────
   const stopInteracting = () => {
+    const wasRotating = dragRef.current?.button === 2;
     dragRef.current = null;
+    if (wasRotating && coast()) return;
+    setShowAngles(false);
     if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     interactTimerRef.current = setTimeout(() => {
       interactTimerRef.current = null;
@@ -435,9 +527,12 @@ export function Preview2D({
         return;
       }
     }
+    stopCamAnim();
     dragRef.current = { button: e.button, startX: e.clientX, startY: e.clientY, startView: { ...view } };
+    spinRef.current = { vAz: 0, vEl: 0, x: e.clientX, y: e.clientY, t: performance.now() };
     if (interactTimerRef.current) clearTimeout(interactTimerRef.current);
     setIsInteracting(true);
+    if (e.button === 2) setShowAngles(true);
   };
   const onMouseMove = (e: React.MouseEvent) => {
     const d = dragRef.current;
@@ -449,6 +544,12 @@ export function Preview2D({
     if (d.button === 0) {
       setView(v => ({ ...v, offsetX: d.startView.offsetX + dx, offsetY: d.startView.offsetY + dy }));
     } else if (d.button === 2) {
+      const sp = spinRef.current;
+      const now = performance.now();
+      const k = 16 / Math.max(1, now - sp.t);
+      sp.vAz = 0.6 * sp.vAz + 0.4 * (-(e.clientX - sp.x) * 0.5 * k);
+      sp.vEl = 0.6 * sp.vEl + 0.4 * ((e.clientY - sp.y) * 0.3 * k);
+      sp.x = e.clientX; sp.y = e.clientY; sp.t = now;
       setView(v => ({
         ...v,
         azimuth:   (d.startView.azimuth   - dx * 0.5 + 360) % 360,
@@ -460,6 +561,8 @@ export function Preview2D({
   const onContextMenu = (e: React.MouseEvent) => e.preventDefault();
   const onWheel = (e: React.WheelEvent) => {
     e.preventDefault();
+    stopCamAnim();
+    setShowAngles(false);
     const canvas = canvasRef.current;
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
@@ -480,7 +583,8 @@ export function Preview2D({
 
   // The highlight of the view presets slides to the active one and fades out
   // once the camera leaves every preset.
-  const activePreset = VIEW_PRESETS.findIndex(v => view.azimuth === v.azimuth && view.elevation === v.elevation);
+  const exactPreset = VIEW_PRESETS.findIndex(v => view.azimuth === v.azimuth && view.elevation === v.elevation);
+  const activePreset = presetTarget !== null && presetTarget >= 0 ? presetTarget : exactPreset;
   const presetRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [presetInd, setPresetInd] = useState({ x: 0, w: 0 });
   useLayoutEffect(() => {
@@ -516,7 +620,7 @@ export function Preview2D({
 
       <div className="stage-bar" style={{ left: insets.left, right: insets.right, top: STAGE_GAP }}>
         <div className="bar-group">
-          <button className="btn-icon" onClick={() => fitView()} aria-label="Encuadrar la pieza"
+          <button className="btn-icon" onClick={() => fitView(undefined, undefined, true)} aria-label="Encuadrar la pieza"
             title="Encuadrar la pieza. En la vista: arrastrar = desplazar · clic derecho = rotar · rueda = zoom">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -534,7 +638,7 @@ export function Preview2D({
               <button key={v.label} ref={el => { presetRefs.current[i] = el; }}
                 aria-pressed={i === activePreset}
                 className={`view-preset${i === activePreset ? ' view-preset--on' : ''}`}
-                onClick={() => fitView(v.azimuth, v.elevation)}
+                onClick={() => fitView(v.azimuth, v.elevation, true)}
                 title={v.title}>
                 {v.label}
               </button>
@@ -576,6 +680,13 @@ export function Preview2D({
             aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
         </div>
       </div>
+
+      {numLayers > 0 && (
+        <span className={`view-angles${showAngles ? ' view-angles--on' : ''}`} aria-hidden="true"
+          style={{ left: insets.left + 64, bottom: bottomInset + 20 }}>
+          az {Math.round(view.azimuth) % 360}° · el {Math.round(view.elevation)}°
+        </span>
+      )}
 
       {numLayers > 1 && (
         <div className="layer-slider" style={{ right: insets.right, top: insets.top, bottom: bottomInset }}>
