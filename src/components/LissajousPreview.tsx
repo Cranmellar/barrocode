@@ -13,7 +13,45 @@ import { computeLissajousFigure } from '../lib/waveGenerator';
 import type { PrintParams } from '../types';
 import { palette, withAlpha } from '../lib/palette';
 
-interface Props { params: PrintParams }
+interface Props {
+  params: PrintParams;
+  // Bumped when a preset or reset replaces the wave: the figure then morphs
+  // to the new shape instead of jumping. Slider edits follow at once.
+  morph?: number;
+}
+
+type Wave = [ampN: number, ampT: number, wlN: number, wlT: number, delta: number];
+
+const MORPH_MS = 250;
+
+function useMorph(target: Wave, trigger: number): Wave {
+  const [shown, setShown] = useState(target);
+  const shownRef = useRef(target);
+  const triggerRef = useRef(trigger);
+  const key = target.join('|');
+  useEffect(() => {
+    const animate = trigger !== triggerRef.current;
+    triggerRef.current = trigger;
+    const from = shownRef.current;
+    const set = (w: Wave) => { shownRef.current = w; setShown(w); };
+    if (!animate || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      set(target);
+      return;
+    }
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / MORPH_MS);
+      const e = 1 - (1 - p) ** 4;
+      set(from.map((v, i) => v + (target[i] - v) * e) as Wave);
+      if (p < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, trigger]);
+  return shown;
+}
 
 interface View { offsetX: number; offsetY: number; scale: number }
 
@@ -22,7 +60,7 @@ function figureArc(wlN: number, wlT: number): number {
   return Math.min(base * 8, Math.max(wlN * 2, wlT * 2, 40));
 }
 
-export function LissajousPreview({ params }: Props) {
+export function LissajousPreview({ params, morph = 0 }: Props) {
   // Two stacked canvases: everything but the moving dot is drawn only when
   // the figure, framing or size changes; each animation frame redraws just
   // the dot on a transparent canvas on top. Both stay in the DOM because
@@ -37,7 +75,8 @@ export function LissajousPreview({ params }: Props) {
   // The static layer is drawn once, so redraw it when GSCode finishes loading.
   const [fontEpoch, setFontEpoch] = useState(0);
 
-  const { lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta } = params;
+  const [lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta] = useMorph(
+    [params.lissAmpN, params.lissAmpT, params.lissWlN, params.lissWlT, params.lissDelta], morph);
 
   useEffect(() => {
     const ro = new ResizeObserver(([entry]) => {

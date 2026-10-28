@@ -902,6 +902,16 @@ input[type="range"]::-moz-range-thumb {
 .btn-preset:active { transform: scale(0.96); }
 .btn-preset svg { opacity: 0.7; transition: opacity var(--dur-fast); }
 .btn-preset:hover svg { opacity: 1; }
+.btn-preset--on,
+.btn-preset--on:hover { border-color: var(--ink); color: var(--ink); background: var(--field); }
+.btn-preset--on svg { opacity: 1; }
+
+/* A number a preset just changed flashes once. Two identical animations so
+   consecutive presets restart it. */
+.num-flash-a input[type="number"] { animation: num-flash-a 700ms var(--ease) both; }
+.num-flash-b input[type="number"] { animation: num-flash-b 700ms var(--ease) both; }
+@keyframes num-flash-a { 0%, 30% { background: rgba(74,74,81,0.16); } 100% { background: transparent; } }
+@keyframes num-flash-b { 0%, 30% { background: rgba(74,74,81,0.16); } 100% { background: transparent; } }
 
 /* ── Path list ───────────────────────────────────────────────────────────── */
 .path-list   { padding-bottom: 4px; }

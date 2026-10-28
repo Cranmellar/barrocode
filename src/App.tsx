@@ -231,7 +231,10 @@ export default function App() {
       )
     : params;
 
-  function setLissParams(next: PrintParams) {
+  // Counts presets and resets, which morph the wave figure.
+  const [lissMorph, setLissMorph] = useState(0);
+  function setLissParams(next: PrintParams, morph = false) {
+    if (morph) setLissMorph(n => n + 1);
     if (!selectedKf) { setParams(next); return; }
     const kfPatch: Partial<Record<KfLissKey, number>> = {};
     const globalNext = { ...next };
@@ -246,7 +249,7 @@ export default function App() {
   function resetLissParams() {
     const next = { ...lissParams };
     for (const k of LISS_PANEL_FIELDS) next[k] = DEFAULT_PARAMS[k];
-    setLissParams(next);
+    setLissParams(next, true);
   }
 
   const sortedKfs = [...keyframes].sort((a, b) => a.t - b.t);
@@ -775,6 +778,7 @@ export default function App() {
               params={lissParams}
               onChange={setLissParams}
               onReset={resetLissParams}
+              morph={lissMorph}
               editingKf={selectedKf && {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
@@ -782,7 +786,7 @@ export default function App() {
                 onDone: () => setSelectedKfId(null),
               }}
               waveLocked={keyframes.length > 0 && !selectedKf}
-              figure={<div className="liss-figure"><LissajousPreview params={lissParams} /></div>}
+              figure={<div className="liss-figure"><LissajousPreview params={lissParams} morph={lissMorph} /></div>}
               headerExtra={
                 <button className="btn-icon" onClick={() => togglePanel('right')}
                   title="Ocultar panel" aria-label="Ocultar panel de onda"><Chevron dir="right" /></button>
