@@ -82,25 +82,29 @@ function kfToLocal(k: WaveKeyframe, base: PrintParams): LocalParams {
 }
 
 function lerpLocal(loF: LocalParams, hiF: LocalParams, alpha: number): LocalParams {
+  return lerpLocalInto({} as LocalParams, loF, hiF, alpha);
+}
+
+// Writes into `out` so a per-point sampler allocates nothing.
+function lerpLocalInto(out: LocalParams, loF: LocalParams, hiF: LocalParams, alpha: number): LocalParams {
   const lerp = (a: number, b: number) => a + (b - a) * alpha;
-  return {
-    ampN:    lerp(loF.ampN,    hiF.ampN),
-    ampT:    lerp(loF.ampT,    hiF.ampT),
-    ampZ:    lerp(loF.ampZ,    hiF.ampZ),
-    wlN:     Math.max(0.1, lerp(loF.wlN,  hiF.wlN)),
-    wlT:     Math.max(0.1, lerp(loF.wlT,  hiF.wlT)),
-    wlZ:     Math.max(0.1, lerp(loF.wlZ,  hiF.wlZ)),
-    delta:   lerp(loF.delta,   hiF.delta),
-    phaseZ:  lerp(loF.phaseZ,  hiF.phaseZ),
-    centerX: lerp(loF.centerX, hiF.centerX),
-    centerY: lerp(loF.centerY, hiF.centerY),
-    scaleX:  lerp(loF.scaleX,  hiF.scaleX),
-    scaleY:  lerp(loF.scaleY,  hiF.scaleY),
-    // Plain lerp, no wrap to ±180°: 0° → 360° is a full twist.
-    rotation: lerp(loF.rotation, hiF.rotation),
-    phaseOffset: lerp(loF.phaseOffset, hiF.phaseOffset),
-    phaseShift:  lerp(loF.phaseShift,  hiF.phaseShift),
-  };
+  out.ampN = lerp(loF.ampN, hiF.ampN);
+  out.ampT = lerp(loF.ampT, hiF.ampT);
+  out.ampZ = lerp(loF.ampZ, hiF.ampZ);
+  out.wlN = Math.max(0.1, lerp(loF.wlN, hiF.wlN));
+  out.wlT = Math.max(0.1, lerp(loF.wlT, hiF.wlT));
+  out.wlZ = Math.max(0.1, lerp(loF.wlZ, hiF.wlZ));
+  out.delta = lerp(loF.delta, hiF.delta);
+  out.phaseZ = lerp(loF.phaseZ, hiF.phaseZ);
+  out.centerX = lerp(loF.centerX, hiF.centerX);
+  out.centerY = lerp(loF.centerY, hiF.centerY);
+  out.scaleX = lerp(loF.scaleX, hiF.scaleX);
+  out.scaleY = lerp(loF.scaleY, hiF.scaleY);
+  // Plain lerp, no wrap to ±180°: 0° → 360° is a full twist.
+  out.rotation = lerp(loF.rotation, hiF.rotation);
+  out.phaseOffset = lerp(loF.phaseOffset, hiF.phaseOffset);
+  out.phaseShift = lerp(loF.phaseShift, hiF.phaseShift);
+  return out;
 }
 
 // Fraction of the way from lo to hi at segment fraction a. A cubic Hermite
@@ -154,6 +158,7 @@ export function getParamsAtT(
 
 // Sampler for monotonically increasing t — avoids O(n log n) sort per point.
 // Call once before a layer loop, then call the returned function for each point.
+// Between keyframes it reuses one object: read the result before the next call.
 export function createKeyframeSampler(
   keyframes: WaveKeyframe[],
   base: PrintParams,
@@ -164,6 +169,7 @@ export function createKeyframeSampler(
   const sorted = [...keyframes].sort((a, b) => a.t - b.t);
   const expanded = sorted.map(k => kfToLocal(k, base));
   let cursor = 0;
+  const scratch = { ...baseFull };
 
   return (t: number): LocalParams => {
     if (t <= sorted[0].t) return expanded[0];
@@ -175,7 +181,7 @@ export function createKeyframeSampler(
     const alpha = (sorted[cursor + 1].t - sorted[cursor].t) > 0
       ? (t - sorted[cursor].t) / (sorted[cursor + 1].t - sorted[cursor].t)
       : 0;
-    return lerpLocal(expanded[cursor], expanded[cursor + 1], segmentAlpha(sorted[cursor], sorted[cursor + 1], alpha));
+    return lerpLocalInto(scratch, expanded[cursor], expanded[cursor + 1], segmentAlpha(sorted[cursor], sorted[cursor + 1], alpha));
   };
 }
 
@@ -233,6 +239,7 @@ export function partCentreSVG(paths: SampledPath[]): { x: number; y: number } {
   return minX === Infinity ? { x: 0, y: 0 } : { x: (minX + maxX) / 2, y: (minY + maxY) / 2 };
 }
 
+// Transforms `pt` in place; callers pass a point they just created.
 function applyTransformSVG(
   pt: WavePoint,
   centre: { x: number; y: number },  // SVG units
@@ -249,16 +256,18 @@ function applyTransformSVG(
   const cySVG = centre.y + (flipY ? -centerY : centerY) / sf;
   const dx = (pt.x - cxSVG) * scaleX;
   const dy = (pt.y - cySVG) * scaleY;
-  if (rotation === 0) return { x: cxSVG + dx, y: cySVG + dy, zOffset: pt.zOffset };
+  if (rotation === 0) {
+    pt.x = cxSVG + dx;
+    pt.y = cySVG + dy;
+    return pt;
+  }
   // With flipY the SVG's Y runs opposite to the bed's, so CCW on the bed
   // is CW in SVG space.
   const a = (flipY ? -rotation : rotation) * Math.PI / 180;
   const c = Math.cos(a), s = Math.sin(a);
-  return {
-    x: cxSVG + dx * c - dy * s,
-    y: cySVG + dx * s + dy * c,
-    zOffset: pt.zOffset,
-  };
+  pt.x = cxSVG + dx * c - dy * s;
+  pt.y = cySVG + dx * s + dy * c;
+  return pt;
 }
 
 // getPointAtLength works in float32, so a closed source can miss its start
@@ -628,9 +637,7 @@ export function generateWaveLayers(
         phaseOffset: params.lissPhaseOffset, phaseShift: params.phaseShiftPerLayer,
       };
       // Wavelengths in SVG units; keyframe values are still in mm.
-      const wavelengths = (lp: LocalParams) => useKeyframes
-        ? [lp.wlN / sf, lp.wlT / sf, lp.wlZ / sf]
-        : [lp.wlN, lp.wlT, lp.wlZ];
+      const wlScale = useKeyframes ? sf : 1;
 
       // A closed path holds a whole number of cycles of each wave, so it
       // ends in the phase it started with instead of up to 2·amp to the
@@ -641,8 +648,8 @@ export function generateWaveLayers(
         pts.forEach((p, i) => {
           const s = arcAt(p), ds = s - prev;
           prev = s;
-          const [wN, wT, wZ] = wavelengths(cycleSampler ? cycleSampler((flatIdx + i) / tDenom) : pathLocal);
-          cN += ds / wN; cT += ds / wT; cZ += ds / wZ;
+          const lp = cycleSampler ? cycleSampler((flatIdx + i) / tDenom) : pathLocal;
+          cN += ds / (lp.wlN / wlScale); cT += ds / (lp.wlT / wlScale); cZ += ds / (lp.wlZ / wlScale);
         });
         const fit = (c: number) => c > 0 ? Math.max(1, Math.round(c)) / c : 1;
         fitN = fit(cN); fitT = fit(cT); fitZ = fit(cZ);
@@ -661,7 +668,7 @@ export function generateWaveLayers(
         const aN = useKeyframes ? lp.ampN / sf : lp.ampN;
         const aT = useKeyframes ? lp.ampT / sf : lp.ampT;
         const aZ = lp.ampZ;  // always mm — not converted to SVG units
-        const [wN, wT, wZ] = wavelengths(lp);
+        const wN = lp.wlN / wlScale, wT = lp.wlT / wlScale, wZ = lp.wlZ / wlScale;
 
         cycN += TWO_PI * fitN * ds / wN;
         cycT += TWO_PI * fitT * ds / wT;
