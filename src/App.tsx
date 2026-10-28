@@ -184,6 +184,9 @@ const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
   ['lissDelta', 'delta'], ['lissPhaseZ', 'phaseZ'],
 ];
 
+// Placement fields a keyframe can hold besides its wave.
+const KF_TRANSFORM_FIELDS = ['centerX', 'centerY', 'scaleX', 'scaleY', 'rotation'] as const;
+
 // Everything the Lissajous panel edits; its "Reiniciar" restores only these.
 const LISS_PANEL_FIELDS: Array<LissKey | 'lissPhaseOffset' | 'phaseShiftPerLayer'> = [
   ...KF_LISS_FIELDS.map(([pk]) => pk), 'lissPhaseOffset', 'phaseShiftPerLayer',
@@ -342,9 +345,22 @@ export default function App() {
     setSelectedKfId(newKf.id);
   }
 
+  // Once the last keyframe goes, the global values take over again; they
+  // take that keyframe's values so the part doesn't change shape.
+  function adoptAsGlobal(kf: WaveKeyframe) {
+    const next = { ...params };
+    for (const [pk, kk] of KF_LISS_FIELDS) next[pk] = kf[kk] ?? params[pk];
+    for (const k of KF_TRANSFORM_FIELDS) next[k] = kf[k] ?? params[k];
+    next.scaleUniform = params.scaleUniform && next.scaleX === next.scaleY;
+    setParams(next);
+    showToast('Último keyframe borrado: su onda pasa a ser la global');
+  }
+
   function deleteKeyframe() {
-    if (!selectedKfId) return;
-    setKeyframes(keyframes.filter(k => k.id !== selectedKfId));
+    const kf = keyframes.find(k => k.id === selectedKfId);
+    if (!kf) return;
+    if (keyframes.length === 1) adoptAsGlobal(kf);
+    setKeyframes(keyframes.filter(k => k.id !== kf.id));
     setSelectedKfId(null);
   }
 
@@ -359,6 +375,7 @@ export default function App() {
 
   function clearAllKeyframes() {
     if (!clearArmed) { setClearArmed(true); return; }
+    if (keyframes.length === 1) adoptAsGlobal(keyframes[0]);
     setKeyframes([]);
     setSelectedKfId(null);
   }
@@ -384,10 +401,12 @@ export default function App() {
   const selectedKfIdRef = useRef(selectedKfId);
   const helpOpenRef = useRef(helpOpen);
   const addKeyframeRef = useRef(addKeyframe);
+  const deleteKeyframeRef = useRef(deleteKeyframe);
   const neighbourKfRef = useRef({ prev: prevKf, next: nextKf, select: selectKf });
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
   useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
+  useEffect(() => { deleteKeyframeRef.current = deleteKeyframe; }, [keyframes, params, selectedKfId]);
   useEffect(() => { neighbourKfRef.current = { prev: prevKf, next: nextKf, select: selectKf }; }, [keyframes, timelineProgress, selectedKfId]);
 
   useEffect(() => {
@@ -420,8 +439,7 @@ export default function App() {
       } else if (key === 'escape' && id) {
         setSelectedKfId(null);
       } else if ((key === 'delete' || key === 'backspace') && id) {
-        setKeyframes(prev => prev.filter(k => k.id !== id));
-        setSelectedKfId(null);
+        deleteKeyframeRef.current();
       } else {
         return;
       }
