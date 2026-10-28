@@ -13,12 +13,6 @@ function polyline(n: number, f: (i: number) => [number, number]) {
 }
 
 
-const CIRCLE_WAVE = polyline(160, i => {
-  const a = (i / 160) * TAU;
-  const r = 19 + 3 * Math.sin(10 * a);
-  return [32 + r * Math.cos(a), 32 + r * Math.sin(a)];
-});
-
 // Wave diagram: baseline y=56, amplitude 20, wavelength 100 starting at x=20.
 const AXIS_WAVE = polyline(140, i => {
   const x = 20 + i * 2;
@@ -31,50 +25,6 @@ const KF_WAVE = polyline(280, i => {
   const amp = 2 + 16 * (i / 280);
   return [x, 38 - amp * Math.sin((i / 28) * TAU)];
 });
-
-export const FLOW_STEPS = ['SVG', 'Capas', 'Onda', 'G-code'];
-
-export function FlowIcon({ step }: { step: number }) {
-  return (
-    <svg viewBox="0 0 64 64" aria-hidden="true">
-      {step === 0 && <circle cx="32" cy="32" r="19" className="hf-ink" />}
-      {step === 1 && [0, 1, 2, 3, 4].map(j => (
-        <ellipse key={j} cx="32" cy={47 - j * 7} rx="20" ry="7"
-          fill="none" stroke={rampColor(j / 4)} strokeWidth="1.5" />
-      ))}
-      {step === 2 && <polyline points={CIRCLE_WAVE} className="hf-accent" />}
-      {step === 3 && (
-        <g className="hf-ink">
-          <path d="M18 10h20l8 8v36H18z" />
-          <path d="M38 10v8h8" />
-          <line x1="23" y1="26" x2="41" y2="26" />
-          <line x1="23" y1="32" x2="37" y2="32" />
-          <line x1="23" y1="38" x2="41" y2="38" />
-          <line x1="23" y1="44" x2="34" y2="44" />
-        </g>
-      )}
-    </svg>
-  );
-}
-
-function FlowStrip() {
-  return (
-    <figure className="help-figure">
-      <div
-        className="help-flow"
-        role="img"
-        aria-label="Esquema: un trazo SVG se apila en capas, se ondula y se exporta como G-code"
-      >
-        {FLOW_STEPS.map((label, k) => (
-          <div className="help-flow-step" key={label}>
-            <FlowIcon step={k} />
-            <span><b>{k + 1}</b> {label}</span>
-          </div>
-        ))}
-      </div>
-    </figure>
-  );
-}
 
 function AxisDiagram() {
   return (
@@ -177,7 +127,6 @@ export function HelpDialog({ open, onClose }: Props) {
 
           <section aria-labelledby="help-steps">
             <h3 id="help-steps">Flujo en 4 pasos</h3>
-            <FlowStrip />
             <ol className="help-steps">
               <li>
                 <strong>Carga un SVG</strong> — arrástralo a cualquier parte de la ventana o usa

@@ -519,7 +519,7 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
     ctx.save();
     ctx.strokeStyle = ghost ? palette.muted : colorOf(li);
     ctx.globalAlpha = alpha;
-    ctx.lineWidth   = ghost ? 1 : Math.max(1.35, 4.95 / Math.sqrt(Math.max(scale, 0.05)));
+    ctx.lineWidth   = ghost ? 1 : Math.max(1.275, 4.675 / Math.sqrt(Math.max(scale, 0.05)));
     ctx.lineJoin    = 'round';
     ctx.lineCap     = 'round';
 

@@ -13,7 +13,7 @@
  * own lane above it.
  */
 
-import { Fragment, useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type ReactNode } from 'react';
+import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, type CSSProperties, type ReactNode } from 'react';
 import type { SampledPath, PrintParams, SVGViewBox, WaveKeyframe } from '../types';
 import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
@@ -22,7 +22,7 @@ import {
   type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
-import { FLOW_STEPS, FlowIcon } from './HelpDialog';
+import { FlowSteps } from './FlowSteps';
 import { downloadGcode } from '../lib/gcodeGenerator';
 
 interface Props {
@@ -719,16 +719,9 @@ export function Preview2D({
       </div>
 
       {sampledPaths.length === 0 && numLayers === 0 && (
-        <div className="stage-empty" aria-hidden="true"
+        <div className="stage-empty"
           style={{ left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset }}>
-          <div className="stage-empty-flow">
-            {FLOW_STEPS.map((label, k) => (
-              <Fragment key={label}>
-                {k > 0 && <span className="stage-empty-sep" />}
-                <FlowIcon step={k} />
-              </Fragment>
-            ))}
-          </div>
+          <FlowSteps />
         </div>
       )}
 
