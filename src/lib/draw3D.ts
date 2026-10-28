@@ -23,10 +23,10 @@ export function layerColor(index: number, total: number, alpha = 1): string {
   return rampColor(total <= 1 ? 0 : index / (total - 1), alpha);
 }
 
-// A keyframe takes the layer hue at its position, light enough that its dark
-// number stays legible on every hue.
+// A keyframe takes the exact layer colour at its position; its number is
+// white, which reads on every colour of the ramp.
 export function keyframeColor(t: number): string {
-  return rampColor(t, 1, 0.76, 0.14);
+  return rampColor(t);
 }
 
 // At az = 0 the camera looks along +Y: X to the right, Y away, Z up.
@@ -285,7 +285,7 @@ export function drawScene(
       ctx.strokeStyle = isSelected ? palette.ink : palette.surface;
       ctx.lineWidth   = 2;
       ctx.fill(); ctx.stroke();
-      ctx.fillStyle = palette.ink;
+      ctx.fillStyle = palette.surface;
       ctx.fillText(String(number), kx, ky + 0.5);
     }
     ctx.restore();

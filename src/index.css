@@ -1067,7 +1067,7 @@ input[type="range"]::-moz-range-thumb {
   flex-shrink: 0;
   width: 24px;
   height: 24px;
-  color: var(--ink);
+  color: var(--on-ink);
   font-size: var(--fs-sm);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   line-height: 1;
