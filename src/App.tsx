@@ -825,6 +825,7 @@ export default function App() {
               onChange={setLissParams}
               onReset={resetLissParams}
               morph={lissMorph}
+              defaults={DEFAULT_PARAMS}
               editingKf={selectedKf && {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
