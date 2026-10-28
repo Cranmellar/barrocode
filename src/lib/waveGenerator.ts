@@ -229,6 +229,173 @@ function applyTransformSVG(
   };
 }
 
+// ── Corner rounding ─────────────────────────────────────────────────────────
+//
+// The wave is offset along the normal, which turns all at once at a corner:
+// on the outside the offset jumps and leaves a straight chord, on the inside
+// it folds into a cusp or a small loop (and the loop got a z-hop). Wherever
+// the centerline turns tighter than the largest wave displacement allows,
+// it is replaced by a circular fillet tangent to both legs.
+
+// Fillet radius as a multiple of the largest wave displacement.
+const CORNER_RADIUS_FACTOR = 1.25;
+
+interface FramePoint { x: number; y: number; tx: number; ty: number; seg: number }
+
+function turnAngle(a: FramePoint, b: FramePoint, c: FramePoint): number {
+  const ux = b.x - a.x, uy = b.y - a.y, vx = c.x - b.x, vy = c.y - b.y;
+  return Math.atan2(ux * vy - uy * vx, ux * vx + uy * vy);
+}
+
+function isSharp(a: FramePoint, b: FramePoint, c: FramePoint, radius: number): boolean {
+  const len = (Math.hypot(b.x - a.x, b.y - a.y) + Math.hypot(c.x - b.x, c.y - b.y)) / 2;
+  return len > 0 && Math.abs(turnAngle(a, b, c)) > len / radius;
+}
+
+/** Fillets every run of sharp vertices of an open polyline; ends stay put. */
+function filletPolyline(pts: FramePoint[], radius: number, step: number): FramePoint[] {
+  const n = pts.length;
+  const runs: [number, number][] = [];
+  for (let i = 1; i < n - 1; i++) {
+    if (!isSharp(pts[i - 1], pts[i], pts[i + 1], radius)) continue;
+    const last = runs[runs.length - 1];
+    // One smooth vertex between two sharp ones still belongs to the corner.
+    if (last && i - last[1] <= 2) last[1] = i;
+    else runs.push([i, i]);
+  }
+  if (runs.length === 0) return pts;
+
+  const out: FramePoint[] = [];
+  // A tangent point can land on or next to a sample; a step that short
+  // would read as a cusp, or extrude less than E's printed resolution.
+  let dropped = false;
+  const push = (pt: FramePoint) => {
+    const prev = out[out.length - 1];
+    const gap = prev ? Math.hypot(pt.x - prev.x, pt.y - prev.y) : Infinity;
+    if (gap < step / 8) { dropped = true; return; }
+    out.push(dropped ? { ...pt, seg: gap } : pt);
+    dropped = false;
+  };
+  let kept = 0;  // first point not yet copied
+  runs.forEach(([i, j], r) => {
+    let turned = 0;
+    for (let k = i; k <= j; k++) turned += turnAngle(pts[k - 1], pts[k], pts[k + 1]);
+    // A turn near 180° or more (a hairpin, a loop smaller than the wave)
+    // has no fillet; leave it as it is.
+    if (Math.abs(turned) > 3) return;
+
+    // The legs' own tangents, not chords: a corner usually falls between two
+    // samples, and the chord across it would give the fillet a wrong exit.
+    const a0 = pts[i - 1], b0 = pts[j + 1];
+    const u = { x: a0.tx, y: a0.ty }, v = { x: b0.tx, y: b0.ty };
+    const cross = u.x * v.y - u.y * v.x;
+    const theta = Math.atan2(cross, u.x * v.x + u.y * v.y);
+    if (Math.abs(cross) < 1e-9 || Math.abs(theta) < 1e-3) return;
+    // Apex: where the incoming and outgoing tangent lines meet.
+    const a = ((b0.x - a0.x) * v.y - (b0.y - a0.y) * v.x) / cross;
+    const X = { x: a0.x + a * u.x, y: a0.y + a * u.y };
+
+    const half = Math.tan(Math.abs(theta) / 2);
+    let d = radius * half;
+    const lo = kept, hi = r + 1 < runs.length ? runs[r + 1][0] - 1 : n - 1;
+    const back = (k: number) => -((pts[k].x - X.x) * u.x + (pts[k].y - X.y) * u.y);
+    const ahead = (k: number) => (pts[k].x - X.x) * v.x + (pts[k].y - X.y) * v.y;
+    let p = i - 1;
+    while (p > lo && back(p) < d) p--;
+    let q = j + 1;
+    while (q < hi && ahead(q) < d) q++;
+    // Too little room on a leg: a tighter fillet that still fits.
+    d = Math.min(d, back(p), ahead(q));
+    if (!(d > 0)) return;
+    const rad = d / half;
+
+    for (let k = kept; k <= p; k++) push(pts[k]);
+    const sign = Math.sign(theta);
+    const cx = X.x - d * u.x - sign * rad * u.y, cy = X.y - d * u.y + sign * rad * u.x;
+    // Spaced for the wave's outer edge, which runs on a wider arc.
+    const outer = rad + radius / CORNER_RADIUS_FACTOR;
+    const m = Math.max(1, Math.ceil(outer * Math.abs(theta) / step));
+    for (let k = 0; k <= m; k++) {
+      const phi = theta * k / m;
+      const c = Math.cos(phi), s = Math.sin(phi);
+      const tx = u.x * c - u.y * s, ty = u.x * s + u.y * c;
+      const x = cx + sign * rad * ty, y = cy - sign * rad * tx;
+      const prev = out[out.length - 1];
+      push({ x, y, tx, ty, seg: Math.hypot(x - prev.x, y - prev.y) });
+    }
+    const prev = out[out.length - 1];
+    push({ ...pts[q], seg: Math.hypot(pts[q].x - prev.x, pts[q].y - prev.y) });
+    kept = q + 1;
+  });
+  for (let k = kept; k < n; k++) push(pts[k]);
+  return out;
+}
+
+/**
+ * The path with every corner tighter than `radius` (SVG units) rounded.
+ * Returns the same object when nothing needed rounding.
+ */
+export function roundCorners(path: SampledPath, radius: number): SampledPath {
+  const src = path.points;
+  if (!(radius > 0) || src.length < 3) return path;
+  const frame: FramePoint[] = src.map((p, i) => ({
+    x: p.x, y: p.y, tx: p.tangentX, ty: p.tangentY,
+    seg: i > 0 ? p.arcLength - src[i - 1].arcLength : 0,
+  }));
+  const first = src[0], last = src[src.length - 1];
+  const loop = Math.hypot(first.x - last.x, first.y - last.y) <= Math.max(0.001, path.totalLength * 1e-5);
+  const step = path.totalLength / (src.length - 1);
+
+  let pts: FramePoint[];
+  if (!loop) {
+    pts = filletPolyline(frame, radius, step);
+  } else {
+    // Cut the loop open where it is smoothest, so a corner on the seam is
+    // rounded too, then start again as close to the original start as possible.
+    const ring = frame.slice(0, -1);
+    const m = ring.length;
+    const sharp = ring.map((p, i) => isSharp(ring[(i + m - 1) % m], p, ring[(i + 1) % m], radius));
+    if (!sharp.some(Boolean)) return path;
+    if (sharp.every(Boolean)) return path;
+    let best = 0, bestLen = -1;
+    for (let i = 0; i < m; i++) {
+      if (sharp[i] || !sharp[(i + m - 1) % m]) continue;
+      let len = 0;
+      while (!sharp[(i + len) % m]) len++;
+      if (len > bestLen) { bestLen = len; best = (i + Math.floor(len / 2)) % m; }
+    }
+    // The closing segment's length belongs to the point after it.
+    const closing = frame[frame.length - 1].seg;
+    const open = [...ring.slice(best), ...ring.slice(0, best), ring[best]]
+      .map((p, k) => ({ ...p, seg: k === 0 ? 0 : p === ring[0] ? closing : p.seg }));
+    const rounded = filletPolyline(open, radius, step);
+    if (rounded === open) return path;
+    const body = rounded.slice(0, -1);
+    const wrap = rounded[rounded.length - 1].seg;
+    let start = body.indexOf(open[(m - best) % m]);
+    if (start < 0) {
+      let bestD = Infinity;
+      body.forEach((p, k) => {
+        const dd = Math.hypot(p.x - first.x, p.y - first.y);
+        if (dd < bestD) { bestD = dd; start = k; }
+      });
+    }
+    const ordered = [...body.slice(start), ...body.slice(0, start)];
+    pts = [...ordered, ordered[0]].map((p, k) => ({
+      ...p,
+      seg: k === 0 ? 0 : k === body.length - start ? wrap : p.seg,
+    }));
+  }
+  if (pts === frame) return path;
+
+  let arc = 0;
+  const points: SampledPoint[] = pts.map((p, k) => {
+    if (k > 0) arc += p.seg;
+    return { x: p.x, y: p.y, tangentX: p.tx, tangentY: p.ty, normalX: -p.ty, normalY: p.tx, arcLength: arc };
+  });
+  return { ...path, points, totalLength: arc };
+}
+
 // ── All layers ───────────────────────────────────────────────────────────────
 
 // Every PrintParams field generateWaveLayers reads; App keys its memo on
@@ -258,12 +425,20 @@ export function generateWaveLayers(
   keyframes: WaveKeyframe[] = [],
   svgHeight = 0,  // required when scaleX/Y may differ from 1
 ): WaveLayer[] {
-  const enabled = sampledPaths.filter(p => p.enabled);
-  if (enabled.length === 0) return [];
+  if (!sampledPaths.some(p => p.enabled)) return [];
 
   const numLayers = layerCount(params);
 
   const sf = params.scaleFactor > 0 ? params.scaleFactor : 1;
+  const useKeyframes = keyframes.length > 0;
+
+  // Largest displacement the wave can reach on a path, in mm.
+  const kfReach = Math.max(0, ...keyframes.map(k => Math.hypot(k.ampN, k.ampT)));
+  const enabled = sampledPaths.filter(p => p.enabled).map(path => {
+    const reach = useKeyframes ? kfReach
+      : Math.hypot(path.ampNOverride ?? params.lissAmpN, path.ampTOverride ?? params.lissAmpT);
+    return roundCorners(path, CORNER_RADIUS_FACTOR * reach / sf);
+  });
 
   let totalFlatPoints = 0;
   for (let li = 0; li < numLayers; li++) {
@@ -274,7 +449,6 @@ export function generateWaveLayers(
   }
   const tDenom = Math.max(1, totalFlatPoints - 1);
 
-  const useKeyframes = keyframes.length > 0;
   const kfSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
   // Walks the same t values as kfSampler, one path ahead, to count cycles.
   const cycleSampler = useKeyframes ? createKeyframeSampler(keyframes, params) : null;
