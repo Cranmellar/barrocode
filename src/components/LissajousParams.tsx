@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 
 interface Props {
   params: PrintParams;
-  onChange: (p: PrintParams) => void;
+  // `morph` marks a preset: the figure animates and the changed numbers flash.
+  onChange: (p: PrintParams, morph?: boolean) => void;
   onReset: () => void;
+  // Bumped by every preset or reset (see LissajousPreview).
+  morph: number;
+  // Default values: sliders mark them and snap to them.
+  defaults: PrintParams;
   editingKf: { number: number; label: string; color: string; onDone: () => void } | null;
   // Keyframes exist but none is selected: the wave fields have no effect.
   waveLocked: boolean;
@@ -14,11 +19,36 @@ interface Props {
   headerExtra?: React.ReactNode;
 }
 
-function Slider({ label, value, min, max, step, unit, hint, onChange }: {
+// Within this fraction of the range, dragging snaps to the default value.
+const SNAP = 0.015;
+
+function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange }: {
   label: string; value: number; min: number; max: number;
-  step: number; unit?: string; hint?: string;
+  step: number; unit?: string; hint?: string; def: number; morph: number;
   onChange: (v: number) => void;
 }) {
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!dragging) return;
+    const end = () => setDragging(false);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+  }, [dragging]);
+  // Thumb centre at fraction f of the track (the thumb is 14 px wide).
+  const at = (f: number) => `calc(7px + (100% - 14px) * ${Math.max(0, Math.min(1, f))})`;
+  // A preset that changes this value flashes the number. Two class names
+  // that alternate restart the animation on consecutive presets.
+  const [flashes, setFlashes] = useState(0);
+  const prevRef = useRef({ morph, value });
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (morph !== prev.morph && value !== prev.value) setFlashes(n => n + 1);
+    prevRef.current = { morph, value };
+  }, [morph, value]);
   const decimals = String(step).split('.')[1]?.length ?? 0;
   const fillPct  = ((value - min) / (max - min)) * 100;
   const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fillPct}%,var(--border) ${fillPct}%,var(--border) 100%)`;
@@ -26,14 +56,30 @@ function Slider({ label, value, min, max, step, unit, hint, onChange }: {
     <div className="slider-row" title={hint}>
       <div className="slider-header">
         <span className="slider-label">{label}</span>
-        <span className="slider-num">
+        <span className={`slider-num${flashes ? ` num-flash-${flashes % 2 ? 'a' : 'b'}` : ''}`}>
           <NumInput value={parseFloat(value.toFixed(decimals))} step={step} onChange={onChange} />
           {unit && <span className="slider-value-unit">{unit}</span>}
         </span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value}
-        style={{ background: trackBg }}
-        onChange={e => onChange(parseFloat(e.target.value))} />
+      <div className="slider-track">
+        {def >= min && def <= max && (
+          <span className={`slider-notch${value === def ? ' slider-notch--on' : ''}`}
+            style={{ left: at((def - min) / (max - min)) }} aria-hidden="true" />
+        )}
+        {dragging && (
+          <span className="slider-bubble" style={{ left: at((value - min) / (max - min)) }} aria-hidden="true">
+            {value.toFixed(decimals)}{unit && ` ${unit}`}
+          </span>
+        )}
+        <input type="range" min={min} max={max} step={step} value={value}
+          style={{ background: trackBg }}
+          onPointerDown={() => setDragging(true)}
+          onChange={e => {
+            const v = parseFloat(e.target.value);
+            // Only a drag snaps; arrow keys must be able to step off the default.
+            onChange(dragging && Math.abs(v - def) <= (max - min) * SNAP ? def : v);
+          }} />
+      </div>
     </div>
   );
 }
@@ -108,7 +154,7 @@ const PRESETS = [
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function LissajousParams({ params, onChange, onReset, editingKf, waveLocked, figure, headerExtra }: Props) {
+export function LissajousParams({ params, onChange, onReset, morph, defaults, editingKf, waveLocked, figure, headerExtra }: Props) {
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
@@ -150,13 +196,18 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
         {/* ── Preajustes ── */}
         <Sec title="Preajustes">
           <div className="preset-grid">
-            {PRESETS.map(p => (
-              <button key={p.label} className="btn-preset" onClick={() =>
+            {PRESETS.map(p => {
+              const on = params.lissAmpN === p.ampN && params.lissAmpT === p.ampT
+                && params.lissWlN === p.wlN && params.lissWlT === p.wlT
+                && Math.abs(params.lissDelta - rad(p.d)) < 1e-9;
+              return (
+              <button key={p.label} className={`btn-preset${on ? ' btn-preset--on' : ''}`} aria-pressed={on}
+                onClick={() =>
                 onChange({ ...params,
                   lissAmpN: p.ampN, lissAmpT: p.ampT,
                   lissWlN: p.wlN,  lissWlT: p.wlT,
                   lissDelta: rad(p.d),
-                })
+                }, true)
               }>
                 <LissajousMini
                   ampN={p.ampN} ampT={p.ampT}
@@ -165,17 +216,18 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
                 />
                 {p.label}
               </button>
-            ))}
+              );
+            })}
           </div>
         </Sec>
 
         {/* ── Eje N ── */}
         <Sec title="N · Normal (lateral)">
-          <Slider label="Amplitud N" value={params.lissAmpN}
+          <Slider morph={morph} def={defaults.lissAmpN} label="Amplitud N" value={params.lissAmpN}
             min={0} max={30} step={0.1} unit="mm"
             hint="Desplazamiento máximo a izquierda/derecha de la línea central"
             onChange={v => set('lissAmpN', v)} />
-          <Slider label="Longitud de onda N" value={params.lissWlN}
+          <Slider morph={morph} def={defaults.lissWlN} label="Longitud de onda N" value={params.lissWlN}
             min={1} max={200} step={1} unit="mm"
             hint="Longitud de arco por ciclo completo en dirección normal"
             onChange={v => set('lissWlN', v)} />
@@ -183,11 +235,11 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
 
         {/* ── Eje T ── */}
         <Sec title="T · Tangente (avance)">
-          <Slider label="Amplitud T" value={params.lissAmpT}
+          <Slider morph={morph} def={defaults.lissAmpT} label="Amplitud T" value={params.lissAmpT}
             min={0} max={30} step={0.1} unit="mm"
             hint="Desplazamiento máximo en la dirección de avance del trayecto"
             onChange={v => set('lissAmpT', v)} />
-          <Slider label="Longitud de onda T" value={params.lissWlT}
+          <Slider morph={morph} def={defaults.lissWlT} label="Longitud de onda T" value={params.lissWlT}
             min={1} max={200} step={1} unit="mm"
             hint="Longitud de arco por ciclo completo en dirección tangente"
             onChange={v => set('lissWlT', v)} />
@@ -201,16 +253,16 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
               ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
             </div>
           )}
-          <Slider label="Amplitud Z" value={params.lissAmpZ}
+          <Slider morph={morph} def={defaults.lissAmpZ} label="Amplitud Z" value={params.lissAmpZ}
             min={0} max={20} step={0.1} unit="mm"
             hint="Desplazamiento máximo vertical. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa anterior; con amplitudes grandes los valles se aplanan."
             onChange={v => set('lissAmpZ', v)} />
           {params.lissAmpZ > 0 && <>
-            <Slider label="Longitud de onda Z" value={params.lissWlZ}
+            <Slider morph={morph} def={defaults.lissWlZ} label="Longitud de onda Z" value={params.lissWlZ}
               min={1} max={200} step={1} unit="mm"
               hint="Longitud de arco por ciclo completo en dirección vertical"
               onChange={v => set('lissWlZ', v)} />
-            <Slider label="Fase Z" value={deg(params.lissPhaseZ)}
+            <Slider morph={morph} def={deg(defaults.lissPhaseZ)} label="Fase Z" value={deg(params.lissPhaseZ)}
               min={-180} max={180} step={1} unit="°"
               hint="Desfase de la oscilación Z respecto a la fase base"
               onChange={v => set('lissPhaseZ', rad(v))} />
@@ -219,7 +271,7 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
 
         {/* ── Acoplamiento N/T ── */}
         <Sec title="Acoplamiento N / T">
-          <Slider label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
+          <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
             min={-180} max={180} step={1} unit="°"
             hint="Desfase entre N y T. 0°=línea  90°=elipse (si λN=λT)  180°=línea cruzada"
             onChange={v => set('lissDelta', rad(v))} />
@@ -228,11 +280,11 @@ export function LissajousParams({ params, onChange, onReset, editingKf, waveLock
 
       {/* ── Fase ── */}
       <Sec title="Fase" badge={editingKf || waveLocked ? 'Global' : undefined}>
-        <Slider label="Desfase inicial" value={deg(params.lissPhaseOffset)}
+        <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
           hint="Fase global al inicio del arco (s=0)"
           onChange={v => set('lissPhaseOffset', rad(v))} />
-        <Slider label="Desfase por capa" value={deg(params.phaseShiftPerLayer)}
+        <Slider morph={morph} def={deg(defaults.phaseShiftPerLayer)} label="Desfase por capa" value={deg(params.phaseShiftPerLayer)}
           min={-360} max={360} step={1} unit="°"
           hint="Fase extra añadida en cada capa — crea efecto de torsión/espiral"
           onChange={v => set('phaseShiftPerLayer', rad(v))} />

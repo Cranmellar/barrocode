@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
@@ -60,12 +60,17 @@ function loadTab(): GroupId {
 
 export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
   const [tab, setTab] = useState(loadTab);
+  // The new tab's content slides in from the side of the tab that was clicked.
+  const dirRef = useRef<'next' | 'prev'>('next');
+  const tabIdx = TABS.findIndex(t => t.id === tab);
 
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
 
   function selectTab(id: GroupId) {
+    if (id === tab) return;
+    dirRef.current = TABS.findIndex(t => t.id === id) > tabIdx ? 'next' : 'prev';
     setTab(id);
     try { localStorage.setItem(TAB_KEY, id); } catch { /* storage unavailable */ }
   }
@@ -85,6 +90,8 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
   return (
     <div className="path-params">
       <div className="panel-tabs" role="tablist" aria-label="Parámetros">
+        <span className="panel-tabs-ind" aria-hidden="true"
+          style={{ transform: `translateX(calc(${tabIdx} * (100% + 2px)))` }} />
         {TABS.map(t => (
           <button key={t.id} role="tab" aria-selected={tab === t.id}
             className={`panel-tab${tab === t.id ? ' panel-tab--on' : ''}`}
@@ -93,6 +100,7 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
           </button>
         ))}
       </div>
+      <div key={tab} className={`tab-pane tab-pane--${dirRef.current}`} role="tabpanel">
       {tab === 'pieza' && (<>
         <Sec title="Capas">
           <Num label="Altura de capa" value={params.layerHeight}
@@ -244,6 +252,7 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
               onChange={v => set('primingLength', v)} />}
         </Sec>
       </>)}
+      </div>
     </div>
   );
 }

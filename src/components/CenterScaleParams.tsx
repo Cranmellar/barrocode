@@ -67,7 +67,8 @@ export function CenterScaleParams({ params, onChange }: Props) {
           <label>X<span className="unit"> mm</span></label>
           <NumInput
             value={params.centerX}
-            step={1}
+            step={5}
+            fineStep={1}
             onChange={v => setVal('centerX', v)}
           />
         </div>
@@ -75,7 +76,8 @@ export function CenterScaleParams({ params, onChange }: Props) {
           <label>Y<span className="unit"> mm</span></label>
           <NumInput
             value={params.centerY}
-            step={1}
+            step={5}
+            fineStep={1}
             onChange={v => setVal('centerY', v)}
           />
         </div>

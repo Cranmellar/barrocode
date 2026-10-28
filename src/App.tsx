@@ -8,7 +8,7 @@ import { keyframeColor } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
-import { Preview2D, STAGE_GAP, KeyframeAddIcon } from './components/Preview2D';
+import { Preview2D, STAGE_GAP, KeyframeAddIcon, type Toast } from './components/Preview2D';
 import { PathList } from './components/PathList';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
@@ -89,6 +89,10 @@ const RIGHT_W = 296;
 const RAIL_W  = 44;
 const BAR_H   = 40;
 const NARROW_W = 1280;
+const TIMELINE_GLIDE_MS = 220;
+const TOAST_MS = 2200;
+// Matches the panel-leave animation in index.css.
+const PANEL_LEAVE_MS = 140;
 
 const PANELS_KEY = 'barrocode.panels';
 interface PanelsOpen { left: boolean; right: boolean }
@@ -187,6 +191,8 @@ export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
   const [gcode, setGcode] = useState('');
+  // True from an edit until its debounced G-code is ready.
+  const [gcodeBusy, setGcodeBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [gcodeFilename, setGcodeFilename] = useState('barrocode.gcode');
   const [timelineProgress, setTimelineProgress] = useState(0);
@@ -199,6 +205,28 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Jumping to a keyframe glides the extruder there; any direct edit of the
+  // timeline cancels the glide.
+  const timelineRef = useRef(timelineProgress);
+  timelineRef.current = timelineProgress;
+  const glideRef = useRef(0);
+  const setTimeline = useCallback((v: number | ((t: number) => number)) => {
+    cancelAnimationFrame(glideRef.current);
+    setTimelineProgress(v);
+  }, []);
+  function glideTimeline(target: number) {
+    cancelAnimationFrame(glideRef.current);
+    const from = timelineRef.current;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setTimelineProgress(target); return; }
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / TIMELINE_GLIDE_MS);
+      setTimelineProgress(from + (target - from) * (1 - (1 - p) ** 4));
+      if (p < 1) glideRef.current = requestAnimationFrame(step);
+    };
+    glideRef.current = requestAnimationFrame(step);
+  }
 
   const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
   const svgH = parsedSVG?.viewBox.height ?? 200;
@@ -229,7 +257,10 @@ export default function App() {
       )
     : params;
 
-  function setLissParams(next: PrintParams) {
+  // Counts presets and resets, which morph the wave figure.
+  const [lissMorph, setLissMorph] = useState(0);
+  function setLissParams(next: PrintParams, morph = false) {
+    if (morph) setLissMorph(n => n + 1);
     if (!selectedKf) { setParams(next); return; }
     const kfPatch: Partial<Record<KfLissKey, number>> = {};
     const globalNext = { ...next };
@@ -244,7 +275,7 @@ export default function App() {
   function resetLissParams() {
     const next = { ...lissParams };
     for (const k of LISS_PANEL_FIELDS) next[k] = DEFAULT_PARAMS[k];
-    setLissParams(next);
+    setLissParams(next, true);
   }
 
   const sortedKfs = [...keyframes].sort((a, b) => a.t - b.t);
@@ -262,7 +293,7 @@ export default function App() {
   function selectKf(id: string | null) {
     setSelectedKfId(id);
     const kf = keyframes.find(k => k.id === id);
-    if (kf) setTimelineProgress(kf.t);
+    if (kf) glideTimeline(kf.t);
   }
 
   function addKeyframe() {
@@ -308,7 +339,7 @@ export default function App() {
     setKeyframes(keyframes
       .map(k => k.id === selectedKfId ? { ...k, t } : k)
       .sort((a, b) => a.t - b.t));
-    setTimelineProgress(t);
+    setTimeline(t);
   }
 
   function closeHelp() {
@@ -343,7 +374,7 @@ export default function App() {
         setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]')) {
         const step = (e.shiftKey ? 0.001 : 0.01) * (key === 'arrowleft' ? -1 : 1);
-        setTimelineProgress(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
+        setTimeline(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
       } else if (key === 'escape' && id) {
         setSelectedKfId(null);
       } else if ((key === 'delete' || key === 'backspace') && id) {
@@ -356,6 +387,19 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  // One short notice at a time; a new one replaces the current one.
+  const [toast, setToast] = useState<Toast | null>(null);
+  const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const showToast = useCallback((text: string) => {
+    toastTimersRef.current.forEach(clearTimeout);
+    const id = performance.now();
+    setToast({ id, text });
+    toastTimersRef.current = [
+      setTimeout(() => setToast(t => t?.id === id ? { ...t, leaving: true } : t), TOAST_MS),
+      setTimeout(() => setToast(t => t?.id === id ? null : t), TOAST_MS + 200),
+    ];
   }, []);
 
   const [panels, setPanels] = useState(loadPanels);
@@ -372,12 +416,21 @@ export default function App() {
   const leftScroll  = useScrollMore<HTMLDivElement>(shown.left);
   const rightScroll = useScrollMore<HTMLDivElement>(shown.right);
 
+  // A closing panel plays its exit before it unmounts and the view reframes.
+  const [leaving, setLeaving] = useState<keyof PanelsOpen | null>(null);
   function togglePanel(side: keyof PanelsOpen) {
+    if (leaving) return;
     const other = side === 'left' ? 'right' : 'left';
     const opening = !shown[side];
     const next = { ...shown, [side]: opening, ...(opening && narrow ? { [other]: false } : {}) };
-    setPanels(next);
-    try { localStorage.setItem(PANELS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+    const commit = () => {
+      setLeaving(null);
+      setPanels(next);
+      try { localStorage.setItem(PANELS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+    };
+    if (opening) { commit(); return; }
+    setLeaving(side);
+    setTimeout(commit, PANEL_LEAVE_MS);
   }
 
   const insets = {
@@ -423,11 +476,14 @@ export default function App() {
     if (gcodeTimerRef.current !== null) clearTimeout(gcodeTimerRef.current);
     if (toolpath.length === 0) {
       setGcode('');
+      setGcodeBusy(false);
       return;
     }
+    setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
       setGcode(generateGcode(toolpath, params));
+      setGcodeBusy(false);
     }, 400);
     return () => {
       if (gcodeTimerRef.current !== null) {
@@ -479,6 +535,7 @@ export default function App() {
     setGcodeFilename(savedSession.filename);
     doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
     setSavedSession(null);
+    showToast(`Sesión restaurada: ${savedSession.filename.replace(/\.gcode$/i, '')}`);
   }
 
   function discardSession() {
@@ -614,7 +671,7 @@ export default function App() {
           <div className="kf-field">
             <label>Centro X</label>
             <div className="kf-field-input-row">
-              <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={1}
+              <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={5} fineStep={1}
                 onChange={v => updateKf('centerX', v)} />
               <span className="kf-unit">mm</span>
             </div>
@@ -622,7 +679,7 @@ export default function App() {
           <div className="kf-field">
             <label>Centro Y</label>
             <div className="kf-field-input-row">
-              <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={1}
+              <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={5} fineStep={1}
                 onChange={v => updateKf('centerY', v)} />
               <span className="kf-unit">mm</span>
             </div>
@@ -650,13 +707,16 @@ export default function App() {
         params={params}
         viewBox={parsedSVG?.viewBox ?? null}
         timelineProgress={timelineProgress}
-        onTimelineChange={setTimelineProgress}
+        onTimelineChange={setTimeline}
         keyframes={keyframes}
         onKeyframesChange={setKeyframes}
         centerTab={centerTab}
         onTabChange={setCenterTab}
         gcode={gcode}
+        gcodeBusy={gcodeBusy}
         gcodeFilename={gcodeFilename}
+        toast={toast}
+        onToast={showToast}
         selectedKfId={selectedKfId}
         onKfSelect={selectKf}
         onAddKeyframe={addKeyframe}
@@ -669,7 +729,7 @@ export default function App() {
 
       {/* ── Panel izquierdo ── */}
       {shown.left ? (
-        <aside className="float-panel panel-left" style={{ width: LEFT_W }}>
+        <aside className={`float-panel panel-left${leaving === 'left' ? ' panel-leave' : ''}`} style={{ width: LEFT_W }}>
           <div ref={leftScroll.ref} className={`panel-scroll${leftScroll.more ? ' scroll-more' : ''}`}>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
@@ -758,12 +818,14 @@ export default function App() {
 
       {/* ── Panel derecho ── */}
       {shown.right ? (
-        <aside className="float-panel panel-right" style={{ width: RIGHT_W }}>
+        <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
             <LissajousParams
               params={lissParams}
               onChange={setLissParams}
               onReset={resetLissParams}
+              morph={lissMorph}
+              defaults={DEFAULT_PARAMS}
               editingKf={selectedKf && {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
@@ -771,7 +833,7 @@ export default function App() {
                 onDone: () => setSelectedKfId(null),
               }}
               waveLocked={keyframes.length > 0 && !selectedKf}
-              figure={<div className="liss-figure"><LissajousPreview params={lissParams} /></div>}
+              figure={<div className="liss-figure"><LissajousPreview params={lissParams} morph={lissMorph} /></div>}
               headerExtra={
                 <button className="btn-icon" onClick={() => togglePanel('right')}
                   title="Ocultar panel" aria-label="Ocultar panel de onda"><Chevron dir="right" /></button>

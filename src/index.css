@@ -137,8 +137,22 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   flex-direction: column;
   overflow: hidden;
 }
-.panel-left  { left: var(--sp-3); }
-.panel-right { right: var(--sp-3); }
+.panel-left  { left: var(--sp-3); transform-origin: left center; }
+.panel-right { right: var(--sp-3); transform-origin: right center; }
+
+/* Panels slide in when they open and out before they close; the rail
+   that replaces them fades in just after. */
+.panel-left, .panel-right { animation: var(--dur) var(--ease) both; }
+.panel-left  { animation-name: panel-in-left; }
+.panel-right { animation-name: panel-in-right; }
+.panel-left.panel-leave  { animation: panel-out-left 140ms cubic-bezier(0.4, 0, 1, 1) both; }
+.panel-right.panel-leave { animation: panel-out-right 140ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes panel-in-left   { from { opacity: 0; transform: translateX(-12px) scale(0.985); } }
+@keyframes panel-in-right  { from { opacity: 0; transform: translateX(12px) scale(0.985); } }
+@keyframes panel-out-left  { to   { opacity: 0; transform: translateX(-12px) scale(0.985); } }
+@keyframes panel-out-right { to   { opacity: 0; transform: translateX(12px) scale(0.985); } }
+.panel-rail { animation: rail-in var(--dur) var(--ease) 40ms both; }
+@keyframes rail-in { from { opacity: 0; transform: scale(0.9); } }
 .panel-rail {
   bottom: auto;
   align-items: center;
@@ -174,7 +188,19 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   border-radius: var(--radius);
   box-shadow: 0 -8px 0 var(--surface);
 }
+.panel-tabs-ind {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: calc((100% - 8px) / 3);
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease);
+}
 .panel-tab {
+  position: relative;
   flex: 1;
   height: 26px;
   padding: 0 var(--sp-2);
@@ -189,7 +215,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .panel-tab:hover { color: var(--ink); }
-.panel-tab--on { background: var(--field); color: var(--ink); box-shadow: var(--shadow-sm); }
+.panel-tab--on { color: var(--ink); }
+
+.tab-pane { animation: var(--dur) var(--ease) both; }
+.tab-pane--next { animation-name: pane-in-next; }
+.tab-pane--prev { animation-name: pane-in-prev; }
+@keyframes pane-in-next { from { opacity: 0; transform: translateX(10px); } }
+@keyframes pane-in-prev { from { opacity: 0; transform: translateX(-10px); } }
 
 /* File: load button, current file, samples */
 .file-block {
@@ -241,6 +273,68 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .stage-summary-sep { color: var(--faint); }
+.stage-summary { transition: opacity var(--dur) var(--ease); }
+.stage-summary--stale { opacity: 0.55; }
+
+/* Thin indeterminate bar under the export group while the G-code is being
+   regenerated. The delay keeps it from flashing on quick edits. */
+.bar-group--end { position: relative; }
+.gcode-progress {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: -7px;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 1px;
+  background: rgba(74,74,81,0.10);
+  animation: fade-in var(--dur-fast) 150ms both;
+}
+.gcode-progress::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 38%;
+  border-radius: 1px;
+  background: var(--accent);
+  animation: indeterminate 1100ms cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes indeterminate { from { left: -38%; } to { left: 100%; } }
+
+/* Short notices (download, session restored) above the timeline dock */
+.toast-region {
+  position: absolute;
+  z-index: 20;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--on-ink);
+  box-shadow: var(--shadow-float);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  animation: toast-in var(--dur) var(--ease) both;
+}
+.toast-leave { animation: toast-out 180ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes toast-in  { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
+@keyframes toast-out { to   { opacity: 0; transform: translateY(4px) scale(0.98); } }
+
+/* Button label swap (Copiar → Copiado) */
+.btn-label { display: inline-flex; align-items: center; gap: 6px; animation: label-in var(--dur) var(--ease) both; }
+.btn-label--ok { color: var(--ok); }
+.gcode-copy { min-width: 96px; }
+@keyframes label-in { from { opacity: 0; transform: translateY(4px); } }
+.check-draw path { stroke-dasharray: 14; stroke-dashoffset: 14; animation: check-draw 260ms 60ms var(--ease) forwards; }
+@keyframes check-draw { to { stroke-dashoffset: 0; } }
 
 /* Timeline dock: keyframe editor (when one is selected) above the timeline row */
 .dock {
@@ -568,6 +662,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   text-align: right;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
+.param-row input[type="number"]:hover:not(:disabled) { border-color: var(--faint); }
 .param-row input[type="number"]:focus { outline: none; border-color: var(--ink); }
 
 .param-check { justify-content: flex-start; gap: 10px; }
@@ -673,12 +768,15 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) var(--ease);
   background: var(--field);
   border: 1px solid var(--border-strong);
   color: var(--ink);
 }
 .btn-small:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-small:active:not(:disabled),
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-icon:active:not(:disabled) { transform: scale(0.94); }
 
 .btn-icon {
   display: inline-flex;
@@ -696,7 +794,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease);
 }
 .btn-icon:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
 .btn-icon:disabled { opacity: 0.35; cursor: default; }
@@ -734,7 +832,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) var(--ease);
   background: var(--accent);
   border: 1px solid var(--accent);
   color: var(--on-ink);
@@ -804,6 +902,39 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
   margin-left: 2px;
 }
 
+/* Track wrapper: a notch marks the default value (dragging snaps to it)
+   and a bubble shows the value above the thumb while dragging. */
+.slider-track { position: relative; }
+.slider-notch {
+  position: absolute;
+  top: -3px;
+  width: 2px;
+  height: 10px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--border-strong);
+  pointer-events: none;
+  transition: background var(--dur-fast), transform var(--dur) var(--ease);
+}
+.slider-notch--on { background: var(--ink); transform: scaleY(1.4); }
+.slider-bubble {
+  position: absolute;
+  bottom: 12px;
+  z-index: 2;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--on-ink);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+  animation: bubble-in 140ms var(--ease) both;
+}
+@keyframes bubble-in { from { opacity: 0; transform: translateX(-50%) translateY(3px) scale(0.92); } }
+
 /* Range slider — Swiss ruler feel */
 input[type="range"] {
   width: 100%;
@@ -824,9 +955,10 @@ input[type="range"]::-webkit-slider-thumb {
   border: 2px solid var(--field);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast);
 }
-input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); }
+input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(74,74,81,0.12); }
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(74,74,81,0.14); }
 
 input[type="range"]::-moz-range-thumb {
   width: 14px; height: 14px;
@@ -853,7 +985,8 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid var(--border);
   color: var(--ink-2);
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast),
+    transform var(--dur) var(--ease);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -861,9 +994,19 @@ input[type="range"]::-moz-range-thumb {
   gap: 4px;
 }
 .btn-preset:hover { background: var(--surface-2); border-color: var(--border-strong); color: var(--ink); }
-.btn-preset:active { opacity: 0.75; }
+.btn-preset:active { transform: scale(0.96); }
 .btn-preset svg { opacity: 0.7; transition: opacity var(--dur-fast); }
 .btn-preset:hover svg { opacity: 1; }
+.btn-preset--on,
+.btn-preset--on:hover { border-color: var(--ink); color: var(--ink); background: var(--field); }
+.btn-preset--on svg { opacity: 1; }
+
+/* A number a preset just changed flashes once. Two identical animations so
+   consecutive presets restart it. */
+.num-flash-a input[type="number"] { animation: num-flash-a 700ms var(--ease) both; }
+.num-flash-b input[type="number"] { animation: num-flash-b 700ms var(--ease) both; }
+@keyframes num-flash-a { 0%, 30% { background: rgba(74,74,81,0.16); } 100% { background: transparent; } }
+@keyframes num-flash-b { 0%, 30% { background: rgba(74,74,81,0.16); } 100% { background: transparent; } }
 
 /* ── Path list ───────────────────────────────────────────────────────────── */
 .path-list   { padding-bottom: 4px; }
@@ -967,14 +1110,39 @@ input[type="range"]::-moz-range-thumb {
 .layer-solo--on,
 .layer-solo--on:hover { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
 
+.view-angles {
+  position: absolute;
+  z-index: 3;
+  transform: translateY(50%);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease);
+}
+.view-angles--on { opacity: 1; transition-duration: var(--dur-fast); }
+
 .view-presets {
+  position: relative;
   display: flex;
   gap: 2px;
   padding: 2px;
   background: var(--surface-3);
   border-radius: var(--radius);
 }
+.view-presets-ind {
+  position: absolute;
+  top: 2px;
+  left: 0;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease), width var(--dur) var(--ease), opacity var(--dur-fast);
+}
 .view-preset {
+  position: relative;
   height: 24px;
   padding: 0 10px;
   background: transparent;
@@ -989,7 +1157,7 @@ input[type="range"]::-moz-range-thumb {
   transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
 }
 .view-preset:hover { color: var(--ink); }
-.view-preset--on { background: var(--field); color: var(--ink); box-shadow: var(--shadow-sm); }
+.view-preset--on { color: var(--ink); }
 
 /* ── Lissajous figure ────────────────────────────────────────────────────── */
 /* Absolute so the buffer size set in device pixels never sizes the box */
@@ -1109,6 +1277,14 @@ input[type="range"]::-moz-range-thumb {
 .kf-marker:hover::before,
 .kf-marker.kf-dragging::before { transform: rotate(45deg) scale(1.15); }
 .kf-marker.kf-dragging { z-index: 5; cursor: grabbing; }
+.kf-marker.kf-born  { animation: kf-pop 320ms var(--ease) both; }
+.kf-marker.kf-leave { z-index: 2; pointer-events: none; animation: kf-leave 180ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes kf-pop {
+  0%   { transform: translate(-50%, -50%) scale(0); }
+  60%  { transform: translate(-50%, -50%) scale(1.25); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes kf-leave { to { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
 .kf-badge.kf-selected::before,
 .kf-nav-label .kf-badge::before,
 .liss-context--kf .kf-badge::before { border-color: var(--ink); }
@@ -1165,8 +1341,14 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: row;
   height: 116px;
   flex-shrink: 0;
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
+  animation: editor-in 220ms var(--ease) both;
 }
+@keyframes editor-in { from { height: 0; opacity: 0; } }
+.dock-editor-leave { overflow: hidden; pointer-events: none; animation: editor-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
+.dock-editor-leave .kf-editor { animation: none; }
+@keyframes editor-out { from { max-height: 117px; } to { max-height: 0; opacity: 0; } }
 .kf-group {
   display: flex;
   flex-direction: column;
@@ -1297,6 +1479,8 @@ input[type="range"]::-moz-range-thumb {
   scrollbar-color: var(--border) transparent;
   min-height: 0;
 }
+.gcode-textarea { transition: opacity var(--dur) var(--ease); }
+.gcode-textarea--stale { opacity: 0.45; }
 .gcode-textarea::-webkit-scrollbar { width: 4px; }
 .gcode-textarea::-webkit-scrollbar-thumb { background: var(--border); }
 
@@ -1309,9 +1493,76 @@ input[type="radio"] {
   flex-shrink: 0;
 }
 
+/* Number fields: the amount a wheel or label-drag step added floats up
+   beside the field and fades. Rows are positioned so it scrolls with them. */
+.param-row, .kf-field, .slider-num { position: relative; }
+.num-delta {
+  position: absolute;
+  z-index: 3;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular); font-variation-settings: 'wght' 450;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: num-delta 650ms var(--ease) both;
+}
+@keyframes num-delta {
+  0%   { opacity: 0; transform: translate(calc(-100% - 6px), -50%) translateY(4px); }
+  20%  { opacity: 1; transform: translate(calc(-100% - 6px), -50%); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-100% - 6px), -50%) translateY(-6px); }
+}
+/* Dragging a number field's label left or right changes its value. */
+label.num-scrub { cursor: ew-resize; touch-action: none; }
+label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration: underline dotted var(--faint); text-underline-offset: 3px; }
+
+/* On/off options read as switches; still a native checkbox for keyboard and forms. */
+.param-check input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 28px;
+  height: 16px;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--border-strong);
+  transition: background var(--dur) var(--ease);
+}
+.param-check input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--field);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease), width var(--dur-fast) var(--ease);
+}
+.param-check input[type="checkbox"]:checked { background: var(--accent); }
+.param-check input[type="checkbox"]:checked::after { transform: translateX(12px); }
+.param-check input[type="checkbox"]:active::after { width: 15px; }
+.param-check input[type="checkbox"]:checked:active::after { transform: translateX(9px); }
+
 /* ── Hide number spinners ────────────────────────────────────────────────── */
 code, kbd { font-family: var(--font-ui); }
 
 input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+}
