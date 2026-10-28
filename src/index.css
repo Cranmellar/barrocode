@@ -1215,6 +1215,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .shaper-canvas line,
 .shaper-canvas path,
+.shaper-canvas rect,
 .shaper-canvas circle { vector-effect: non-scaling-stroke; }
 .shaper-grid line { stroke: var(--border); stroke-width: 1; }
 .shaper-grid-major line { stroke: var(--border-strong); }
@@ -1228,6 +1229,48 @@ input[type="range"]::-moz-range-thumb {
 .shaper-tight { fill: none; stroke: var(--err); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 .shaper-spot { fill: none; stroke: var(--err); stroke-width: 1.5; }
 .shaper-value { color: var(--ink); font-variant-numeric: tabular-nums; }
+.shaper-note {
+  margin: var(--sp-1) var(--sp-4) var(--sp-2);
+  white-space: normal;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--muted);
+}
+.shaper-actions { display: flex; gap: var(--sp-2); padding: var(--sp-1) var(--sp-4) var(--sp-2); }
+.shaper-actions--foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); }
+
+/* Path editing */
+.shaper-canvas { touch-action: none; }
+.shaper-hit { fill: none; stroke: transparent; stroke-width: 14px; pointer-events: stroke; cursor: copy; }
+.shaper-node { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; cursor: move; }
+.shaper-node--copy { fill: var(--surface-3); stroke: var(--ink-2); }
+.shaper-node--on { fill: var(--ink); }
+.shaper-seam--node { cursor: move; }
+.shaper-seam--on { fill: var(--ink); }
+.shaper-handle-line { stroke: var(--muted); stroke-width: 1; }
+.shaper-handle { fill: var(--surface); stroke: var(--ink-2); stroke-width: 1.2; cursor: move; }
+.path-commands {
+  margin: 0 var(--sp-3) var(--sp-2);
+  padding: 0;
+  list-style: none;
+  max-height: 240px;
+  overflow-y: auto;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.path-command {
+  padding: 2px var(--sp-1);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.path-command:hover { background: var(--surface-2); }
+.path-command--on, .path-command--on:hover { background: var(--surface-3); color: var(--ink); }
+.path-command--end { cursor: default; }
+.path-command--end:hover { background: none; }
 
 /* Discovery: a 3×3 grid of variations over the canvas */
 .shaper-discover {

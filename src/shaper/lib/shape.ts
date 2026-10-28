@@ -1,4 +1,5 @@
 import { lobes, polygon, superformula, type Pt } from './families';
+import { flattenPath, type PathNode } from './pathModel';
 
 export type Family = 'superformula' | 'polygon' | 'lobes';
 
@@ -26,6 +27,15 @@ export interface ShapeDoc {
   lobeCount: number;
   lobeDepthPct: number;
   lobeSharp: number;
+  /**
+   * Set once the shape is turned into editable nodes; it then replaces the
+   * family, and size, rotation and seam live in the nodes themselves.
+   */
+  path: PathNode[] | null;
+  /** How many times the path repeats around (0, 0), when it came from a family. */
+  pathOrder: number;
+  /** Editing a node moves its copies in every sector. */
+  pathSymmetric: boolean;
 }
 
 export const DEFAULT_SHAPE: ShapeDoc = {
@@ -44,6 +54,9 @@ export const DEFAULT_SHAPE: ShapeDoc = {
   lobeCount: 6,
   lobeDepthPct: 20,
   lobeSharp: 1,
+  path: null,
+  pathOrder: 1,
+  pathSymmetric: true,
 };
 
 /** The family parameters' numeric fields. */
@@ -171,6 +184,10 @@ function perimeter(pts: Pt[]): number {
  * seam, in the chosen direction, with no repeated end point.
  */
 export function shapePoints(doc: ShapeDoc): Pt[] {
+  if (doc.path) {
+    const loop = flattenPath(doc.path);
+    return resample(loop, Math.min(MAX_PTS, Math.max(MIN_PTS, Math.round(perimeter(loop) / SPACING_MM))));
+  }
   const rot = (doc.rotation * Math.PI) / 180;
   const cos = Math.cos(rot), sin = Math.sin(rot);
   let pts = familyOutline(doc).map(p => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos }));
@@ -208,8 +225,7 @@ const FAMILY_NAMES: Record<Family, string> = {
   lobes: 'Lóbulos',
 };
 
-/** ASCII name for the G-code file. */
-export const FAMILY_FILES: Record<Family, string> = {
+const FAMILY_FILES: Record<Family, string> = {
   superformula: 'superformula',
   polygon: 'poligono',
   lobes: 'lobulos',
@@ -219,8 +235,18 @@ export function familyName(f: Family): string {
   return FAMILY_NAMES[f];
 }
 
-export function shapeLabel(doc: ShapeDoc): string {
+/** Twice the distance from (0, 0) to the farthest point of the outline. */
+export function outerDiameter(pts: Pt[]): number {
+  return 2 * Math.max(...pts.map(p => Math.hypot(p.x, p.y)));
+}
+
+export function shapeLabel(doc: ShapeDoc, pts: Pt[]): string {
+  if (doc.path) return `Trazado · ${doc.path.length} nodos · Ø ${fmt(outerDiameter(pts), 1)} mm`;
   return `${FAMILY_NAMES[doc.family]} · Ø ${fmt(doc.sizeMM, 1)} mm`;
+}
+
+export function fileName(doc: ShapeDoc): string {
+  return doc.path ? 'trazado' : FAMILY_FILES[doc.family];
 }
 
 export function fmt(v: number, decimals = 3): string {

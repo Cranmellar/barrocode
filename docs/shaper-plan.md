@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F3 hechas (ver sección 6); el resto, propuesta.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F4 hechas (ver sección 6); el resto, propuesta.
 
 ---
 
@@ -93,8 +93,8 @@ Cada pedido nuevo se compara con esta lista antes de entrar.
 
 | # | Decisión | Recomendación |
 |---|---|---|
-| D-S1 | **Deshacer en el shaper.** El proyecto no tiene undo, pero editar puntos sin deshacer es frustrante. | Sí, local al shaper: una pila de `ShapeDoc` (son pocos bytes). *Impresión* sigue sin undo. |
-| D-S2 | **`svg-path-editor-lib` o modelo propio.** El proyecto no tiene dependencias en runtime aparte de React. | Una hora de prueba: adoptarla solo si es ESM, se puede *tree-shake* y pesa < 15 kB gzip. Si no, modelo propio con M/L/C/Z (convertir Q, A, H, V a C al importar). |
+| D-S1 | **Deshacer en el shaper.** El proyecto no tiene undo, pero editar puntos sin deshacer es frustrante. | **Cerrada: sí**, local al shaper: una pila de `ShapeDoc` (son pocos bytes). *Impresión* sigue sin undo. |
+| D-S2 | **`svg-path-editor-lib` o modelo propio.** El proyecto no tiene dependencias en runtime aparte de React. | **Cerrada: modelo propio** (F4). La librería (1.0.4, Apache-2.0, ESM, ≈4,8 kB gzip) pasaba el filtro de peso, pero su modelo son comandos mutables cuyas asas pertenecen a comandos distintos: mover un nodo no mueve sus asas, no parte una curva sin cambiarla y convertir a curva pone las asas en tercios. Habría que escribir igual el arrastre con asas, la partición y la simetría, más adaptadores. |
 | D-S3 | **Selector de espacio de trabajo o página aparte.** | Selector (sección 3.1). |
 | D-S4 | **Licencia de BarroCode.** No tiene. | MIT antes de copiar código de cualquier referente. Si solo se toman ideas, no es urgente. |
 | D-S5 | **Familias del MVP.** | Superfórmula, polígono/estrella con radio de esquina, flor de lóbulos (cubren las muestras 1, 4, 6 y 7). |
@@ -156,6 +156,14 @@ Esto es lo propio de BarroCode, que ningún referente tiene.
 - La imprimibilidad (F2) se recalcula en cada arrastre.
 - Tests: ida y vuelta de `d`, insertar o borrar conserva el cierre, el ajuste queda a < 0,2 mm de la familia.
 - **Hecho cuando:** se convierte una flor, se mueve un lóbulo con simetría y se envía a impresión sin avisos nuevos.
+- **Hecho (2026-10-28).** *Editar puntos* (en el panel de la familia) convierte la forma en nodos (`ShapeDoc.path`); desde entonces el contorno sale de los nodos y la familia queda guardada para *Volver a la familia*.
+  - **Modelo** (`pathModel.ts`): nodos con asas en posición absoluta y marca de suave; mover un nodo arrastra sus asas; mover un asa de un nodo suave gira la otra; partir un tramo con de Casteljau sin cambiar la curva; borrar; tramo recto o curvo; invertir el sentido desde la misma costura; costura en otro nodo; `pathD` y `parsePathD` (M, L, C, Z absolutos) de ida y vuelta.
+  - **Ajuste** (`fit.ts`): nodos fijos en la costura, las esquinas y la punta y el valle de cada sector; cada tramo se parte donde la cúbica se aleja más hasta quedar a ≤ 0,2 mm; un sector se gira a los demás, así que la simetría es exacta (orden de la familia: lóbulos, lados, o m o m/2 en la superfórmula), y si la forma no resulta tan simétrica se ajusta entera. Los lados rectos salen como `L`. En las formas de prueba: 3 a 8 nodos por sector, desviación 0,04–0,2 mm, 4–80 ms.
+  - **Lienzo:** nodos y asas del nodo elegido arrastrables, doble clic en la línea añade un nodo (en cada sector con simetría), Supr borra, Esc deselecciona, imán a milímetros enteros. La imprimibilidad se recalcula en cada movimiento.
+  - **Panel:** nodo elegido (X, Y, suave, tramo recto, costura aquí, borrar), simetría, imán, diámetro (escala el trazado), sentido, y la lista de comandos (M, C, L, Z) sincronizada con el lienzo.
+  - **Deshacer** (D-S1): pila de `ShapeDoc` en `ShaperView`, botones ↶ ↷ y Ctrl+Z / Ctrl+Shift+Z / Ctrl+Y; un arrastre es un paso, y los cambios a menos de 400 ms (un slider) también.
+  - **En Chromium:** la flor por defecto da 24 nodos, simetría ×6 y ningún aviso; tirar 3 mm de la punta de un lóbulo hacia fuera mueve las seis puntas, sigue sin avisos (Ø 80 → 86 mm) y se envía a impresión. Deshacer y rehacer, añadir (+6) y borrar (−6) funcionan.
+  - **Cambios respecto al plan:** la lista de comandos no tiene campos propios; se edita a través del nodo elegido, porque 6 campos por fila harían que la rueda del ratón cambiara valores al desplazar la lista. El historial vive en *Forma* y se pierde al pasar a *Impresión*. Mover un nodo de flanco varios mm sin tocar sus asas dobla el tramo y da avisos: es lo esperable en un editor de curvas y el aviso lo muestra.
 
 ### F5 — Importar y sesión (1 sesión)
 

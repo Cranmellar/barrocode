@@ -3,7 +3,7 @@ import { NumInput } from '../../components/NumInput';
 import { superformulaN3 } from '../lib/families';
 import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
 
-interface Props { doc: ShapeDoc; onChange: (doc: ShapeDoc) => void }
+interface Props { doc: ShapeDoc; onChange: (doc: ShapeDoc) => void; onEditPoints: () => void }
 
 const FAMILIES: Family[] = ['lobes', 'polygon', 'superformula'];
 
@@ -83,7 +83,7 @@ function Sec({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-export function FamilyPanel({ doc, onChange }: Props) {
+export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
   const set = <K extends keyof ShapeDoc>(k: K, v: ShapeDoc[K]) => onChange({ ...doc, [k]: v });
   const slider = (k: FamilyKey, label: string, unit?: string, hint?: string) => {
     const { min, max, step } = paramSpec(k);
@@ -151,6 +151,16 @@ export function FamilyPanel({ doc, onChange }: Props) {
             <input type="checkbox" checked={doc.clockwise} onChange={e => set('clockwise', e.target.checked)} />
             Sentido horario
           </label>
+        </div>
+      </Sec>
+
+      <Sec title="Edición">
+        <p className="shaper-note">
+          Convierte la forma en nodos que puedes mover uno a uno, con simetría si la forma se repite.
+          Deja de ser paramétrica; Ctrl+Z lo deshace.
+        </p>
+        <div className="shaper-actions">
+          <button className="btn-small" onClick={onEditPoints}>Editar puntos</button>
         </div>
       </Sec>
     </>
