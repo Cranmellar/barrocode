@@ -106,7 +106,34 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ---
 
-## Performance — user-side findings (measured 2026-10-26 on `main` @ `29ad9a1`)
+## Performance — user-side findings
+
+### Re-measured 2026-10-28 on `main` @ `dddc17b` (supersedes the older numbers below where they disagree)
+
+Same setup as below (production build, headless Chromium, CDP `TaskDuration`, sample 4, defaults). Stage times come from temporary `performance.now()` wrappers in the browser build; pure-JS times from `vite-node` on the 750-point flower.
+
+| Main thread | 60 layers | 150 layers |
+|---|---|---|
+| Idle, sample loaded or not | ≈12 % of a core | same |
+| Wave slider drag, per tick (before → after the `insets` fix) | ≈180 → ≈115 ms | ≈1065 → ≈480 ms |
+| One slider tick incl. the debounced G-code | ≈370 ms | ≈825 ms |
+| Print-speed wheel tick incl. G-code | ≈320 ms | ≈520 ms |
+| Full 3D redraw, no pipeline (*Color* toggle) | ≈30 ms | ≈35 ms |
+| Timeline scrub step / camera rotate step | ≈15 / ≈20 ms | ≈25 / ≈12 ms |
+
+Per slider tick at 150 layers: `generateWaveLayers` ≈60 ms, `buildToolpath` ≈47 ms, `flattenPoints` ≈13 ms, drawing ≈25 ms, the rest is GC and React. When the 400 ms debounce fires: `generateGcode` ≈160 ms then `summarizeGcode` ≈225 ms in one task, so every edit ends in a ≈0.4 s freeze, and the stats cost more than the G-code itself. Pure JS (flower, 150 layers): wave 40–60, toolpath 35–95, G-code 75–145, stats 135–215 ms.
+
+Findings, by impact ÷ effort:
+
+1. ~~**`insets` was a new object on every `App` render.**~~ **Done.** It is in the draw effect's dependencies, so any `App` re-render (`setGcodeBusy`, `setGcode`, toasts…) redrew the scene, and because the geometry was unchanged it also built the scrub cache on a detached canvas, rasterised on the main thread (`drawImage` was the top entry of the profile). Now `useMemo` on `shown.left/right`. Keep every object or array passed to `Preview2D` that feeds the draw effect stable.
+2. **Compute the G-code stats while emitting.** `generateGcode` knows every move's length, feed and E; returning the summary with the text removes `summarizeGcode`'s second pass (`split`, a regex and an object per line), ≈58 % of the end-of-edit freeze. Keep `summarizeGcode` as the test oracle: a test that both agree over the existing invariant matrix. *Effort: low.*
+3. **The Lissajous dot loop is the whole idle cost.** With `requestAnimationFrame` stubbed out idle falls from ≈12 % to 0 %. It also ignores `prefers-reduced-motion` (only the preset morph checks it), against the Motion rule. Options: stop it under reduced motion (do this regardless), cap it at 30 fps, or play it only for a few seconds after a wave change and while the panel is hovered. The last two change the look; the owner decides. *Effort: low.*
+4. **Identical layers are recomputed.** Without keyframes and with `phaseShiftPerLayer = 0` (the defaults) every layer's XY is the same (every other one with `alternateDirection`); only the Z floor differs, and only when `lissAmpZ > 0`. Compute the transformed wave once per direction and run just the floor per layer: `generateWaveLayers` ≈60 → a few ms at 150 layers. `buildToolpath` can reuse the `svgToMM` XY the same way it reuses crossings. Snapshots pin exactness. *Effort: low–medium.*
+5. **Allocation churn.** `buildToolpath` builds two objects per point (`{ ...svgToMM(...), zOffset }`), `flattenPoints` copies every point again, and `applyTransformSVG` returns a new object per point. GC was ≈0.66 s over 10 ticks at 150 layers. Write fields directly and drop the spread first; typed arrays only if that is not enough. *Effort: low.*
+6. **Coalesce pipeline runs while dragging a wave slider.** Each `input` event runs the whole pipeline synchronously; at 150 layers ticks arrive faster than they finish. `useDeferredValue` on the pipeline's inputs (params, keyframes) lets React skip stale intermediate values; measure before keeping it. *Effort: low, benefit unproven.*
+7. **G-code in a worker** (old #6) removes what is left of the freeze after #2. Mind `file://`: Chromium refuses `new Worker(url)` from a `file://` page, so use Vite's inline worker (`?worker&inline`, a blob URL) or fall back to the main thread. *Effort: medium.*
+
+### Measured 2026-10-26 on `main` @ `29ad9a1`
 
 **Setup:** `npm run build && npx vite preview`, headless Chromium driven by Playwright. Main-thread time comes from CDP `Performance.getMetrics` (`TaskDuration`). Inputs: sample 4, default params (z-hop is **on** by default), 60 and 150 layers. At 60 layers that is 68,160 points, 180 hop crossings and 1.6 MB of G-code. Headless Chromium rasterises canvas in software, so treat canvas numbers as relative. The pure-JS numbers come from `vite-node` on a 750-point flower curve and match what the browser shows.
 
@@ -129,7 +156,7 @@ Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G
 5. **Per-frame waste in the 3D preview.**
    - ~~Projection trig and canvas reallocation.~~ **Done.** `makeProjector(az, el)` in `draw3D.ts` computes the camera trig once per draw; `project` wraps it. `Preview2D` takes its canvas size from a `ResizeObserver` and reallocates the buffer only when the size changes; each draw runs inside `save`/`restore`. Main-thread time per step at 60 layers: camera rotate 13 → 6.5 ms, timeline scrub 21 → 10 ms; at 150 layers, 18 → 10 ms and 37 → 17 ms. Output is pixel-identical in 24 preview states (1× and 2×). This also fixes two old bugs: the 3D view came back blank after visiting the G-code tab, and didn't redraw when a side panel was dragged. `CenterPad` was left alone: its 56 px canvas costs nothing to reallocate.
    - ~~The timeline scrub redraws every layer at full quality.~~ **Done.** `draw3D.ts` splits the layer strokes and their overlays (skirt travel, soft-join lines) into `drawGeometry`, which reads only `GeometryScene` (no timeline, no text). When a redraw leaves those inputs unchanged, `Preview2D` builds a cached copy once and `drawScene` copies it in, so a scrub redraws only the backdrop, centre axis, extruder and markers. Scrub wall time per step: ≈50 → ≈17 ms at 60 layers, ≈190 → ≈22 ms at 150. Building the cache on every geometry change was tried and dropped: a detached canvas rasterises on the main thread, so camera rotation went from 6 to 41 ms of main thread per step. Output is pixel-identical except the scrubbed states, which differ by ≤ 3/255 from compositing.
-6. **G-code generation and stats still run on the main thread.** When the 400 ms debounce fires, `generateGcode` (≈70 ms at 60 layers, ≈350 ms on a wave with many loops) and `summarizeGcode` (50–150 ms: `split`, a regex and an object per line) block the UI mid-interaction. Now that #2 and #3 are done, move both into a worker (perf spec Phase 5), or compute the stats in the same pass that emits the G-code. *Effort: medium.*
+6. **G-code generation and stats still run on the main thread** (see the 2026-10-28 list, #2 and #7). When the 400 ms debounce fires, `generateGcode` (≈70 ms at 60 layers, ≈350 ms on a wave with many loops) and `summarizeGcode` (50–150 ms: `split`, a regex and an object per line) block the UI mid-interaction. Now that #2 and #3 are done, move both into a worker (perf spec Phase 5), or compute the stats in the same pass that emits the G-code. *Effort: medium.*
 7. **Keyframe drag and `CenterPad` drag** call `setKeyframes` on every `mousemove`, so each move runs the full pipeline, about the cost of a slider tick. The timeline keyframe drag now applies moves once per animation frame, but in Chromium that measured within noise (60 moves at 60 layers: ≈5.4–6.7 s of main thread before, ≈5.1–5.9 s after): Chromium already delivers at most one `mousemove` per frame and React batches updates within a task. The real cost is the pipeline itself, ≈85 ms per frame at 60 layers. `CenterPad` drag is unchanged. `CenterPad.partBounds` also passes every point through `svgToMM` each time the layers or params change; take the bounds from the shared toolpath instead.
 
 Lower priority:
