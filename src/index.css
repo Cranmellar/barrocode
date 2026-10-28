@@ -48,9 +48,8 @@
   --err:           #DC2626;
   --err-bg:        rgba(220,38,38,0.07);
 
-  /* Type: GSCode for the interface, Geist for running text */
+  /* Type */
   --font-ui:   'GSCode', 'Cascadia Code', ui-monospace, monospace;
-  --font-text: 'Geist Variable', system-ui, sans-serif;
   --fs-xs:  11px;
   --fs-sm:  12px;
   --fs-md:  13px;
@@ -514,11 +513,22 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 .section:last-child { padding-bottom: 10px; }
 
+/* Section titles: GSCode italic with a hairline running to the edge */
 .section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
   font-size: var(--fs-md);
+  font-style: italic;
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
-  color: var(--ink);
-  padding: var(--sp-3) var(--sp-4) var(--sp-1);
+  color: var(--ink-2);
+  padding: var(--sp-4) var(--sp-4) var(--sp-1);
+}
+.section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
 }
 
 /* ── Param rows ──────────────────────────────────────────────────────────── */
@@ -1300,14 +1310,8 @@ input[type="radio"] {
 }
 
 /* ── Hide number spinners ────────────────────────────────────────────────── */
+code, kbd { font-family: var(--font-ui); }
+
 input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
-
-
-/* Sentences read better in the proportional face. Scoped to the stage so it
-   outranks the `font: inherit` resets in the rules above. */
-.app-stage :is(
-  .help-body, .liss-context, .session-banner, .error-msg, .warn-note
-) { font-family: var(--font-text); }
-.app-stage :is(.help-body code, .help-body kbd) { font-family: var(--font-ui); }

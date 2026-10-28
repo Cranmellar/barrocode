@@ -18,7 +18,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 
 - **Vite 5** + **React 18** + **TypeScript** (strict mode via `tsc &&` before `vite build`)
 - **No UI library**, no state manager, no router. All styles live in `src/index.css`. State is plain React `useState` in `App.tsx`.
-- Fonts: `GSCode` (variable, `public/fonts/`) is the interface face (`--font-ui`); Geist (`@fontsource-variable/geist`, bundled so it works offline) is only for running text (`--font-text`: help, context lines, banners, warnings).
+- Font: `GSCode` (variable, roman and italic, `public/fonts/`) for all text (`--font-ui`). Section titles use the italic.
 
 | Command | Purpose |
 |---|---|

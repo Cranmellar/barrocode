@@ -68,7 +68,7 @@ const LAYER_SLIDER_W = 44 + STAGE_GAP;
 
 
 const VIEW_PRESETS = [
-  { label: 'Iso',    azimuth: 325, elevation: 28, title: 'Vista isométrica' },
+  { label: 'Isométrica', azimuth: 325, elevation: 28, title: 'Vista isométrica' },
   { label: 'Planta', azimuth: 0,   elevation: 90, title: 'Vista superior (X → derecha, Y ↑)' },
   { label: 'Frente', azimuth: 0,   elevation: 0,  title: 'Vista frontal (X → derecha, Z ↑)' },
 ];
@@ -426,9 +426,10 @@ export function Preview2D({
         <div className="bar-group">
           <button className="btn-icon" onClick={() => fitView()} aria-label="Encuadrar la pieza"
             title="Encuadrar la pieza. En la vista: arrastrar = desplazar · clic derecho = rotar · rueda = zoom">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5"
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M1.5 5V1.5H5M9 1.5h3.5V5M12.5 9v3.5H9M5 12.5H1.5V9" />
+              <path d="M1.5 5V1.5H5M11 1.5h3.5V5M14.5 11v3.5H11M5 14.5H1.5V11" />
+              <path d="M8 4.6l3 1.7v3.4L8 11.4 5 9.7V6.3zM5 6.3l3 1.7 3-1.7M8 8v3.4" strokeWidth="1.2" />
             </svg>
           </button>
           <div className="view-presets" role="group" aria-label="Vistas">
