@@ -358,8 +358,10 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
+/* Wide enough for "capa 500 · 1250 mm", so the track never resizes mid-drag. */
 .timeline-layer {
   display: block;
+  min-width: 18ch;
   margin-top: 2px;
   font-size: var(--fs-xs);
   color: var(--muted);

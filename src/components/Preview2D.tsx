@@ -19,7 +19,7 @@ import { findKeyframeAt } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import { summarizeGcode } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt, layerAtT, layerLabel,
+  type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt, layerAtT, layerLabel, layerStartTs,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
@@ -101,6 +101,9 @@ const LAYER_SLIDER_W = 44 + STAGE_GAP;
 // Keyframe appear / disappear and keyframe-editor close, matching index.css.
 const KF_POP_MS = 320;
 const KF_LEAVE_MS = 180;
+// A dragged keyframe snaps to a layer's start (its seam) within this many
+// pixels of the timeline; Alt drags freely.
+const KF_SNAP_PX = 6;
 const EDITOR_LEAVE_MS = 160;
 
 // Diamond size while popping in: overshoots to 1.25, settles at 1.
@@ -185,14 +188,13 @@ export function Preview2D({
   // ── Keyframe drag refs ────────────────────────────────────────────────────
   const kfDragRef    = useRef<{ id: string; startX: number; moved: boolean } | null>(null);
   const [draggingKfId, setDraggingKfId] = useState<string | null>(null);
+  const [dragSnapped, setDragSnapped] = useState(false);
   const trackRef     = useRef<HTMLDivElement>(null);
   // Stable refs so window handlers never capture stale closure values
-  const kfsRef          = useRef(keyframes);
   const onKfsRef        = useRef(onKeyframesChange);
   const selectedKfIdRef = useRef(selectedKfId);
   const onKfSelectRef   = useRef(onKfSelect);
   const onTimelineRef   = useRef(onTimelineChange);
-  useEffect(() => { kfsRef.current          = keyframes;         }, [keyframes]);
   useEffect(() => { onKfsRef.current        = onKeyframesChange; }, [onKeyframesChange]);
   useEffect(() => { selectedKfIdRef.current = selectedKfId;      }, [selectedKfId]);
   useEffect(() => { onKfSelectRef.current   = onKfSelect;        }, [onKfSelect]);
@@ -267,6 +269,9 @@ export function Preview2D({
 
   const flatPoints = useMemo(() => flattenPoints(toolpath), [toolpath]);
   const layerLabelAt = (t: number) => layerLabel(layerAtT(toolpath, t), params.layerHeight);
+  const layerStarts = useMemo(() => layerStartTs(toolpath), [toolpath]);
+  const layerStartsRef = useRef(layerStarts);
+  useEffect(() => { layerStartsRef.current = layerStarts; }, [layerStarts]);
 
   const modelBounds = useMemo(() => {
     if (flatPoints.length === 0) return null;
@@ -275,6 +280,31 @@ export function Preview2D({
 
   // ── Keyframe drag (window-level so it works outside the track) ───────────
   useEffect(() => {
+    // Each move re-runs the wave pipeline, so moves are applied at most
+    // once per frame, from the latest pointer position.
+    let pending: { x: number; free: boolean } | null = null;
+    let frame = 0;
+    function apply() {
+      frame = 0;
+      const d = kfDragRef.current;
+      const m = pending;
+      pending = null;
+      if (!d || !m || !trackRef.current) return;
+      const rect = trackRef.current.getBoundingClientRect();
+      const rawT = Math.max(0, Math.min(1, (m.x - rect.left) / rect.width));
+      let newT = rawT;
+      if (!m.free) {
+        let best = KF_SNAP_PX / rect.width;
+        for (const s of layerStartsRef.current) {
+          if (Math.abs(s - rawT) < best) { best = Math.abs(s - rawT); newT = s; }
+        }
+      }
+      const snapped = newT !== rawT;
+      setDragSnapped(snapped);
+      // Unsorted until release, so numbers hold while passing a neighbour.
+      onKfsRef.current(kfs => kfs.map(k => k.id === d.id ? { ...k, t: newT } : k));
+      onTimelineRef.current(newT);
+    }
     function onMove(e: MouseEvent) {
       const d = kfDragRef.current;
       if (!d || !trackRef.current) return;
@@ -286,15 +316,13 @@ export function Preview2D({
         // Dragging a keyframe also opens it, so its editor and the extruder follow along.
         if (d.id !== selectedKfIdRef.current) onKfSelectRef.current(d.id);
       }
-      const rect = trackRef.current.getBoundingClientRect();
-      const newT  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      // Unsorted until release, so numbers hold while passing a neighbour.
-      onKfsRef.current(kfsRef.current.map(k => k.id === d.id ? { ...k, t: newT } : k));
-      onTimelineRef.current(newT);
+      pending = { x: e.clientX, free: e.altKey };
+      if (!frame) frame = requestAnimationFrame(apply);
     }
     function onUp() {
       const d = kfDragRef.current;
       if (!d) return;
+      if (frame) { cancelAnimationFrame(frame); apply(); }
       if (d.moved) onKfsRef.current(kfs => [...kfs].sort((a, b) => a.t - b.t));
       else onKfSelectRef.current(d.id);
       kfDragRef.current = null;
@@ -306,6 +334,7 @@ export function Preview2D({
     return () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup',   onUp);
+      cancelAnimationFrame(frame);
     };
   }, []); // stable — all state accessed through refs
 
@@ -818,7 +847,7 @@ export function Preview2D({
                         e.stopPropagation();
                         kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
                       }}
-                      title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% · ${layerLabelAt(kf.t)} — clic para editar, arrastrar para mover`}
+                      title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% · ${layerLabelAt(kf.t)} — clic para editar, arrastrar para mover (se ajusta al inicio de capa; Alt para mover libre)`}
                     >{i + 1}</div>
                   );
                 })}
@@ -832,7 +861,7 @@ export function Preview2D({
                   const kf = keyframes.find(k => k.id === draggingKfId);
                   return kf && (
                     <span className="kf-drag-label" style={{ left: `${kf.t * 100}%` }}>
-                      {(kf.t * 100).toFixed(1)}% · {layerLabelAt(kf.t)}
+                      {(kf.t * 100).toFixed(1)}% · {dragSnapped ? 'inicio de ' : ''}{layerLabelAt(kf.t)}
                     </span>
                   );
                 })()}

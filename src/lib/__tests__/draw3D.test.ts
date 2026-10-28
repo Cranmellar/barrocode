@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { project, keyframeAt, layerAtT, flattenPoints, layerLabel } from '../draw3D';
+import { project, keyframeAt, layerAtT, flattenPoints, layerLabel, layerStartTs } from '../draw3D';
 import type { ToolpathLayer } from '../toolpath';
 import type { WaveKeyframe } from '../../types';
 
@@ -68,6 +68,12 @@ describe('layerAtT', () => {
       const t = i / 200;
       expect(layerAtT(toolpath, t)).toBe(flat[Math.floor(t * (flat.length - 1))].layerIndex);
     }
+  });
+
+  it('puts each layer start on that layer\'s first point', () => {
+    const starts = layerStartTs(toolpath);
+    expect(starts.map(t => layerAtT(toolpath, t))).toEqual([0, 1, 2]);
+    expect(starts.map(t => layerAtT(toolpath, t - 0.01))).toEqual([0, 0, 1]);
   });
 
   it('labels the layer 1-based with the height at its top', () => {

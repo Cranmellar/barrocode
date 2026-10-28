@@ -91,6 +91,20 @@ export function layerAtT(toolpath: ToolpathLayer[], t: number): number {
   return toolpath.length > 0 ? toolpath[toolpath.length - 1].index : 0;
 }
 
+// Timeline position of each layer's first point (its seam), nudged past
+// rounding so layerAtT lands on that layer.
+export function layerStartTs(toolpath: ToolpathLayer[]): number[] {
+  const sizes = toolpath.map(l => l.paths.reduce((n, p) => n + p.length, 0));
+  const denom = Math.max(1, sizes.reduce((a, b) => a + b, 0) - 1);
+  const ts: number[] = [];
+  let start = 0;
+  for (const n of sizes) {
+    ts.push(Math.min(1, (start + 1e-6) / denom));
+    start += n;
+  }
+  return ts;
+}
+
 // "capa 23 · 34.5 mm": the 1-based layer and the part's height at its top,
 // which for the last layer matches the height under Cotas.
 export function layerLabel(layerIndex: number, layerHeight: number): string {

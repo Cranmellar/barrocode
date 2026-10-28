@@ -173,7 +173,7 @@ export function HelpDialog({ open, onClose }: Props) {
               número y color, iguales en la línea de tiempo, la vista 3D y los paneles.
               Selecciona uno (clic en su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
               derecho; su posición, giro, escala y centro sobre la línea de tiempo. Arrastra su rombo
-              para moverlo. Entre keyframes los valores se interpolan. Con keyframes activos,
+              para moverlo: se ajusta al inicio de cada capa (con <kbd>Alt</kbd>, libre). Entre keyframes los valores se interpolan. Con keyframes activos,
               los ajustes por trayecto se ignoran.
             </p>
           </section>
