@@ -23,6 +23,8 @@ interface Props {
 type Wave = [ampN: number, ampT: number, wlN: number, wlT: number, delta: number];
 
 const MORPH_MS = 250;
+// One lap of the dot around the figure.
+const LAP_MS = 5000;
 
 function useMorph(target: Wave, trigger: number): Wave {
   const [shown, setShown] = useState(target);
@@ -126,8 +128,7 @@ export function LissajousPreview({ params, morph = 0 }: Props) {
       [offsetX + t * scale, offsetY - n * scale];
 
     // Animated travel dot
-    const T_PERIOD = 5000;
-    const prog  = (timeRef.current % T_PERIOD) / T_PERIOD;
+    const prog  = (timeRef.current % LAP_MS) / LAP_MS;
     const dotI  = Math.floor(prog * (pts.length - 1));
     const dotPt = pts[dotI];
     const [dx, dy] = toCanvas(dotPt.t, dotPt.n);
@@ -238,22 +239,26 @@ export function LissajousPreview({ params, morph = 0 }: Props) {
     drawDot();
   }, [size, fontEpoch, autoFit, lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta, drawDot]);
 
-  // Animation loop — skips when both amplitudes are ~0
+  // The dot runs one lap after the figure changes, then rests where it is:
+  // a loop that never stopped kept ≈12 % of a core busy while idle. It skips
+  // when both amplitudes are ~0.
   const hasContent = lissAmpN > 0.01 || lissAmpT > 0.01;
+  const figureKey = [lissAmpN, lissAmpT, lissWlN, lissWlT, lissDelta].join('|');
 
   useEffect(() => {
-    if (!hasContent) return;
+    if (!hasContent || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     let last = performance.now();
+    const stopAt = last + LAP_MS;
     function tick(now: number) {
       // The first rAF timestamp can predate the performance.now() taken above.
       timeRef.current += Math.max(0, now - last);
       last = now;
       drawDot();
-      rafRef.current = requestAnimationFrame(tick);
+      if (now < stopAt) rafRef.current = requestAnimationFrame(tick);
     }
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawDot, hasContent]);
+  }, [drawDot, hasContent, figureKey]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
