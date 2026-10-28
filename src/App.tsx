@@ -91,6 +91,8 @@ const BAR_H   = 40;
 const NARROW_W = 1280;
 const TIMELINE_GLIDE_MS = 220;
 const TOAST_MS = 2200;
+// How long "Borrar todos" waits for its confirming second click.
+const CLEAR_CONFIRM_MS = 3000;
 // Matches the panel-leave animation in index.css.
 const PANEL_LEAVE_MS = 140;
 
@@ -326,7 +328,17 @@ export default function App() {
     setSelectedKfId(null);
   }
 
+  // There is no undo, so clearing every keyframe takes a second click.
+  const [clearArmed, setClearArmed] = useState(false);
+  useEffect(() => {
+    if (!clearArmed) return;
+    const id = setTimeout(() => setClearArmed(false), CLEAR_CONFIRM_MS);
+    return () => clearTimeout(id);
+  }, [clearArmed]);
+  useEffect(() => setClearArmed(false), [keyframes, selectedKfId]);
+
   function clearAllKeyframes() {
+    if (!clearArmed) { setClearArmed(true); return; }
     setKeyframes([]);
     setSelectedKfId(null);
   }
@@ -614,9 +626,12 @@ export default function App() {
         </button>
       )}
       {!selectedKf && keyframes.length > 0 && (
-        <button className="btn-reset kf-clear-btn" onClick={clearAllKeyframes}
-          title="Eliminar todos los keyframes">
-          Borrar todos
+        <button className={`btn-reset kf-clear-btn${clearArmed ? ' kf-clear-btn--armed' : ''}`}
+          onClick={clearAllKeyframes} onBlur={() => setClearArmed(false)}
+          title={clearArmed ? 'Pulsa otra vez para borrar todos los keyframes' : 'Eliminar todos los keyframes'}>
+          {clearArmed
+            ? keyframes.length === 1 ? '¿Borrar el keyframe?' : `¿Borrar los ${keyframes.length}?`
+            : 'Borrar todos'}
         </button>
       )}
     </div>

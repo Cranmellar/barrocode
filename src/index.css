@@ -1324,6 +1324,8 @@ input[type="range"]::-moz-range-thumb {
 .kf-add-btn:hover:not(:disabled) { background: var(--signal-hi); border-color: var(--signal-hi); }
 .kf-del-btn { color: var(--err); }
 .kf-del-btn:hover { background: var(--err-bg); color: var(--err); }
+.kf-clear-btn--armed,
+.kf-clear-btn--armed:hover:not(:disabled) { background: var(--err-bg); color: var(--err); }
 
 /* ── Keyframe navigation ─────────────────────────────────────────────────── */
 .kf-nav { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
