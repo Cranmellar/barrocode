@@ -18,7 +18,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 
 - **Vite 5** + **React 18** + **TypeScript** (strict mode via `tsc &&` before `vite build`)
 - **No UI library**, no state manager, no router. All styles live in `src/index.css`. State is plain React `useState` in `App.tsx`.
-- Custom variable-weight font `GSCode` loaded from `public/fonts/`.
+- Fonts: `GSCode` (variable, `public/fonts/`) is the interface face (`--font-ui`); Geist (`@fontsource-variable/geist`, bundled so it works offline) is only for running text (`--font-text`: help, context lines, banners, warnings).
 
 | Command | Purpose |
 |---|---|
@@ -364,7 +364,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 ## CSS
 
 - Design tokens in `:root` at the top of `src/index.css`: colours, type (`--fs-xs…xl` = 10/11/12/14/18 px, `--fw-regular` 450 / `--fw-strong` 600), spacing (`--sp-1…6`), radii, shadows, motion. Use them; don't hardcode values. The overhaul plan and its design direction are in [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md).
-- Art direction: clean, Claude-like. Neutral greys, white surfaces, ink (`--accent` = `--ink`) for everyday interaction. **`--signal` (`#FF5A1F`, ink text on it) is reserved** for the final export action, adding a keyframe and the keyboard focus ring (`--focus`); don't use it anywhere else. `--shadow-float` only on floating containers and menus.
+- Art direction: clean, Claude-like. Neutral greys, white surfaces, dark grey rather than black (`--ink` `#38383E`; `--accent` `#4A4A51` for sliders and primary buttons). **`--signal` (`#FF5A1F`, white text on it) is reserved** for the final export action, adding a keyframe and the keyboard focus ring (`--focus`); don't use it anywhere else. `--shadow-float` only on floating containers and menus.
 - Sentence case everywhere: no `text-transform: uppercase`, no letter-spacing. Hierarchy comes from weight and ink (`--ink` / `--ink-2` / `--muted`), not caps.
 - Every `font-weight` must be paired with `font-variation-settings: 'wght' N`: `:root` sets the variation, which overrides a plain `font-weight` on GSCode.
 - Smallest text size in CSS is **10px** (`--fs-xs`). Don't go below. (Some canvas captions are still 7–9 px; overhaul phase 2 removes or enlarges them.)
