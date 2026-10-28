@@ -370,7 +370,7 @@ export function drawScene(
   // ── Orientation gizmo (bottom-right) ───────────────────────────────────
   {
     // GR = circle radius; GL = axis arm length (must be < GR so labels stay inside)
-    const GR = 24, GL = 13;
+    const GR = 30, GL = 13;
     const GX = inset.left + GR + 4, GY = H - inset.bottom - GR - 4;
 
     // Frosted circle background

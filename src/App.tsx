@@ -1,10 +1,11 @@
-import { useState, useCallback, useEffect, useMemo, useRef, type CSSProperties } from 'react';
+import { useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
+import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
@@ -13,6 +14,7 @@ import { PathList } from './components/PathList';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
+import { Icon } from './components/icons';
 
 const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#55555D"/></svg>`;
 const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#55555D"/></svg>`;
@@ -112,6 +114,25 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6"
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d={dir === 'left' ? 'M7.5 2.5 4 6l3.5 3.5' : 'M4.5 2.5 8 6l-3.5 3.5'} />
+    </svg>
+  );
+}
+
+// A keyframe between two straight segments: a corner, or reached and left flat when smooth.
+function EaseGlyph({ smooth }: { smooth: boolean }) {
+  const id = useId();
+  return (
+    <svg className="kf-ease-glyph" width="44" height="24" viewBox="0 0 44 24" fill="none" stroke={`url(#${id})`}
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <defs>
+        <linearGradient id={id} gradientUnits="userSpaceOnUse" x1="2" y1="0" x2="42" y2="0">
+          {[0, 0.25, 0.5, 0.75, 1].map(t => <stop key={t} offset={t} stopColor={rampColor(t)} />)}
+        </linearGradient>
+      </defs>
+      <path d={smooth ? 'M2 21C10 16 14 4 22 4C30 4 34 16 42 21' : 'M2 21C10 15 14 10 22 4C30 10 34 15 42 21'} />
+      {smooth
+        ? <circle cx="22" cy="4" r="2.6" fill={`url(#${id})`} />
+        : <path d="M22 1.2 24.8 4 22 6.8 19.2 4z" fill={`url(#${id})`} />}
     </svg>
   );
 }
@@ -711,7 +732,7 @@ export default function App() {
           </div>
         </div>
         <div className="kf-field" title="Giro alrededor del centro, antihorario visto desde arriba. Entre keyframes se interpola: 0° → 360° da una vuelta completa.">
-          <label>Giro</label>
+          <label><Icon name="giro" size={11} />Giro</label>
           <div className="kf-field-input-row">
             <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
               onChange={v => updateKf('rotation', v)} />
@@ -722,14 +743,14 @@ export default function App() {
 
       <div className="kf-group">
         <div className="kf-field">
-          <label>Escala X</label>
+          <label><Icon name="escalaX" size={11} />Escala X</label>
           <div className="kf-field-input-row">
             <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
               onChange={v => updateKf('scaleX', v)} />
           </div>
         </div>
         <div className="kf-field">
-          <label>Escala Y</label>
+          <label><Icon name="escalaY" size={11} />Escala Y</label>
           <div className="kf-field-input-row">
             <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
               onChange={v => updateKf('scaleY', v)} />
@@ -740,6 +761,7 @@ export default function App() {
       <div className="kf-group kf-group-ease">
         <div className="kf-field" title="Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, los tramos son rectos.">
           <label>Transición</label>
+          <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
           <label className="kf-switch">
             <input type="checkbox" checked={Boolean(selectedKf.smooth)}
               onChange={e => updateKf('smooth', e.target.checked)} />
@@ -767,7 +789,7 @@ export default function App() {
         </div>
         <div className="kf-center-fields">
           <div className="kf-field">
-            <label>Centro X</label>
+            <label><Icon name="centro" size={11} />Centro X</label>
             <div className="kf-field-input-row">
               <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={5} fineStep={1}
                 onChange={v => updateKf('centerX', v)} />
@@ -775,7 +797,7 @@ export default function App() {
             </div>
           </div>
           <div className="kf-field">
-            <label>Centro Y</label>
+            <label><Icon name="centro" size={11} />Centro Y</label>
             <div className="kf-field-input-row">
               <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={5} fineStep={1}
                 onChange={v => updateKf('centerY', v)} />
@@ -909,8 +931,8 @@ export default function App() {
         </aside>
       ) : (
         <aside className="float-panel panel-rail panel-rail--left" style={{ width: RAIL_W }}>
-          <button className="btn-icon" onClick={() => togglePanel('left')}
-            title="Mostrar panel de pieza" aria-label="Mostrar panel izquierdo"><Chevron dir="right" /></button>
+          <button className="btn-icon rail-open" onClick={() => togglePanel('left')}
+            title="Mostrar panel de pieza" aria-label="Mostrar panel izquierdo"><Icon name="pieza" size={16} /><Chevron dir="right" /></button>
           <button className="btn-icon" onClick={() => setHelpOpen(true)} title="Ayuda (?)" aria-label="Ayuda">?</button>
         </aside>
       )}
@@ -943,8 +965,8 @@ export default function App() {
         </aside>
       ) : (
         <aside className="float-panel panel-rail panel-rail--right" style={{ width: RAIL_W }}>
-          <button className="btn-icon" onClick={() => togglePanel('right')}
-            title="Mostrar panel de onda" aria-label="Mostrar panel de onda"><Chevron dir="left" /></button>
+          <button className="btn-icon rail-open" onClick={() => togglePanel('right')}
+            title="Mostrar panel de onda" aria-label="Mostrar panel de onda"><Icon name="onda" size={16} /><Chevron dir="left" /></button>
         </aside>
       )}
 
