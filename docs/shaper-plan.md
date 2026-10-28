@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0, F1 y F2 hechas (ver sección 6); el resto, propuesta.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F3 hechas (ver sección 6); el resto, propuesta.
 
 ---
 
@@ -143,6 +143,8 @@ Esto es lo propio de BarroCode, que ningún referente tiene.
 - `DiscoveryGrid`: 3×3 miniaturas de la familia activa. Clic adopta una; *Más como esta* reduce los rangos alrededor de la elegida; *Otra tanda* cambia la semilla. Las que fallan la imprimibilidad se atenúan.
 - La semilla y los parámetros se guardan, así que una forma se comparte como unos pocos números.
 - **Hecho cuando:** la misma semilla reproduce la misma grilla (test) y la grilla responde en < 50 ms.
+- **Hecho (2026-10-28).** *Descubrir* (barra superior de *Forma*) cubre el lienzo con una grilla de 3×3 de la familia activa. Cada miniatura usa el tamaño, el giro y la costura actuales y se atenúa con "N avisos" si la onda no puede seguirla (F2). Un clic la adopta: solo cambian los parámetros de la familia. *Otra tanda* sortea de nuevo en todo el rango; *Más como esta* sortea alrededor de la forma actual con la ventana reducida a 0,4 de la anterior (mínimo 0,05). Los rangos de los sliders y los de exploración (sin los extremos, y en escala logarítmica para agudeza y n1–n3) están en una sola tabla, `FAMILY_PARAMS` en `shape.ts`, que usan el panel y `discovery.ts`. Con m impar, la variante guarda n3 = n2, el valor que usa el contorno. Tests: misma semilla, misma grilla; valores dentro de rango y en el paso del slider; la ventana estrecha queda cerca de la base. En Chromium, de un clic en *Otra tanda* al siguiente fotograma: 13–25 ms en las tres familias.
+  - **Cambio respecto al plan:** la semilla no se guarda en la forma. Lo que se comparte es la forma adoptada, que ya son unos pocos números (sus parámetros); la semilla solo reproduce una tanda.
 
 ### F4 — Edición del trazado (SvgPathEditor) (2–3 sesiones)
 

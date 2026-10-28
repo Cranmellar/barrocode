@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { DiscoveryGrid } from './components/DiscoveryGrid';
 import { FamilyPanel } from './components/FamilyPanel';
+import { MIN_SPREAD, NARROW, type Batch, type Variant } from './lib/discovery';
 import { PrintCheck } from './components/PrintCheck';
 import { checkShape, spotIndices, type WaveLimit } from './lib/printability';
 import { DEFAULT_SHAPE, FAMILY_FILES, fmt, shapeBounds, shapeLabel, shapePath, shapePoints, type ShapeDoc } from './lib/shape';
@@ -36,6 +38,16 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
   const frame = Math.max(100, Math.ceil((doc.sizeMM * 1.3) / 20) * 20);
   const grid = frame <= 300 ? 10 : 50;
   const reach = Math.ceil((frame * 2) / grid) * grid;
+
+  // Non-null while the discovery grid is open.
+  const [batch, setBatch] = useState<Batch | null>(null);
+  const newSeed = () => Math.floor(Math.random() * 2 ** 31);
+  // Another family's tab gets a fresh batch of its own.
+  useEffect(() => {
+    setBatch(b => b && b.base.family !== doc.family ? { base: doc, spread: 1, seed: newSeed() } : b);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [doc.family]);
+  const adopt = (v: Variant) => onChange({ ...doc, ...v });
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -108,8 +120,17 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
         </div>
       </aside>
 
+      {batch && (
+        <DiscoveryGrid doc={doc} batch={batch} wave={wave} onAdopt={adopt}
+          onMore={() => setBatch({ base: doc, spread: Math.max(MIN_SPREAD, batch.spread * NARROW), seed: newSeed() })}
+          onAnother={() => setBatch({ base: doc, spread: 1, seed: newSeed() })} />
+      )}
+
       <div className="stage-bar shaper-bar">
         <div className="bar-group bar-group--end">
+          <button className={`btn-toggle${batch ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch}
+            onClick={() => setBatch(batch ? null : { base: doc, spread: 1, seed: newSeed() })}
+            title="Ver nueve variaciones de esta familia y elegir con el ojo">Descubrir</button>
           <span className="stage-summary">{shapeLabel(doc)}</span>
           <button className="btn-primary" onClick={() => onSend(shapeToSvg(doc), FAMILY_FILES[doc.family])}
             title="Cargar esta forma en Impresión, a su tamaño real">Enviar a impresión</button>

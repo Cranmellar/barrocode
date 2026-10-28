@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { NumInput } from '../../components/NumInput';
 import { superformulaN3 } from '../lib/families';
-import { DEFAULT_SHAPE, familyName, type Family, type ShapeDoc } from '../lib/shape';
+import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
 
 interface Props { doc: ShapeDoc; onChange: (doc: ShapeDoc) => void }
 
@@ -9,8 +9,6 @@ const FAMILIES: Family[] = ['lobes', 'polygon', 'superformula'];
 
 // A pointer drag snaps to the default within this fraction of the range.
 const SNAP = 0.015;
-
-type NumKey = { [K in keyof ShapeDoc]: ShapeDoc[K] extends number ? K : never }[keyof ShapeDoc];
 
 function Slider({ label, value, min, max, step, unit, hint, def, disabled, onChange }: {
   label: string; value: number; min: number; max: number; step: number;
@@ -87,10 +85,13 @@ function Sec({ title, children }: { title: string; children: ReactNode }) {
 
 export function FamilyPanel({ doc, onChange }: Props) {
   const set = <K extends keyof ShapeDoc>(k: K, v: ShapeDoc[K]) => onChange({ ...doc, [k]: v });
-  const slider = (k: NumKey, label: string, min: number, max: number, step: number, unit?: string, hint?: string) => (
-    <Slider label={label} value={doc[k]} min={min} max={max} step={step} unit={unit} hint={hint}
-      def={DEFAULT_SHAPE[k]} onChange={v => set(k, v)} />
-  );
+  const slider = (k: FamilyKey, label: string, unit?: string, hint?: string) => {
+    const { min, max, step } = paramSpec(k);
+    return (
+      <Slider label={label} value={doc[k]} min={min} max={max} step={step} unit={unit} hint={hint}
+        def={DEFAULT_SHAPE[k]} onChange={v => set(k, v)} />
+    );
+  };
   const famIdx = FAMILIES.indexOf(doc.family);
   const oddM = doc.sfM % 2 === 1;
 
@@ -109,25 +110,26 @@ export function FamilyPanel({ doc, onChange }: Props) {
       <div key={doc.family} className="tab-pane" role="tabpanel">
         {doc.family === 'lobes' && (
           <Sec title="Lóbulos">
-            {slider('lobeCount', 'Número', 2, 24, 1)}
-            {slider('lobeDepthPct', 'Profundidad', 0, 90, 1, '%', 'Cuánto se hunden los valles respecto a las crestas')}
-            {slider('lobeSharp', 'Agudeza', 0.2, 5, 0.1, undefined,
+            {slider('lobeCount', 'Número')}
+            {slider('lobeDepthPct', 'Profundidad', '%', 'Cuánto se hunden los valles respecto a las crestas')}
+            {slider('lobeSharp', 'Agudeza', undefined,
               '1: ondulación suave. Más de 1: lóbulos estrechos como pétalos. Menos de 1: valles en punta')}
           </Sec>
         )}
         {doc.family === 'polygon' && (
           <Sec title="Polígono">
-            {slider('polySides', 'Lados', 3, 24, 1, undefined, 'Con estrella, número de puntas')}
-            {slider('polyStarPct', 'Estrella', 0, 90, 1, '%', '0: polígono regular. Más: las puntas se separan y los vértices interiores se hunden')}
-            {slider('polyFilletMM', 'Radio de esquina', 0, 40, 0.5, 'mm', 'Redondeo de cada esquina; se reduce donde el lado es demasiado corto')}
+            {slider('polySides', 'Lados', undefined, 'Con estrella, número de puntas')}
+            {slider('polyStarPct', 'Estrella', '%', '0: polígono regular. Más: las puntas se separan y los vértices interiores se hunden')}
+            {slider('polyFilletMM', 'Radio de esquina', 'mm', 'Redondeo de cada esquina; se reduce donde el lado es demasiado corto')}
           </Sec>
         )}
         {doc.family === 'superformula' && (
           <Sec title="Superfórmula">
-            {slider('sfM', 'Simetría (m)', 0, 24, 1, undefined, 'Número de repeticiones alrededor del centro')}
-            {slider('sfN1', 'n1', 0.2, 20, 0.1, undefined, 'Hinchazón: bajo, puntas afiladas; alto, forma llena')}
-            {slider('sfN2', 'n2', 0.2, 20, 0.1, undefined, 'Forma de cada repetición')}
-            <Slider label="n3" min={0.2} max={20} step={0.1} def={DEFAULT_SHAPE.sfN3} disabled={oddM}
+            {slider('sfM', 'Simetría (m)', undefined, 'Número de repeticiones alrededor del centro')}
+            {slider('sfN1', 'n1', undefined, 'Hinchazón: bajo, puntas afiladas; alto, forma llena')}
+            {slider('sfN2', 'n2', undefined, 'Forma de cada repetición')}
+            <Slider label="n3" min={paramSpec('sfN3').min} max={paramSpec('sfN3').max} step={paramSpec('sfN3').step}
+              def={DEFAULT_SHAPE.sfN3} disabled={oddM}
               value={superformulaN3(doc.sfM, doc.sfN2, doc.sfN3)}
               hint={oddM ? 'Con m impar, n3 sigue a n2 para que la forma cierre' : 'Forma de cada repetición, lado contrario'}
               onChange={v => set('sfN3', v)} />

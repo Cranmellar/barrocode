@@ -46,6 +46,50 @@ export const DEFAULT_SHAPE: ShapeDoc = {
   lobeSharp: 1,
 };
 
+/** The family parameters' numeric fields. */
+export type FamilyKey =
+  | 'sfM' | 'sfN1' | 'sfN2' | 'sfN3'
+  | 'polySides' | 'polyStarPct' | 'polyFilletMM'
+  | 'lobeCount' | 'lobeDepthPct' | 'lobeSharp';
+
+export interface ParamSpec {
+  key: FamilyKey;
+  min: number;
+  max: number;
+  step: number;
+  /** Sample on a log scale: the shape changes as much from 0.5 to 1 as from 5 to 10. */
+  log?: boolean;
+  /** Where a fresh discovery batch draws from: the slider's range minus its extremes. */
+  explore: [number, number];
+}
+
+export const FAMILY_PARAMS: Record<Family, ParamSpec[]> = {
+  lobes: [
+    { key: 'lobeCount', min: 2, max: 24, step: 1, explore: [3, 12] },
+    { key: 'lobeDepthPct', min: 0, max: 90, step: 1, explore: [5, 60] },
+    { key: 'lobeSharp', min: 0.2, max: 5, step: 0.1, log: true, explore: [0.3, 4] },
+  ],
+  polygon: [
+    { key: 'polySides', min: 3, max: 24, step: 1, explore: [3, 10] },
+    { key: 'polyStarPct', min: 0, max: 90, step: 1, explore: [0, 60] },
+    { key: 'polyFilletMM', min: 0, max: 40, step: 0.5, explore: [0, 15] },
+  ],
+  superformula: [
+    { key: 'sfM', min: 0, max: 24, step: 1, explore: [2, 12] },
+    { key: 'sfN1', min: 0.2, max: 20, step: 0.1, log: true, explore: [0.3, 12] },
+    { key: 'sfN2', min: 0.2, max: 20, step: 0.1, log: true, explore: [0.3, 12] },
+    { key: 'sfN3', min: 0.2, max: 20, step: 0.1, log: true, explore: [0.3, 12] },
+  ],
+};
+
+export function paramSpec(key: FamilyKey): ParamSpec {
+  for (const specs of Object.values(FAMILY_PARAMS)) {
+    const spec = specs.find(s => s.key === key);
+    if (spec) return spec;
+  }
+  throw new Error(key);
+}
+
 // Spacing of the output outline; parseSVG samples it again at sampleSpacing.
 const SPACING_MM = 0.25;
 const MIN_PTS = 64;
