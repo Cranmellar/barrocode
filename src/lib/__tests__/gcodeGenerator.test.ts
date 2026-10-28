@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath } from '../../types';
 import { generateWaveLayers } from '../waveGenerator';
 import { generateGcode } from '../gcodeGenerator';
+import { summarizeGcode } from '../gcodeStats';
 import { buildToolpath } from '../toolpath';
 import { CENTRE, PARAMS, curve, interpret, polyline, sampledPath } from './fixtures';
 
@@ -9,7 +10,8 @@ function run(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
   const params = { ...PARAMS, ...overrides };
   const layers = generateWaveLayers(paths, params, []);
   const toolpath = buildToolpath(layers, params, CENTRE);
-  return { params, gcode: generateGcode(toolpath, params), toolpath };
+  const { text: gcode, stats } = generateGcode(toolpath, params);
+  return { params, gcode, stats, toolpath };
 }
 
 const lemniscate = () => sampledPath('lemniscate', curve(u => {
@@ -85,6 +87,25 @@ describe('generateGcode — motion invariants', () => {
         expect(k).toBe(expected.length);
       });
     }
+  }
+});
+
+describe('generateGcode — summary', () => {
+  const variants: Partial<PrintParams>[] = [
+    ...CONFIGS,
+    { ...WAVE, ...HOP, numLayers: 3, generateE: false, primingMove: true },
+    { ...WAVE, numLayers: 2, dwellAtStart: 1500, skirtThreshold: 1 },
+  ];
+  for (const [name, geometry] of Object.entries(GEOMETRIES)) {
+    variants.forEach((config, i) => {
+      it(`matches the G-code read back — ${name} #${i}`, () => {
+        const { gcode, stats } = run(geometry(), config);
+        const read = summarizeGcode(gcode);
+        for (const k of ['timeSec', 'printLength', 'travelLength', 'eTotal'] as const) {
+          expect(stats[k]).toBeCloseTo(read[k], 6);
+        }
+      });
+    });
   }
 });
 

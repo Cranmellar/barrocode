@@ -3,7 +3,7 @@ import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types'
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
-import { generateGcode } from './lib/gcodeGenerator';
+import { generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
@@ -216,7 +216,7 @@ const LISS_PANEL_FIELDS: LissKey[] = KF_LISS_FIELDS.map(([pk]) => pk);
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
-  const [gcode, setGcode] = useState('');
+  const [program, setProgram] = useState<GcodeProgram | null>(null);
   // True from an edit until its debounced G-code is ready.
   const [gcodeBusy, setGcodeBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -580,14 +580,14 @@ export default function App() {
   useEffect(() => {
     if (gcodeTimerRef.current !== null) clearTimeout(gcodeTimerRef.current);
     if (toolpath.length === 0) {
-      setGcode('');
+      setProgram(null);
       setGcodeBusy(false);
       return;
     }
     setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
-      setGcode(generateGcode(toolpath, params));
+      setProgram(generateGcode(toolpath, params));
       setGcodeBusy(false);
     }, 400);
     return () => {
@@ -834,7 +834,8 @@ export default function App() {
         onKeyframesChange={setKeyframes}
         centerTab={centerTab}
         onTabChange={setCenterTab}
-        gcode={gcode}
+        gcode={program?.text ?? ''}
+        gcodeStats={program?.stats ?? null}
         gcodeBusy={gcodeBusy}
         gcodeFilename={gcodeFilename}
         toast={toast}

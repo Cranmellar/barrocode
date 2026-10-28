@@ -1,7 +1,8 @@
 /**
- * Summary of a generated G-code program, read back from the G-code itself
- * so it counts every move the printer will make (priming, skirt travel,
- * soft-join transitions, dwell), not just the toolpath.
+ * Summary of a G-code program, read back from the G-code itself so it counts
+ * every move the printer will make (priming, skirt travel, soft-join
+ * transitions, dwell), not just the toolpath. generateGcode keeps the same
+ * summary while it writes; this reader is the tests' reference for it.
  *
  * Time assumes each move runs at its programmed feedrate: no acceleration,
  * so real prints take somewhat longer. With E disabled every move counts as
