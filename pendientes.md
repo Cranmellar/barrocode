@@ -76,6 +76,38 @@ Orden de ejecución acordado: UI-1 → UI-2 → UI-3 → UI-4 → UI-5. Absorben
 - [x] **UI-4 — Panel derecho: slider + campo numérico y más densidad.** Ejecuta los tickets "Input fields en panel derecho" y "Panel derecho más denso".
 - [x] **UI-5 — Atajos y persistencia.** `K` añadir keyframe, `←/→` mover el extrusor, `G` alternar Trayectoria/G-code, listados en la ayuda. Restaurar la sesión anterior (Ola 7). Reemplazar los estilos inline con colores fijos del carrusel de muestras por tokens CSS.
 
+### Keyframes — pulido (propuesta oct. 2026)
+
+Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket. Orden propuesto: KF-A1 → A2 → A3 → A4 → B1 → B2 → C1; el resto según convenga.
+
+**A — Pulido rápido**
+
+- [x] **KF-A1 — Atajos coherentes.** Los botones ‹ › del dock anunciaban `←`/`→`, pero esas teclas movían el extrusor 1 %, y con un keyframe seleccionado lo alejaban de él mientras el panel seguía editándolo. Ahora, con un keyframe seleccionado, `←`/`→` saltan al anterior/siguiente; sin selección siguen moviendo el extrusor. Ayuda actualizada.
+- [ ] **KF-A2 — Número y color estables al arrastrar.** El número sale del orden y el color de `t`: arrastrar el keyframe 2 más allá del 3 lo renumera y recolorea a mitad del gesto. Congelarlos durante el arrastre y renumerar al soltar.
+- [ ] **KF-A3 — *Eliminar todos* en dos pasos.** Hoy borra con un clic y no hay deshacer. El botón pasa a "¿Eliminar N?" durante ≈3 s; sin diálogo.
+- [ ] **KF-A4 — Posición en capas y altura.** `t` es la fracción de puntos de todas las capas; el 50 % puede caer a mitad de vuelta. Mostrar capa y altura junto al % en la línea de tiempo, la etiqueta de arrastre y el campo *Posición* del dock (p. ej. "38 % · capa 23 · 34,5 mm").
+- [ ] **KF-A5 — Arrastre con imán y coalescido.** Imán al inicio de capa (la costura) a pocos px, `Alt` lo desactiva. Coalescer los `mousemove` con `requestAnimationFrame` (CLAUDE.md, *Performance* #7).
+
+**B — Entender la interpolación**
+
+- [ ] **KF-B1 — Panel de onda vivo.** Con keyframes y ninguno seleccionado, el panel muestra valores globales que no tienen efecto. Mostrar en gris los valores interpolados en el extrusor (`getParamsAtT`), que cambian al recorrer la línea de tiempo. Opcional (*auto-key*): tocar un slider en ese estado crea un keyframe en el extrusor. **Decisión pendiente** sobre el auto-key.
+- [ ] **KF-B2 — Curva del parámetro en la línea de tiempo.** Al pasar sobre un slider del panel o un campo del dock, dibujar en el carril de keyframes una curva pequeña de ese valor a lo largo de `t` (≈200 llamadas a `getParamsAtT`).
+- [ ] **KF-B3 — Diferencias con el keyframe anterior.** Marcar en el editor qué campos cambian respecto al anterior ("N 2 → 6 mm").
+
+**C — Edición más potente**
+
+- [ ] **KF-C1 — Suavizado por tramo.** Campo opcional `ease` en `WaveKeyframe` (*lineal* / *suave* / *mantener*) que modifica `alpha` en `lerpLocal`. Por defecto lineal, así que las snapshots no cambian. Evita el quiebre de pendiente en la pared en cada keyframe.
+- [ ] **KF-C2 — Duplicar y copiar.** "Duplicar en el extrusor" (`D`) y, por sección del panel (N, T, Z, transformación), "copiar del keyframe anterior".
+- [ ] **KF-C3 — Arrastrar el pivote en el visor 3D**, aplicado al keyframe seleccionado. Es el mismo ticket de *Pivot drag* (Ola 3), marcado hecho sin estarlo.
+- [ ] **KF-C4 — Fase con keyframes** (opcional): `lissPhaseOffset` y `phaseShiftPerLayer` interpolables, para rampas de torsión de la textura.
+
+**D — Decisiones abiertas**
+
+- [ ] **KF-D1 — Borrar el último keyframe.** Hoy la onda vuelve de golpe a los valores globales (bloqueados y quizá desfasados). Propuesta: copiar sus valores a los globales para que la pieza no cambie.
+- [ ] **KF-D2 — Keyframes al cargar otro SVG.** Hoy se conservan todos, con el centro del pivote (en mm) de la pieza anterior. Propuesta: conservar la onda, descartar centro/escala/giro y avisar con un toast.
+
+Relacionado: el escalón en la costura con keyframes de amplitud (*Accidentes de trayectoria*).
+
 ### Trayectoria — no planaridad
 
 Ya existe no planaridad parcial: oscilación Z por punto (`lissAmpZ`), z-hop parabólico y la rampa del soft join. Estos tickets la extienden. Restricciones transversales que todo ticket de esta sección debe respetar:
