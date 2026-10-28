@@ -1236,8 +1236,13 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1.45;
   color: var(--muted);
 }
-.shaper-actions { display: flex; gap: var(--sp-2); padding: var(--sp-1) var(--sp-4) var(--sp-2); }
+.shaper-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-1) var(--sp-4) var(--sp-2); }
 .shaper-actions--foot { padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border); }
+.shaper-actions .btn-small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.shaper-note--error { color: var(--err); }
+.path-commands-contour { margin: 0; padding: 0; list-style: none; }
+.path-command--head { cursor: default; color: var(--muted); padding-top: var(--sp-2); }
+.path-command--head:hover { background: none; }
 
 /* Path editing */
 .shaper-canvas { touch-action: none; }

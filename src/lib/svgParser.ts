@@ -53,6 +53,7 @@ function sampleElement(
   el: SVGGeometryElement,
   svgEl: SVGSVGElement,
   spacing: number,
+  tangents: boolean,
 ): SampledPoint[] {
   const totalLen = el.getTotalLength();
   if (totalLen <= 0) return [];
@@ -73,9 +74,10 @@ function sampleElement(
   for (let i = 0; i <= nSegments; i++) {
     const t = Math.min(i * step, totalLen);
 
+    // Each call can cost a fraction of a millisecond on a path with arcs.
     const rawP = el.getPointAtLength(t);
-    const rawP0 = el.getPointAtLength(Math.max(0, t - eps));
-    const rawP1 = el.getPointAtLength(Math.min(totalLen, t + eps));
+    const rawP0 = tangents ? el.getPointAtLength(Math.max(0, t - eps)) : rawP;
+    const rawP1 = tangents ? el.getPointAtLength(Math.min(totalLen, t + eps)) : rawP;
 
     let px: number, py: number;
     let ax: number, ay: number, bx: number, by: number;
@@ -295,7 +297,11 @@ function parseXML(svgString: string): Document {
   return doc;
 }
 
-export function parseSVG(svgString: string, spacing: number): ParsedSVG {
+/**
+ * `tangents` false samples a third as often and leaves every point's tangent
+ * and normal meaningless; for callers that only need the positions.
+ */
+export function parseSVG(svgString: string, spacing: number, tangents = true): ParsedSVG {
   const doc = parseXML(svgString);
 
   // Detect parser errors (malformed XML).
@@ -370,7 +376,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
 
     for (const part of parts) {
       const len = part.el.getTotalLength();
-      const pts = len > 0 ? sampleElement(part.el, liveSvgEl, spacing) : [];
+      const pts = len > 0 ? sampleElement(part.el, liveSvgEl, spacing, tangents) : [];
       if (part.el !== el) part.el.remove();
       if (pts.length < 2) continue;
       for (const p of pts) { p.x -= viewBox.x; p.y -= viewBox.y; }

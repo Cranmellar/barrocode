@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_SHAPE, shapeBounds, shapePoints, type ShapeDoc } from '../shape';
+import { DEFAULT_SHAPE, outerDiameter, shapeBounds, shapeLabel, shapeOutlines, shapePoints, type ShapeDoc } from '../shape';
+import { fitOutline } from '../fit';
 import { superformulaN3, type Pt } from '../families';
 import { shapeToSvg } from '../toSvg';
 
@@ -88,7 +89,7 @@ describe('shapePoints', () => {
 describe('shapeToSvg', () => {
   it('states its size in mm with one user unit per mm', () => {
     const doc = { ...DEFAULT_SHAPE, family: 'polygon' as const, polySides: 4, polyFilletMM: 0, rotation: 45, sizeMM: 80 };
-    const b = shapeBounds(shapePoints(doc));
+    const b = shapeBounds([shapePoints(doc)]);
     const svg = shapeToSvg(doc);
     const w = svg.match(/width="([\d.]+)mm"/)![1];
     const vb = svg.match(/viewBox="([^"]+)"/)![1].split(' ').map(Number);
@@ -106,5 +107,30 @@ describe('shapeToSvg', () => {
     const [x, y] = d.slice(1).split(/[ L]/).map(Number);
     expect(x).toBeCloseTo(0, 2);
     expect(y).toBeLessThan(0);
+  });
+});
+
+describe('contours', () => {
+  const ring = (r: number, cx: number) => fitOutline(
+    Array.from({ length: 400 }, (_, i) => ({ x: cx + r * Math.cos((2 * Math.PI * i) / 400), y: r * Math.sin((2 * Math.PI * i) / 400) })),
+    1,
+  ).nodes;
+  const doc: ShapeDoc = { ...DEFAULT_SHAPE, contours: [ring(30, -40), ring(10, 40)] };
+
+  it('prints each contour as its own path', () => {
+    const svg = shapeToSvg(doc);
+    expect(svg.match(/<path /g)).toHaveLength(2);
+    const outlines = shapeOutlines(doc);
+    expect(outlines).toHaveLength(2);
+    const b = shapeBounds(outlines);
+    expect(b.x).toBeCloseTo(-70, 0);
+    expect(b.width).toBeCloseTo(120, 0);
+    expect(b.height).toBeCloseTo(60, 0);
+  });
+
+  it('measures and names all of them', () => {
+    const outlines = shapeOutlines(doc);
+    expect(outerDiameter(outlines)).toBeCloseTo(140, 0);
+    expect(shapeLabel(doc, outlines)).toMatch(/2 contornos · Ø 140 mm$/);
   });
 });

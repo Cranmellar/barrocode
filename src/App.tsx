@@ -15,7 +15,7 @@ import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
 import { Icon } from './components/icons';
-import type { ShapeDoc } from './shaper/lib/shape';
+import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
@@ -177,6 +177,53 @@ function useScrollMore<T extends HTMLElement>(active: boolean) {
 
 const HELP_SEEN_KEY = 'barrocode.helpSeen';
 const SESSION_KEY = 'barrocode.session';
+// Forma's shape and the last SVG it sent, kept apart from the print session.
+const SHAPE_KEY = 'barrocode.shape';
+
+interface SavedShape { doc: ShapeDoc; sent: string | null }
+
+function loadShape(): SavedShape | null {
+  try {
+    const s = JSON.parse(localStorage.getItem(SHAPE_KEY) ?? 'null');
+    return s && s.doc && typeof s.doc.family === 'string' ? s : null;
+  } catch {
+    return null;
+  }
+}
+
+// Forma's samples are about this far apart; it fits its own curves to them.
+const IMPORT_STEP_MM = 0.5;
+// getPointAtLength walks the path from its start, so sampling costs grow with
+// the square of the count: past this many per path, the step grows instead.
+const IMPORT_MAX_SAMPLES = 1500;
+
+/**
+ * The closed paths of an SVG as Forma takes them: mm, y up, centred on their
+ * box, which is where Impresión centres the part. `mmPerUnit` null reads it
+ * from the file (1 when it has no physical size).
+ */
+function svgOutlines(raw: string, name: string, mmPerUnit: number | null, keep: (id: string) => boolean): ShapeImport {
+  try {
+    // A first pass with two samples per path only reads lengths and units.
+    const probe = parseSVG(raw, Infinity, false);
+    const k = mmPerUnit ?? probe.mmPerUnit ?? 1;
+    const longest = Math.max(0, ...probe.paths.map(p => p.totalLength));
+    // Forma fits its own tangents; skipping the parser's makes this three times cheaper.
+    const parsed = parseSVG(raw, Math.max(IMPORT_STEP_MM / k, longest / IMPORT_MAX_SAMPLES), false);
+    const paths = parsed.paths.filter(p => keep(p.id));
+    // The same test Impresión uses to tell a loop (isLoop in waveGenerator).
+    const closed = paths.filter(({ points: pts, totalLength }) => pts.length > 3
+      && Math.hypot(pts[0].x - pts[pts.length - 1].x, pts[0].y - pts[pts.length - 1].y) <= Math.max(0.001, totalLength * 1e-5));
+    const c = partCentreSVG(closed);
+    const outlines = closed.map(p => p.points.slice(0, -1).map(q => ({ x: (q.x - c.x) * k, y: -(q.y - c.y) * k })));
+    return {
+      name, outlines, open: paths.length - closed.length,
+      error: outlines.length ? undefined : 'Este SVG no tiene contornos cerrados que Forma pueda editar.',
+    };
+  } catch (e) {
+    return { name, outlines: [], open: 0, error: (e as Error).message };
+  }
+}
 
 type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'ampTOverride' | 'wlNOverride' | 'wlTOverride'>;
 
@@ -239,9 +286,12 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(() => !hasSeenHelp());
   const [savedSession, setSavedSession] = useState(loadSession);
   const [workspace, setWorkspace] = useState<Workspace>('impresion');
-  const [shape, setShape] = useState<ShapeDoc | null>(null);
+  const [savedShape] = useState(loadShape);
+  const [shape, setShape] = useState<ShapeDoc | null>(savedShape?.doc ?? null);
+  // An SVG on its way into Forma, which fits it and clears this.
+  const [incoming, setIncoming] = useState<ShapeImport | null>(null);
   // The last SVG sent from Forma; while it is the loaded one, Impresión offers to edit it.
-  const [sentShapeSvg, setSentShapeSvg] = useState<string | null>(null);
+  const [sentShapeSvg, setSentShapeSvg] = useState<string | null>(savedShape?.sent ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -679,6 +729,29 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }
 
+  useEffect(() => {
+    if (!shape) return;
+    const t = setTimeout(() => {
+      try { localStorage.setItem(SHAPE_KEY, JSON.stringify({ doc: shape, sent: sentShapeSvg })); } catch { /* full or unavailable */ }
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [shape, sentShapeSvg]);
+
+  // The SVG loaded in Impresión, at the size Impresión prints it.
+  function openInForma() {
+    const raw = lastRawRef.current?.raw;
+    if (!raw || !parsedSVG) return;
+    const on = new Set(parsedSVG.paths.filter(p => p.enabled).map(p => p.id));
+    setIncoming(svgOutlines(raw, gcodeFilename.replace(/\.gcode$/i, ''), params.scaleFactor, id => on.has(id)));
+    setWorkspace('forma');
+  }
+
+  function importIntoForma(file: File) {
+    const reader = new FileReader();
+    reader.onload = ev => setIncoming(svgOutlines(ev.target?.result as string, file.name.replace(/\.svg$/i, ''), null, () => true));
+    reader.readAsText(file);
+  }
+
   function sendShape(svg: string, name: string) {
     setSavedSession(null);
     keepWaveOnly();
@@ -856,7 +929,10 @@ export default function App() {
   if (workspace === 'forma') return (
     <>
       <Suspense fallback={<div className="app-stage" />}>
-        <ShaperView doc={shape} onChange={setShape} wave={waveLimit} switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)} />
+        <ShaperView doc={shape} onChange={setShape} wave={waveLimit} switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)}
+          incoming={incoming} onIncomingDone={() => setIncoming(null)} onImportFile={importIntoForma}
+          printName={parsedSVG && parsedSVG.raw !== sentShapeSvg ? gcodeFilename.replace(/\.gcode$/i, '') : null}
+          onImportPrint={openInForma} />
       </Suspense>
       <HelpDialog open={helpOpen} onClose={closeHelp} />
     </>
@@ -963,9 +1039,12 @@ export default function App() {
                   <span className="file-name" title={gcodeFilename.replace(/\.gcode$/i, '')}>
                     {gcodeFilename.replace(/\.gcode$/i, '')}
                   </span>
-                  {parsedSVG.raw === sentShapeSvg && (
+                  {parsedSVG.raw === sentShapeSvg ? (
                     <button className="btn-small" onClick={() => setWorkspace('forma')}
                       title="Volver a Forma para cambiar esta forma">Editar forma</button>
+                  ) : (
+                    <button className="btn-small" onClick={openInForma}
+                      title="Convertir los contornos cerrados de este SVG en nodos editables en Forma, al tamaño que se imprime">Abrir en Forma</button>
                   )}
                   <button className="btn-icon" title="Descartar el SVG" aria-label="Descartar el SVG" onClick={clearSVG}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">

@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F4 hechas (ver sección 6); el resto, propuesta.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F5 hechas (ver sección 6); el resto, propuesta.
 
 ---
 
@@ -170,6 +170,13 @@ Esto es lo propio de BarroCode, que ningún referente tiene.
 - Abrir en *Forma* el SVG cargado en *Impresión* o uno nuevo: tomar los `d` de `<path>`, `<polygon>`, `<circle>`, etc., reutilizando el saneado de `parseSVG` (sin scripts, sin `defs`/`clipPath`, sin `display:none`) y aplanando transformaciones al importar.
 - `SavedSession.shape` y restaurar.
 - **Hecho cuando:** las ocho muestras se importan, se editan y vuelven a impresión con el mismo tamaño.
+- **Hecho (2026-10-28).**
+  - **Varios contornos.** Las muestras lo exigían: la 4 tiene un agujero, la 7 una flor y un círculo, la 8 ocho pétalos sueltos. `ShapeDoc.path` pasó a `contours` (una lista de contornos cerrados, cada uno con su costura en el nodo 0 y su propio `<path>` al enviar). El lienzo, el panel y la lista de comandos trabajan por contorno, con *Borrar contorno*; la simetría sigue disponible para un contorno único que viene de una familia.
+  - **Importar.** *Abrir en Forma* (en *Impresión*, junto al nombre del archivo) y *Abrir SVG…* / *Traer «…»* (sección *Importar* de *Forma*). `App` muestrea el SVG con `parseSVG`, que ya sanea, salta lo invisible y aplana transformaciones, y pasa a *Forma* los contornos cerrados en mm, Y hacia arriba, centrados como los centra *Impresión* (con su `scaleFactor`; un archivo nuevo, con su tamaño físico o 1 mm por unidad). *Forma* los ajusta a nodos (`fitOutline`) como un cambio que se puede deshacer. Las rutas desactivadas en *Impresión* y los trazados abiertos quedan fuera, y el aviso lo dice.
+  - **Coste del muestreo.** `getPointAtLength` cuesta 0,2–0,7 ms por llamada en trazados con arcos y el parser hace tres por muestra. Muestreando cada 0,5 mm, importar tardaba 1,5–12,7 s. Ahora `parseSVG(raw, spacing, false)` omite las dos llamadas de la tangente, que *Forma* no usa, y el paso crece para no pasar de 1500 muestras por trazado (≈2 mm en las muestras de 480 mm, igual que *Impresión*). Resultado: 0,2–1,3 s, menos de lo que tarda *Impresión* en cargar esas mismas muestras (0,05–3,2 s).
+  - **Dos fallos de `fitOutline`** que solo aparecían con contornos importados. Un tramo largo sin nodos fijos no podía partirse lo bastante (profundidad 6) y dejaba curvas a 67 mm del original (muestra 4); ahora la profundidad es 12, con un test. Además, los nodos de esquina leían la tangente cruzando la esquina, que casi nunca cae en una muestra, y torcían el lado entero; ahora, si los dos lados son rectos, el nodo va a la intersección de sus rectas.
+  - **Sesión.** La forma se guarda en `localStorage` (`barrocode.shape`, 1 s después de cada cambio) junto con el último SVG enviado, y se restaura sola al abrir la app; así *Editar forma* sigue apareciendo tras recargar. Es una clave aparte de `barrocode.session` (cambio respecto al plan, que la ponía en `SavedSession`) porque *Forma* puede tener una forma sin que *Impresión* tenga nada cargado.
+  - **En Chromium, las ocho muestras:** misma caja antes y después del viaje (480 × 480, 380 × 380, 386 × 386 mm), editar un nodo y deshacer funciona en todas, y la forma persiste al recargar. Fidelidad del ajuste: 0,10–0,20 mm del contorno importado, con 15 a 141 nodos por contorno (la muestra 1, un polígono de 10 vértices, da 25).
 
 ### F6 — Onda fantasma, ayuda y QA (1 sesión)
 

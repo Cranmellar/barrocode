@@ -17,8 +17,8 @@ export function DiscoveryGrid({ doc, batch, wave, onAdopt, onMore, onAnother }: 
   // Drawn at the current size, rotation and seam, so a pick looks the same once adopted.
   const cards = useMemo(() => variants.map(v => {
     const pts = shapePoints({ ...doc, ...v });
-    const b = shapeBounds(pts);
-    return { v, d: shapePath(pts), cx: b.x + b.width / 2, cy: b.y + b.height / 2, tight: checkShape(pts, wave).tight.length };
+    const b = shapeBounds([pts]);
+    return { v, d: shapePath([pts]), cx: b.x + b.width / 2, cy: b.y + b.height / 2, tight: checkShape(pts, wave).tight.length };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [variants, doc.sizeMM, doc.rotation, doc.seamAngle, doc.clockwise, wave]);
 

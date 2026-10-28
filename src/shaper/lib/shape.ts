@@ -28,14 +28,24 @@ export interface ShapeDoc {
   lobeDepthPct: number;
   lobeSharp: number;
   /**
-   * Set once the shape is turned into editable nodes; it then replaces the
+   * Set once the shape is turned into editable nodes, or imported: closed
+   * contours, each printed as its own path from its node 0. They replace the
    * family, and size, rotation and seam live in the nodes themselves.
    */
-  path: PathNode[] | null;
-  /** How many times the path repeats around (0, 0), when it came from a family. */
+  contours: PathNode[][] | null;
+  /** How many times a single contour repeats around (0, 0), when it came from a family. */
   pathOrder: number;
   /** Editing a node moves its copies in every sector. */
   pathSymmetric: boolean;
+}
+
+/** Closed outlines handed to Forma from an SVG: mm, y up, centred on their box. */
+export interface ShapeImport {
+  name: string;
+  outlines: Pt[][];
+  /** Open paths left out: Forma edits closed contours only. */
+  open: number;
+  error?: string;
 }
 
 export const DEFAULT_SHAPE: ShapeDoc = {
@@ -54,7 +64,7 @@ export const DEFAULT_SHAPE: ShapeDoc = {
   lobeCount: 6,
   lobeDepthPct: 20,
   lobeSharp: 1,
-  path: null,
+  contours: null,
   pathOrder: 1,
   pathSymmetric: true,
 };
@@ -179,15 +189,21 @@ function perimeter(pts: Pt[]): number {
   return len;
 }
 
+/** Evenly spaced points from the loop's first point, about SPACING_MM apart. */
+function evenly(loop: Pt[]): Pt[] {
+  return resample(loop, Math.min(MAX_PTS, Math.max(MIN_PTS, Math.round(perimeter(loop) / SPACING_MM))));
+}
+
+/** What gets printed: one outline per contour, or the family's single outline. */
+export function shapeOutlines(doc: ShapeDoc): Pt[][] {
+  return doc.contours ? doc.contours.map(c => evenly(flattenPath(c))) : [shapePoints(doc)];
+}
+
 /**
- * The outline in mm, y up, centred on (0, 0): evenly spaced, starting at the
- * seam, in the chosen direction, with no repeated end point.
+ * The family's outline in mm, y up, centred on (0, 0): evenly spaced,
+ * starting at the seam, in the chosen direction, with no repeated end point.
  */
 export function shapePoints(doc: ShapeDoc): Pt[] {
-  if (doc.path) {
-    const loop = flattenPath(doc.path);
-    return resample(loop, Math.min(MAX_PTS, Math.max(MIN_PTS, Math.round(perimeter(loop) / SPACING_MM))));
-  }
   const rot = (doc.rotation * Math.PI) / 180;
   const cos = Math.cos(rot), sin = Math.sin(rot);
   let pts = familyOutline(doc).map(p => ({ x: p.x * cos - p.y * sin, y: p.x * sin + p.y * cos }));
@@ -196,27 +212,26 @@ export function shapePoints(doc: ShapeDoc): Pt[] {
 
   const cut = seamCut(pts, (doc.seamAngle * Math.PI) / 180);
   const loop = [cut.at, ...pts.slice(cut.index + 1), ...pts.slice(0, cut.index + 1)];
-  const count = Math.min(MAX_PTS, Math.max(MIN_PTS, Math.round(perimeter(loop) / SPACING_MM)));
-  const out = resample(loop, count);
+  const out = evenly(loop);
   return doc.clockwise ? [out[0], ...out.slice(1).reverse()] : out;
 }
 
 export interface Bounds { x: number; y: number; width: number; height: number }
 
 /** Bounding box in SVG coordinates (y down), mm. */
-export function shapeBounds(pts: Pt[]): Bounds {
+export function shapeBounds(outlines: Pt[][]): Bounds {
   let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const p of pts) {
+  for (const p of outlines.flat()) {
     minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
     minY = Math.min(minY, -p.y); maxY = Math.max(maxY, -p.y);
   }
   return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
 }
 
-/** Path data in SVG coordinates (y down), mm. */
-export function shapePath(pts: Pt[]): string {
+/** Path data in SVG coordinates (y down), mm: one closed subpath per outline. */
+export function shapePath(outlines: Pt[][]): string {
   const xy = (p: Pt) => `${fmt(p.x, 2)} ${fmt(-p.y, 2)}`;
-  return `M${xy(pts[0])}L${pts.slice(1).map(xy).join(' ')}Z`;
+  return outlines.map(pts => `M${xy(pts[0])}L${pts.slice(1).map(xy).join(' ')}Z`).join('');
 }
 
 const FAMILY_NAMES: Record<Family, string> = {
@@ -236,17 +251,23 @@ export function familyName(f: Family): string {
 }
 
 /** Twice the distance from (0, 0) to the farthest point of the outline. */
-export function outerDiameter(pts: Pt[]): number {
-  return 2 * Math.max(...pts.map(p => Math.hypot(p.x, p.y)));
+export function outerDiameter(outlines: Pt[][]): number {
+  let r = 0;
+  for (const p of outlines.flat()) r = Math.max(r, Math.hypot(p.x, p.y));
+  return 2 * r;
 }
 
-export function shapeLabel(doc: ShapeDoc, pts: Pt[]): string {
-  if (doc.path) return `Trazado · ${doc.path.length} nodos · Ø ${fmt(outerDiameter(pts), 1)} mm`;
+export function shapeLabel(doc: ShapeDoc, outlines: Pt[][]): string {
+  if (doc.contours) {
+    const nodes = doc.contours.reduce((n, c) => n + c.length, 0);
+    const parts = doc.contours.length > 1 ? ` · ${doc.contours.length} contornos` : '';
+    return `Trazado · ${nodes} nodos${parts} · Ø ${fmt(outerDiameter(outlines), 1)} mm`;
+  }
   return `${FAMILY_NAMES[doc.family]} · Ø ${fmt(doc.sizeMM, 1)} mm`;
 }
 
 export function fileName(doc: ShapeDoc): string {
-  return doc.path ? 'trazado' : FAMILY_FILES[doc.family];
+  return doc.contours ? 'trazado' : FAMILY_FILES[doc.family];
 }
 
 export function fmt(v: number, decimals = 3): string {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { DiscoveryGrid } from './components/DiscoveryGrid';
 import { FamilyPanel } from './components/FamilyPanel';
-import { PathPanel } from './components/PathPanel';
+import { PathPanel, type NodeRef } from './components/PathPanel';
 import { PrintCheck } from './components/PrintCheck';
 import { MIN_SPREAD, NARROW, type Batch, type Variant } from './lib/discovery';
 import { familySymmetry, fitOutline } from './lib/fit';
@@ -10,9 +10,10 @@ import {
   pathD, propagate, reverseNodes, rotateStart, setSmooth, setStraight, splitSegment, splitSymmetric,
   type PathNode,
 } from './lib/pathModel';
-import { checkShape, spotIndices, type WaveLimit } from './lib/printability';
+import { checkShape, spotIndices, type PrintCheck as Check, type WaveLimit } from './lib/printability';
 import {
-  DEFAULT_SHAPE, fileName, fmt, outerDiameter, shapeBounds, shapeLabel, shapePath, shapePoints, type ShapeDoc,
+  DEFAULT_SHAPE, fileName, fmt, outerDiameter, shapeBounds, shapeLabel, shapeOutlines, shapePath, shapePoints,
+  type ShapeDoc, type ShapeImport,
 } from './lib/shape';
 import { shapeToSvg } from './lib/toSvg';
 
@@ -26,6 +27,13 @@ interface Props {
   switcher: ReactNode;
   onSend: (svg: string, name: string) => void;
   onHelp: () => void;
+  // An SVG's closed outlines to turn into nodes; done calls onIncomingDone.
+  incoming: ShapeImport | null;
+  onIncomingDone: () => void;
+  onImportFile: (file: File) => void;
+  // The SVG loaded in Impresión, when there is one Forma didn't send.
+  printName: string | null;
+  onImportPrint: () => void;
 }
 
 const MAJOR_EVERY = 5;
@@ -41,17 +49,24 @@ const INSERT_PX = 8;
 const COALESCE_MS = 400;
 const HISTORY = 200;
 
-type Drag = { kind: 'anchor' | 'in' | 'out'; i: number; moved: boolean; frame: number };
+type Drag = { kind: 'anchor' | 'in' | 'out'; c: number; i: number; moved: boolean; frame: number };
 
-export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHelp }: Props) {
-  const doc = docIn ?? DEFAULT_SHAPE;
-  const nodes = doc.path;
-  const pts = useMemo(() => shapePoints(doc), [doc]);
-  const d = useMemo(() => nodes ? pathD(nodes) : shapePath(pts), [nodes, pts]);
-  const check = useMemo(() => checkShape(pts, wave), [pts, wave]);
-  const tightPaths = useMemo(() => check.tight.map(t =>
-    'M' + spotIndices(t, pts.length).map(i => `${fmt(pts[i].x, 2)} ${fmt(-pts[i].y, 2)}`).join('L')), [check, pts]);
-  const diameter = nodes ? outerDiameter(pts) : doc.sizeMM;
+export function ShaperView(props: Props) {
+  const { doc: docIn, onChange, wave, switcher, onSend, onHelp, incoming, onIncomingDone } = props;
+  // A shape saved by an older version may lack newer fields.
+  const doc = useMemo(() => docIn ? { ...DEFAULT_SHAPE, ...docIn } : DEFAULT_SHAPE, [docIn]);
+  const contours = doc.contours;
+  const outlines = useMemo(() => shapeOutlines(doc), [doc]);
+  const ds = useMemo(() => contours ? contours.map(pathD) : [shapePath(outlines)], [contours, outlines]);
+  const checks = useMemo(() => outlines.map(o => checkShape(o, wave)), [outlines, wave]);
+  const check: Check = {
+    minRadiusMM: Math.min(...checks.map(c => c.minRadiusMM)),
+    tight: checks.flatMap(c => c.tight),
+  };
+  const tightPaths = useMemo(() => checks.flatMap((c, k) => c.tight.map(t =>
+    'M' + spotIndices(t, outlines[k].length).map(i => `${fmt(outlines[k][i].x, 2)} ${fmt(-outlines[k][i].y, 2)}`).join('L'))),
+  [checks, outlines]);
+  const diameter = contours ? outerDiameter(outlines) : doc.sizeMM;
 
   // ── Undo ─────────────────────────────────────────────────────────────────
   const past = useRef<ShapeDoc[]>([]);
@@ -83,36 +98,64 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
   };
 
   // ── Path editing ─────────────────────────────────────────────────────────
-  const [sel, setSel] = useState<number | null>(null);
+  const [sel, setSel] = useState<NodeRef | null>(null);
   const [snap, setSnap] = useState(false);
   useEffect(() => {
-    if (sel !== null && (!nodes || sel >= nodes.length)) setSel(null);
-  }, [nodes, sel]);
+    if (sel && !(contours && sel.c < contours.length && sel.i < contours[sel.c].length)) setSel(null);
+  }, [contours, sel]);
   const order = doc.pathOrder;
-  const canSym = !!nodes && canBeSymmetric(nodes, order);
+  // Symmetry belongs to a single contour fitted from a family.
+  const canSym = !!contours && contours.length === 1 && canBeSymmetric(contours[0], order);
   const symOn = canSym && doc.pathSymmetric;
 
-  /** Commits new nodes after an edit of `touched`, copied to every sector when symmetric. */
-  const editPath = (next: PathNode[], touched: number[], merge?: boolean, extra: Partial<ShapeDoc> = {}) =>
-    commit({ ...doc, ...extra, path: symOn ? touched.reduce((acc, i) => propagate(acc, i, order), next) : next }, merge);
+  const withContour = (c: number, next: PathNode[]) => contours!.map((k, j) => (j === c ? next : k));
+  /** Commits contour c's new nodes after an edit of `touched`, copied to every sector when symmetric. */
+  const editContour = (c: number, next: PathNode[], touched: number[], merge?: boolean, extra: Partial<ShapeDoc> = {}) =>
+    commit({ ...doc, ...extra, contours: withContour(c, symOn ? touched.reduce((acc, i) => propagate(acc, i, order), next) : next) }, merge);
 
   const toPath = () => {
-    const fit = fitOutline(pts, familySymmetry(doc));
+    const fit = fitOutline(shapePoints(doc), familySymmetry(doc));
     setBatch(null);
     setSel(null);
-    commit({ ...doc, path: fit.nodes, pathOrder: fit.order, pathSymmetric: fit.order > 1 }, false);
+    commit({ ...doc, contours: [fit.nodes], pathOrder: fit.order, pathSymmetric: fit.order > 1 }, false);
   };
-  const insertAt = (seg: number, u: number) => {
-    if (!nodes) return;
-    const shift = symOn ? copiesOf(nodes.length, seg, order).filter(c => c < seg).length : 0;
-    commit({ ...doc, path: symOn ? splitSymmetric(nodes, seg, u, order) : splitSegment(nodes, seg, u) }, false);
-    setSel(seg + 1 + shift);
+  const insertAt = (c: number, seg: number, u: number) => {
+    const nodes = contours![c];
+    const shift = symOn ? copiesOf(nodes.length, seg, order).filter(k => k < seg).length : 0;
+    commit({ ...doc, contours: withContour(c, symOn ? splitSymmetric(nodes, seg, u, order) : splitSegment(nodes, seg, u)) }, false);
+    setSel({ c, i: seg + 1 + shift });
   };
-  const remove = (i: number) => {
+  const remove = ({ c, i }: NodeRef) => {
+    const nodes = contours?.[c];
     if (!nodes || nodes.length - (symOn ? order : 1) < 3) return;
-    commit({ ...doc, path: symOn ? deleteSymmetric(nodes, i, order) : deleteNode(nodes, i) }, false);
+    commit({ ...doc, contours: withContour(c, symOn ? deleteSymmetric(nodes, i, order) : deleteNode(nodes, i)) }, false);
     setSel(null);
   };
+
+  // ── Import ───────────────────────────────────────────────────────────────
+  const [importNote, setImportNote] = useState<{ text: string; error: boolean } | null>(null);
+  useEffect(() => {
+    if (!incoming) return;
+    if (incoming.error) {
+      setImportNote({ text: incoming.error, error: true });
+    } else {
+      const fitted = incoming.outlines.map(o => fitOutline(o, 1).nodes);
+      // Area sign of the first contour: negative runs clockwise seen from above.
+      const o = incoming.outlines[0];
+      const area = o.reduce((a, p, i) => a + p.x * o[(i + 1) % o.length].y - o[(i + 1) % o.length].x * p.y, 0);
+      setBatch(null);
+      setSel(null);
+      commit({ ...doc, contours: fitted, pathOrder: 1, pathSymmetric: false, clockwise: area < 0 }, false);
+      const parts = fitted.length === 1 ? '1 contorno' : `${fitted.length} contornos`;
+      setImportNote({
+        text: `${incoming.name}: ${parts}${incoming.open ? `; se dejaron fuera ${incoming.open} trazados abiertos` : ''}.`,
+        error: false,
+      });
+    }
+    onIncomingDone();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [incoming]);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   // ── Discovery ────────────────────────────────────────────────────────────
   // Non-null while the discovery grid is open.
@@ -142,7 +185,7 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
       const key = e.key.toLowerCase();
       if ((e.ctrlKey || e.metaKey) && (key === 'z' || key === 'y')) {
         if (key === 'y' || e.shiftKey) k.redo(); else k.undo();
-      } else if ((key === 'delete' || key === 'backspace') && k.sel !== null) {
+      } else if ((key === 'delete' || key === 'backspace') && k.sel) {
         k.remove(k.sel);
       } else if (key === 'escape') {
         k.close();
@@ -180,19 +223,20 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
     const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(m);
     return { x: p.x, y: -p.y };
   };
-  const startDrag = (e: ReactPointerEvent, kind: Drag['kind'], i: number) => {
+  const startDrag = (e: ReactPointerEvent, kind: Drag['kind'], c: number, i: number) => {
     e.stopPropagation();
     svgRef.current!.setPointerCapture(e.pointerId);
-    drag.current = { kind, i, moved: false, frame };
-    setSel(i);
+    drag.current = { kind, c, i, moved: false, frame };
+    setSel({ c, i });
   };
   const onPointerMove = (e: ReactPointerEvent) => {
     const g = drag.current;
-    if (!g || !nodes) return;
+    if (!g || !contours) return;
     let { x, y } = toMM(e);
     if (snap) { x = Math.round(x); y = Math.round(y); }
+    const nodes = contours[g.c];
     const next = g.kind === 'anchor' ? moveAnchor(nodes, g.i, x, y) : moveHandle(nodes, g.i, g.kind, x, y);
-    editPath(next, [g.i], g.moved);
+    editContour(g.c, next, [g.i], g.moved);
     g.moved = true;
   };
   const endDrag = () => { drag.current = null; };
@@ -200,23 +244,26 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
   const lines: { v: number; major: boolean }[] = [];
   for (let v = -reach; v <= reach; v += grid) lines.push({ v, major: Math.round(v / grid) % MAJOR_EVERY === 0 });
 
-  // Direction arrow a little way along the outline from the seam.
-  const seam = pts[0];
-  const ahead = pts[Math.min(pts.length - 1, Math.max(1, Math.round((ARROW_PX * mmPerPx * 2.5) / 0.25)))];
-  const dir = Math.atan2(-(ahead.y - seam.y), ahead.x - seam.x);
-  const tip = { x: ahead.x, y: -ahead.y };
-  const wing = (a: number) => `${tip.x - Math.cos(dir + a) * ARROW_PX * mmPerPx * 0.6} ${tip.y - Math.sin(dir + a) * ARROW_PX * mmPerPx * 0.6}`;
+  // Each outline's seam and, a little way along, an arrow for its direction.
+  const seams = outlines.map(o => {
+    const seam = o[0];
+    const ahead = o[Math.min(o.length - 1, Math.max(1, Math.round((ARROW_PX * mmPerPx * 2.5) / 0.25)))];
+    const dir = Math.atan2(-(ahead.y - seam.y), ahead.x - seam.x);
+    const tip = { x: ahead.x, y: -ahead.y };
+    const wing = (a: number) => `${tip.x - Math.cos(dir + a) * ARROW_PX * mmPerPx * 0.6} ${tip.y - Math.sin(dir + a) * ARROW_PX * mmPerPx * 0.6}`;
+    return { seam, arrow: `M${wing(0.5)}L${tip.x} ${tip.y}L${wing(-0.5)}` };
+  });
 
-  const selNode = nodes && sel !== null ? nodes[sel] : null;
-  const copies = nodes && sel !== null && symOn ? copiesOf(nodes.length, sel, order) : [];
-  const label = shapeLabel(doc, pts);
+  const selNode = contours && sel ? contours[sel.c]?.[sel.i] : null;
+  const copies = contours && sel && symOn ? copiesOf(contours[0].length, sel.i, order) : [];
+  const label = shapeLabel(doc, outlines);
 
   return (
     <div className="app-stage shaper-stage">
-      <svg ref={svgRef} className={`shaper-canvas${nodes ? ' shaper-canvas--edit' : ''}`}
+      <svg ref={svgRef} className={`shaper-canvas${contours ? ' shaper-canvas--edit' : ''}`}
         viewBox={`${-frame / 2} ${-frame / 2} ${frame} ${frame}`}
         preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}
-        onPointerDown={() => { if (nodes) setSel(null); }}
+        onPointerDown={() => { if (contours) setSel(null); }}
         onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <g className="shaper-grid">
           {lines.map(({ v, major }) => (
@@ -242,25 +289,25 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
         <circle className="shaper-size" cx={0} cy={0} r={diameter / 2}>
           <title>Diámetro exterior: {fmt(diameter, 1)} mm</title>
         </circle>
-        <path className="shaper-shape" d={d} />
-        {nodes && (
-          <path className="shaper-hit" d={d}
+        {ds.map((d, c) => <path key={c} className="shaper-shape" d={d} />)}
+        {contours && ds.map((d, c) => (
+          <path key={c} className="shaper-hit" d={d}
             onDoubleClick={e => {
-              const hit = nearestOnPath(nodes, toMM(e));
-              if (hit.dist < INSERT_PX * mmPerPx) insertAt(hit.seg, hit.u);
+              const hit = nearestOnPath(contours[c], toMM(e));
+              if (hit.dist < INSERT_PX * mmPerPx) insertAt(c, hit.seg, hit.u);
             }}>
             <title>Doble clic: añadir un nodo</title>
           </path>
-        )}
+        ))}
         {tightPaths.map((td, i) => <path key={i} className="shaper-tight" d={td} />)}
-        {check.tight.map((t, i) => (
-          <circle key={i} className="shaper-spot" cx={pts[t.index].x} cy={-pts[t.index].y} r={SPOT_PX * mmPerPx}>
+        {checks.flatMap((c, k) => c.tight.map((t, i) => (
+          <circle key={`${k}:${i}`} className="shaper-spot" cx={outlines[k][t.index].x} cy={-outlines[k][t.index].y} r={SPOT_PX * mmPerPx}>
             <title>Más cerrado que lo que la onda puede seguir: R {fmt(t.radiusMM, 1)} mm</title>
           </circle>
-        ))}
-        <path className="shaper-arrow" d={`M${wing(0.5)}L${tip.x} ${tip.y}L${wing(-0.5)}`} />
+        )))}
+        {seams.map((s, c) => <path key={c} className="shaper-arrow" d={s.arrow} />)}
 
-        {nodes && selNode && (
+        {selNode && sel && (
           <g className="shaper-handles">
             {(['in', 'out'] as const).map(side => {
               const hx = side === 'in' ? selNode.inX : selNode.outX, hy = side === 'in' ? selNode.inY : selNode.outY;
@@ -269,59 +316,82 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
                 <g key={side}>
                   <line className="shaper-handle-line" x1={selNode.x} y1={-selNode.y} x2={hx} y2={-hy} />
                   <circle className="shaper-handle" cx={hx} cy={-hy} r={HANDLE_PX * mmPerPx}
-                    onPointerDown={e => startDrag(e, side, sel!)} />
+                    onPointerDown={e => startDrag(e, side, sel.c, sel.i)} />
                 </g>
               );
             })}
           </g>
         )}
-        {nodes && nodes.map((p, i) => i === 0 ? null : (
-          <rect key={i}
-            className={`shaper-node${i === sel ? ' shaper-node--on' : copies.includes(i) ? ' shaper-node--copy' : ''}`}
+        {contours && contours.map((nodes, c) => nodes.map((p, i) => i === 0 ? null : (
+          <rect key={`${c}:${i}`}
+            className={`shaper-node${sel?.c === c && sel.i === i ? ' shaper-node--on' : copies.includes(i) ? ' shaper-node--copy' : ''}`}
             x={p.x - (NODE_PX / 2) * mmPerPx} y={-p.y - (NODE_PX / 2) * mmPerPx}
             width={NODE_PX * mmPerPx} height={NODE_PX * mmPerPx}
-            onPointerDown={e => startDrag(e, 'anchor', i)}>
-            <title>Nodo {i + 1}</title>
+            onPointerDown={e => startDrag(e, 'anchor', c, i)}>
+            <title>Nodo {i + 1}{contours.length > 1 ? `, contorno ${c + 1}` : ''}</title>
           </rect>
+        )))}
+        {seams.map((s, c) => (
+          <circle key={c}
+            className={`shaper-seam${contours ? ' shaper-seam--node' : ''}${sel?.c === c && sel.i === 0 ? ' shaper-seam--on' : ''}`}
+            cx={s.seam.x} cy={-s.seam.y} r={SEAM_PX * mmPerPx}
+            onPointerDown={contours ? e => startDrag(e, 'anchor', c, 0) : undefined}>
+            <title>Costura: aquí empieza y termina cada capa. La flecha marca el sentido.</title>
+          </circle>
         ))}
-        <circle className={`shaper-seam${nodes ? ' shaper-seam--node' : ''}${sel === 0 ? ' shaper-seam--on' : ''}`}
-          cx={seam.x} cy={-seam.y} r={SEAM_PX * mmPerPx}
-          onPointerDown={nodes ? e => startDrag(e, 'anchor', 0) : undefined}>
-          <title>Costura: aquí empieza y termina cada capa. La flecha marca el sentido.</title>
-        </circle>
       </svg>
 
       <aside className="float-panel panel-left shaper-panel">
         <div className="panel-scroll">
           <div className="panel-header">{switcher}</div>
-          {nodes ? (
-            <PathPanel nodes={nodes} order={order} symmetric={doc.pathSymmetric} canSymmetric={canSym}
+          {contours ? (
+            <PathPanel contours={contours} order={order} symmetric={doc.pathSymmetric} canSymmetric={canSym}
               diameterMM={diameter} clockwise={doc.clockwise} sel={sel} snap={snap}
               onSelect={setSel}
               onSymmetric={on => commit({ ...doc, pathSymmetric: on }, false)}
               onSnap={setSnap}
-              onMove={(i, x, y) => editPath(moveAnchor(nodes, i, x, y), [i])}
-              onSmooth={(i, on) => editPath(setSmooth(nodes, i, on), [i], false)}
-              onStraight={(i, on) => editPath(setStraight(nodes, i, on), [i, (i + 1) % nodes.length], false)}
+              onMove={({ c, i }, x, y) => editContour(c, moveAnchor(contours[c], i, x, y), [i])}
+              onSmooth={({ c, i }, on) => editContour(c, setSmooth(contours[c], i, on), [i], false)}
+              onStraight={({ c, i }, on) => editContour(c, setStraight(contours[c], i, on), [i, (i + 1) % contours[c].length], false)}
               onDelete={remove}
-              onSeam={i => { commit({ ...doc, path: rotateStart(nodes, i) }, false); setSel(0); }}
+              onDeleteContour={c => { setSel(null); commit({ ...doc, contours: contours.filter((_, j) => j !== c) }, false); }}
+              onSeam={({ c, i }) => { commit({ ...doc, contours: withContour(c, rotateStart(contours[c], i)) }, false); setSel({ c, i: 0 }); }}
               onDiameter={mm => {
                 const k = mm / diameter;
-                editPath(mapNodes(nodes, p => ({ x: p.x * k, y: p.y * k })), [], undefined, { sizeMM: mm });
+                commit({ ...doc, sizeMM: mm, contours: contours.map(ns => mapNodes(ns, p => ({ x: p.x * k, y: p.y * k }))) });
               }}
               onReverse={() => {
-                commit({ ...doc, path: reverseNodes(nodes), clockwise: !doc.clockwise }, false);
-                if (sel !== null) setSel((nodes.length - sel) % nodes.length);
+                commit({ ...doc, contours: contours.map(reverseNodes), clockwise: !doc.clockwise }, false);
+                if (sel) setSel({ c: sel.c, i: (contours[sel.c].length - sel.i) % contours[sel.c].length });
               }}
-              onBackToFamily={() => { setSel(null); commit({ ...doc, path: null }, false); }} />
+              onBackToFamily={() => { setSel(null); commit({ ...doc, contours: null }, false); }} />
           ) : (
             <FamilyPanel doc={doc} onChange={next => commit(next)} onEditPoints={toPath} />
           )}
-          <PrintCheck check={check} wave={wave} doc={doc} bounds={shapeBounds(pts)} />
+          <PrintCheck check={check} wave={wave} doc={doc} bounds={shapeBounds(outlines)} />
+
+          <div className="section">
+            <div className="section-title">Importar</div>
+            {importNote && (
+              <p className={`shaper-note${importNote.error ? ' shaper-note--error' : ''}`} role="status">{importNote.text}</p>
+            )}
+            <p className="shaper-note">
+              Trae los contornos cerrados de un SVG como nodos editables, al tamaño que se imprimen. Ctrl+Z lo deshace.
+            </p>
+            <div className="shaper-actions">
+              <button className="btn-small" onClick={() => fileRef.current?.click()}>Abrir SVG…</button>
+              <input ref={fileRef} type="file" accept=".svg,image/svg+xml" style={{ display: 'none' }}
+                onChange={e => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ''; }} />
+              {props.printName && (
+                <button className="btn-small" onClick={props.onImportPrint}
+                  title="El SVG cargado en Impresión, con sus rutas activas y su escala">Traer «{props.printName}»</button>
+              )}
+            </div>
+          </div>
         </div>
       </aside>
 
-      {batch && !nodes && (
+      {batch && !contours && (
         <DiscoveryGrid doc={doc} batch={batch} wave={wave} onAdopt={adopt}
           onMore={() => setBatch({ base: doc, spread: Math.max(MIN_SPREAD, batch.spread * NARROW), seed: newSeed() })}
           onAnother={() => setBatch({ base: doc, spread: 1, seed: newSeed() })} />
@@ -333,10 +403,10 @@ export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHel
             aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶</button>
           <button className="btn-icon" onClick={redo} disabled={future.current.length === 0}
             aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷</button>
-          <button className={`btn-toggle${batch && !nodes ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch && !nodes}
-            disabled={!!nodes}
+          <button className={`btn-toggle${batch && !contours ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch && !contours}
+            disabled={!!contours}
             onClick={() => setBatch(batch ? null : { base: doc, spread: 1, seed: newSeed() })}
-            title={nodes ? 'Solo con las familias: vuelve a la familia para ver variaciones'
+            title={contours ? 'Solo con las familias: vuelve a la familia para ver variaciones'
               : 'Ver nueve variaciones de esta familia y elegir con el ojo'}>Descubrir</button>
           <span className="stage-summary">{label}</span>
           <button className="btn-primary" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
