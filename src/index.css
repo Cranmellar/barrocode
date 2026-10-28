@@ -366,6 +366,31 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   overflow: hidden;
 }
 
+/* Four-step flow under the canvas empty-state text (drawn ≈26 px below centre). */
+.stage-empty {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+.stage-empty-flow {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 52px);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+.stage-empty-flow svg { width: 36px; height: 36px; display: block; }
+.stage-empty-sep {
+  width: 5px;
+  height: 5px;
+  border-top: 1.5px solid var(--muted);
+  border-right: 1.5px solid var(--muted);
+  transform: rotate(45deg);
+  opacity: 0.6;
+}
+
 /* Small wave figure at the top of the wave panel */
 .liss-figure {
   position: relative;
