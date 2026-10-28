@@ -247,3 +247,33 @@ describe('keyframe interpolation', () => {
     expect(getParamsAtT(0.3, kfs, PARAMS).ampN).toBeCloseTo(2 + 6 * 0.375);
   });
 });
+
+describe('keyframed phase', () => {
+  // Straight line along +X: the first point of each layer sits at
+  // y = 100 + ampN·sin(phaseBase), since its arc phase is 0.
+  const line = sampledPath('line', polyline([[20, 100], [180, 100]]));
+  const base = { ...PARAMS, numLayers: 5, lissAmpN: 3 };
+  const kf = (t: number, phase: Partial<WaveKeyframe>): WaveKeyframe =>
+    ({ id: `k${t}`, t, ampN: 3, ampT: 0, wlN: 20, wlT: 20, delta: 0, ...phase });
+  const firstYs = (params: PrintParams, kfs: WaveKeyframe[]) =>
+    generateWaveLayers([line], params, kfs, VIEWBOX.height).map(l => l.paths[0][0].y);
+
+  it('matches the global phase when every keyframe holds the same values', () => {
+    const params = { ...base, lissPhaseOffset: 0.4, phaseShiftPerLayer: 0.7 };
+    const kfs = [kf(0, { phaseOffset: 0.4, phaseShift: 0.7 }), kf(1, { phaseOffset: 0.4, phaseShift: 0.7 })];
+    const want = firstYs(params, []);
+    firstYs({ ...base }, kfs).forEach((y, i) => expect(y).toBeCloseTo(want[i], 9));
+  });
+
+  it('adds up the per-layer shift sampled at each layer start', () => {
+    const shift = 0.6;
+    const ys = firstYs(base, [kf(0, { phaseShift: 0 }), kf(1, { phaseShift: shift })]);
+    const n = line.points.length;
+    const tDenom = base.numLayers * n - 1;
+    let phase = 0;
+    ys.forEach((y, li) => {
+      expect(y).toBeCloseTo(100 + 3 * Math.sin(phase), 9);
+      phase += shift * (li * n) / tDenom;
+    });
+  });
+});

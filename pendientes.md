@@ -90,7 +90,7 @@ Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket
 
 **B — Entender la interpolación**
 
-- [x] **KF-B1 — Panel de onda vivo, con auto-key.** Con keyframes y ninguno seleccionado, el panel estaba bloqueado mostrando valores globales sin efecto. Ahora muestra la onda interpolada en el extrusor (`getParamsAtT`), que cambia al recorrer la línea de tiempo, y queda editable: cambiar un valor de la onda (slider, campo o preajuste) crea un keyframe en el extrusor con ese cambio, lo selecciona y lo confirma con un toast; si ya hay uno bajo el extrusor, lo edita. *Fase* sigue siendo global y *Restablecer* solo actúa con un keyframe seleccionado.
+- [x] **KF-B1 — Panel de onda vivo, con auto-key.** Con keyframes y ninguno seleccionado, el panel estaba bloqueado mostrando valores globales sin efecto. Ahora muestra la onda interpolada en el extrusor (`getParamsAtT`), que cambia al recorrer la línea de tiempo, y queda editable: cambiar un valor de la onda (slider, campo o preajuste) crea un keyframe en el extrusor con ese cambio, lo selecciona y lo confirma con un toast; si ya hay uno bajo el extrusor, lo edita. *Fase* seguía siendo global (ya no, ver KF-C4) y *Restablecer* solo actúa con un keyframe seleccionado.
 - [ ] **KF-B2 — Curva del parámetro en la línea de tiempo.** Al pasar sobre un slider del panel o un campo del dock, dibujar en el carril de keyframes una curva pequeña de ese valor a lo largo de `t` (≈200 llamadas a `getParamsAtT`).
 - [ ] **KF-B3 — Diferencias con el keyframe anterior.** Marcar en el editor qué campos cambian respecto al anterior ("N 2 → 6 mm").
 
@@ -99,7 +99,7 @@ Revisión del sistema de keyframes centrada en la interfaz. Un commit por ticket
 - [x] **KF-C1 — Keyframes suaves.** Hecho como propiedad del keyframe, no del tramo: `smooth?: boolean` en `WaveKeyframe`, interruptor *Transición · Suave* en el editor. En un keyframe suave los valores llegan y salen con pendiente cero, así que la pared no hace quiebre ahí; los tramos entre dos keyframes normales siguen rectos (Hermite cúbica en `segmentAlpha`, `waveGenerator.ts`). Los keyframes suaves se dibujan redondos en la línea de tiempo, el visor 3D y las insignias. Por defecto apagado, así que las snapshots no cambian. Se descartó *mantener* (valor constante y salto en el siguiente): un salto de centro o giro a mitad de capa extruiría una cuerda recta a través de la pieza. Un keyframe nuevo nace sin suavizado, también al partir un tramo suave.
 - [ ] **KF-C2 — Duplicar y copiar.** "Duplicar en el extrusor" (`D`) y, por sección del panel (N, T, Z, transformación), "copiar del keyframe anterior".
 - [ ] **KF-C3 — Arrastrar el pivote en el visor 3D**, aplicado al keyframe seleccionado. Es el mismo ticket de *Pivot drag* (Ola 3), marcado hecho sin estarlo.
-- [ ] **KF-C4 — Fase con keyframes** (opcional): `lissPhaseOffset` y `phaseShiftPerLayer` interpolables, para rampas de torsión de la textura.
+- [x] **KF-C4 — Fase con keyframes.** *Desfase inicial* y *Desfase por capa* se guardan en cada keyframe (`phaseOffset`, `phaseShift`) y se interpolan como el resto; editarlos sin selección crea un keyframe (auto-key), así que la sección *Fase* ya no es global. Ambos se muestrean al inicio de cada capa, de modo que una capa mantiene una sola fase y sigue cerrando en la costura, y el desfase por capa se acumula (fase de la capa = desfase inicial + suma de los desfases de las capas de abajo): una rampa de torsión crece de forma continua en vez de saltar.
 
 **D — Decisiones abiertas**
 

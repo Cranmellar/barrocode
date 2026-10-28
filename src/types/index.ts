@@ -93,6 +93,8 @@ export interface WaveKeyframe {
   scaleX?:  number; // multiplier
   scaleY?:  number; // multiplier
   rotation?: number; // degrees, CCW seen from above, around the same pivot
+  phaseOffset?: number; // radians — lissPhaseOffset at this keyframe
+  phaseShift?: number;  // radians — phaseShiftPerLayer at this keyframe
   // Values arrive at and leave this keyframe with zero slope (no kink in the
   // wall); otherwise segments touching it are straight.
   smooth?: boolean;

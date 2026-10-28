@@ -177,7 +177,9 @@ SampledPath[] + PrintParams + WaveKeyframe[]
        • closed paths: both seam samples get one tangent, along the chord
          between their neighbours (joinSeamFrame); the parser's one-sided
          ones differ on a corner or after a `Z` that closes a tiny gap
-       • per layer: phaseBase = lissPhaseOffset + li * phaseShiftPerLayer
+       • per layer: phaseBase = lissPhaseOffset + li * phaseShiftPerLayer; with
+         keyframes, offset(t_li) + Σ_{j<li} shift(t_j), both sampled at the
+         layer's start, so a layer keeps one phase and closes at its seam
        • per point: createKeyframeSampler() lerps between keyframes
          (cursor-based, t must increase monotonically)
        • phase integrated per path: cycX += 2π·ds/wlX (no chirp when wl varies)
@@ -288,7 +290,7 @@ pendientes.md               Prioritised backlog (some checkmarks stale — see "
 
 `PrintParams` is a single **flat** object with ≈50 fields covering sampling, Lissajous wave (N/T/Z), layers, soft-join, SVG→mm transform, shape transform, z-hop, travel, speeds, extrusion, path options, and clay-specific behaviour. Defaults are `DEFAULT_PARAMS` in `App.tsx`. **Do not nest it, do not split it into multiple stores.**
 
-Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale/rotation fields at given `t ∈ [0,1]` (fraction of all flattened points across all layers). Optional keyframe fields fall back to `PrintParams`; new keyframes snapshot every field from the wave shown at that `t`. Between keyframes, all fields are interpolated by `segmentAlpha`: straight, except that a keyframe with `smooth` is reached and left with zero slope (cubic Hermite; smooth at both ends is smoothstep). Smooth keyframes are drawn round instead of as diamonds (`wlN/wlT/wlZ` floor-clamped at 0.1; `rotation` is not wrapped, so 0° → 360° is a full twist). When `keyframes.length > 0`, the per-path overrides (`ampNOverride` etc. on `SampledPath`) are **silently ignored by `waveGenerator`** — the UI disables them in this case (see `PathList.tsx`).
+Keyframes (`WaveKeyframe[]`) override Lissajous (phase included) and pivot/scale/rotation fields at given `t ∈ [0,1]` (fraction of all flattened points across all layers). Optional keyframe fields fall back to `PrintParams`; new keyframes snapshot every field from the wave shown at that `t`. Between keyframes, all fields are interpolated by `segmentAlpha`: straight, except that a keyframe with `smooth` is reached and left with zero slope (cubic Hermite; smooth at both ends is smoothstep). Smooth keyframes are drawn round instead of as diamonds (`wlN/wlT/wlZ` floor-clamped at 0.1; `rotation` is not wrapped, so 0° → 360° is a full twist). When `keyframes.length > 0`, the per-path overrides (`ampNOverride` etc. on `SampledPath`) are **silently ignored by `waveGenerator`** — the UI disables them in this case (see `PathList.tsx`).
 
 `App.tsx` state:
 - `params: PrintParams` — the print config
@@ -303,7 +305,7 @@ Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale/rotation fields 
 - `gcodeTimerRef` — debounce handle for G-code regeneration (400 ms)
 - `centerTab: 'preview' | 'gcode'` — whether the G-code drawer is open over the 3D view
 - `sampleIndex: number` — which inline sample SVG is shown in the sample navigator
-- `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it. With keyframes and none selected (`autoKey`), the panel shows the wave interpolated at the extruder, and `setLissParams` turns an edit of a wave field into a keyframe there (or edits the one under the extruder) and selects it; the *Fase* fields stay global. Deleting the last keyframe copies its values into `params` (`adoptAsGlobal`), so the part keeps its shape. Loading another SVG or sample keeps the keyframes' wave but drops their centre, scale and rotation (`keepWaveOnly`), which were set for the previous part
+- `selectedKfId: string | null` — id of the currently selected keyframe. While set, the Lissajous panel edits that keyframe and the timeline sits on it; `Esc` clears it, `Supr` deletes it. With keyframes and none selected (`autoKey`), the panel shows the wave interpolated at the extruder, and `setLissParams` turns an edit of a wave field into a keyframe there (or edits the one under the extruder) and selects it. Deleting the last keyframe copies its values into `params` (`adoptAsGlobal`), so the part keeps its shape. Loading another SVG or sample keeps the keyframes' wave but drops their centre, scale and rotation (`keepWaveOnly`), which were set for the previous part
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 - `savedSession: SavedSession | null` — last autosaved session (`localStorage` key `barrocode.session`, written 1 s after changes), offered for restore while no SVG is loaded
 

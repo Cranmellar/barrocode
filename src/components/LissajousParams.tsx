@@ -85,8 +85,8 @@ function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange
   );
 }
 
-function Sec({ title, children, accentColor, badge }: {
-  title: string; children: React.ReactNode; accentColor?: string; badge?: string;
+function Sec({ title, children, accentColor }: {
+  title: string; children: React.ReactNode; accentColor?: string;
 }) {
   return (
     <div className="section" style={accentColor
@@ -94,7 +94,6 @@ function Sec({ title, children, accentColor, badge }: {
       : {}}>
       <div className="section-title">
         {title}
-        {badge && <span className="section-badge">{badge}</span>}
       </div>
       {children}
     </div>
@@ -280,7 +279,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Fase ── */}
-      <Sec title="Fase" badge={editingKf || autoKeyAt !== null ? 'Global' : undefined}>
+      <Sec title="Fase">
         <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
           hint="Fase global al inicio del arco (s=0)"

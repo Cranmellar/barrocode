@@ -175,22 +175,22 @@ function hasSeenHelp() {
 
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
-type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ';
-type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ';
+type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ'
+  | 'lissPhaseOffset' | 'phaseShiftPerLayer';
+type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ' | 'phaseOffset' | 'phaseShift';
 
 const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
   ['lissAmpN', 'ampN'], ['lissAmpT', 'ampT'], ['lissAmpZ', 'ampZ'],
   ['lissWlN', 'wlN'],   ['lissWlT', 'wlT'],   ['lissWlZ', 'wlZ'],
   ['lissDelta', 'delta'], ['lissPhaseZ', 'phaseZ'],
+  ['lissPhaseOffset', 'phaseOffset'], ['phaseShiftPerLayer', 'phaseShift'],
 ];
 
 // Placement fields a keyframe can hold besides its wave.
 const KF_TRANSFORM_FIELDS = ['centerX', 'centerY', 'scaleX', 'scaleY', 'rotation'] as const;
 
 // Everything the Lissajous panel edits; its "Reiniciar" restores only these.
-const LISS_PANEL_FIELDS: Array<LissKey | 'lissPhaseOffset' | 'phaseShiftPerLayer'> = [
-  ...KF_LISS_FIELDS.map(([pk]) => pk), 'lissPhaseOffset', 'phaseShiftPerLayer',
-];
+const LISS_PANEL_FIELDS: LissKey[] = KF_LISS_FIELDS.map(([pk]) => pk);
 
 export default function App() {
   const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
@@ -331,6 +331,7 @@ export default function App() {
       centerX: lp.centerX, centerY: lp.centerY,
       scaleX: lp.scaleX, scaleY: lp.scaleY,
       rotation: lp.rotation,
+      phaseOffset: lp.phaseOffset, phaseShift: lp.phaseShift,
     };
   }
 

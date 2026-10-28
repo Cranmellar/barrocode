@@ -7,13 +7,16 @@
  * Combined toolpath point at arc length s, layer li:
  *
  *   phase_base = lissPhaseOffset + li * phaseShiftPerLayer
+ *                (with keyframes: offset(t_li) + Σ_{j<li} shift(t_j), both
+ *                sampled at each layer's start, so a layer keeps one phase
+ *                and still closes at the seam)
  *   cyc_X(s)   = ∫₀ˢ 2π / wlX(u) du        (= 2π·s / wlX when wlX is constant)
  *   offset_N   = ampN * sin( cyc_N(s)  +  lissDelta  +  phase_base )
  *   offset_T   = ampT * sin( cyc_T(s)              +  phase_base )
  *   point      = centerline(s) + N(s)·offset_N + T(s)·offset_T
  *
  * If keyframes are provided, ampN/ampT/wlN/wlT/delta/centerX/Y/scaleX/Y/rotation
- * are interpolated along the flattened trajectory (t ∈ [0,1] across all layers).
+ * and the two phase fields are interpolated along the flattened trajectory (t ∈ [0,1] across all layers).
  * Scale, then rotation, is applied per-point in SVG space around the
  * interpolated center.
  *
@@ -44,6 +47,7 @@ export interface LocalParams {
   centerX: number; centerY: number;  // mm
   scaleX:  number; scaleY:  number;  // multipliers
   rotation: number;                  // degrees
+  phaseOffset: number; phaseShift: number;  // radians
 }
 
 // ── Keyframe interpolation ──────────────────────────────────────────────────
@@ -57,6 +61,7 @@ function baseToLocal(base: PrintParams): LocalParams {
     centerX: base.centerX, centerY: base.centerY,
     scaleX:  base.scaleX,  scaleY:  base.scaleY,
     rotation: base.rotation,
+    phaseOffset: base.lissPhaseOffset, phaseShift: base.phaseShiftPerLayer,
   };
 }
 
@@ -71,6 +76,8 @@ function kfToLocal(k: WaveKeyframe, base: PrintParams): LocalParams {
     scaleX:  k.scaleX  ?? base.scaleX,
     scaleY:  k.scaleY  ?? base.scaleY,
     rotation: k.rotation ?? base.rotation,
+    phaseOffset: k.phaseOffset ?? base.lissPhaseOffset,
+    phaseShift:  k.phaseShift  ?? base.phaseShiftPerLayer,
   };
 }
 
@@ -91,6 +98,8 @@ function lerpLocal(loF: LocalParams, hiF: LocalParams, alpha: number): LocalPara
     scaleY:  lerp(loF.scaleY,  hiF.scaleY),
     // Plain lerp, no wrap to ±180°: 0° → 360° is a full twist.
     rotation: lerp(loF.rotation, hiF.rotation),
+    phaseOffset: lerp(loF.phaseOffset, hiF.phaseOffset),
+    phaseShift:  lerp(loF.phaseShift,  hiF.phaseShift),
   };
 }
 
@@ -568,9 +577,17 @@ export function generateWaveLayers(
   // Absolute Z of each point on the previous layer, in sampling order.
   let prevZ: number[][] = [];
 
+  // Sum of the keyframed per-layer shifts of the layers below.
+  let shiftBelow = 0;
+
   for (let li = 0; li < numLayers; li++) {
     const z = li * params.layerHeight + params.nozzleHeightOffset;
-    const phaseBase = params.lissPhaseOffset + li * params.phaseShiftPerLayer;
+    let phaseBase = params.lissPhaseOffset + li * params.phaseShiftPerLayer;
+    if (useKeyframes) {
+      const lp = getParamsAtT(flatIdx / tDenom, keyframes, params);
+      phaseBase = lp.phaseOffset + shiftBelow;
+      shiftBelow += lp.phaseShift;
+    }
 
     const isAlt = params.alternateDirection && li % 2 === 1;
     const reverse = params.reversePath !== isAlt;
@@ -596,6 +613,7 @@ export function generateWaveLayers(
         centerX: params.centerX, centerY: params.centerY,
         scaleX:  params.scaleX,  scaleY:  params.scaleY,
         rotation: params.rotation,
+        phaseOffset: params.lissPhaseOffset, phaseShift: params.phaseShiftPerLayer,
       };
       // Wavelengths in SVG units; keyframe values are still in mm.
       const wavelengths = (lp: LocalParams) => useKeyframes
