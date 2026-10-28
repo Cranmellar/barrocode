@@ -34,7 +34,7 @@ Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure 
 
 ## Deployment
 
-GitHub Pages, one workflow only: [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm test`, `npm run build`, upload `dist/` artifact, deploy. A failing test blocks the deploy; pull requests are not built.
+GitHub Pages via [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm test`, `npm run build`, upload `dist/` artifact, deploy. A failing test blocks the deploy. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs the same test and build on pull requests, without deploying.
 
 `vite.config.ts` uses `base: './'` so the build also works opened directly from `file://` or a USB sub-path.
 
@@ -94,15 +94,13 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 5. Fix the NumInput-while-focused wheel refresh and add Shift = fine step (both in `NumInput.tsx`, one handler; covers every numeric field).
 6. Coarser wheel step for the pivot fields in `CenterScaleParams.tsx` (5 or 10 mm; Shift keeps it fine once #5 lands).
-7. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
+7. Overhaul phase 2 leftovers: *Escala* shows both a number field and a slider for the same value (`CenterScaleParams.tsx`), and resets mix *Resetear* (pivot, scale, rotation) with *Restablecer* (wave panel). Pick one control and one verb.
 8. Warn when the part leaves the bed; needs a bed-size parameter first (UI-3 leftover).
 
 ### Hygiene (only when touching the area)
 
-9. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
-10. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
-11. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
-12. Fix the stale `pendientes.md` checkmarks listed in "Current state".
+9. Unused files: everything in `src/assets/` (`sample1..4.svg` and `logo.svg`; samples are inlined in `App.tsx`; the logo left the UI in `61927fb` and the empty view writes the name as text), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other; `index.html` uses `favicon.black.ico` / `favicon.white.ico`), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
+10. `docs/usage.md` §6 (*Previsualización*) still describes the pre-overhaul viewer in places; re-read it against the floating-panel UI when touching the viewer.
 
 ### Lower priority / needs a decision
 
@@ -245,8 +243,8 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ logo · ? · ‹      │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
-│ Cargar SVG, file  │ │ Descargar (signal)               │ │ small Lissajous    │
+│ Cargar SVG · ‹    │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ file name         │ │ Descargar (signal), ?            │ │ small Lissajous    │
 │ ‹ sample ›        │ └──────────────────────────────────┘ │ context line       │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
@@ -261,8 +259,8 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 ```
 src/
   main.tsx                  React root, StrictMode
-  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈820 lines)
-  index.css                 All styles (≈1570 lines, design tokens in :root)
+  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈790 lines)
+  index.css                 All styles (≈1320 lines, design tokens in :root)
   types/index.ts            All shared types
   components/
     Preview2D.tsx           Full-window 3D canvas, interaction, top bar, layer slider, timeline dock, G-code drawer (≈570 lines)
@@ -280,9 +278,9 @@ src/
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
     toolpath.ts             Final mm trajectory shared by G-code + preview
-    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈585 lines)
+    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈625 lines)
     palette.ts              CSS tokens copied for canvas code + OKLCH layer ramp
-    gcodeGenerator.ts       G-code assembly (≈320 lines)
+    gcodeGenerator.ts       G-code assembly (≈325 lines)
     gcodeStats.ts           Time / length / E summary read back from the G-code
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
@@ -354,7 +352,6 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 These are documented hazards. Fix them when you touch the area, but don't go on cleanup sweeps without being asked.
 
 - **`ParsedSVG.raw` duplicates `App.tsx`'s `lastRawRef.current.raw`.** Either could be removed.
-- **`resampleSVG` in `lib/svgParser.ts`** is dead code.
 - **`CenterPad`'s drag has no window-level handler** — drag stops abruptly at the canvas boundary on fast moves.
 - **Z-hop crossing detection** uses a spatial grid; it only `console.warn`s above 3000 points (`WARN_PTS`), never skips.
 

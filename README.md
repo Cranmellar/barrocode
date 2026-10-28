@@ -172,31 +172,34 @@ flowchart TD
 
 ```text
 src/
+  App.tsx                 estado, paneles flotantes, muestras, atajos, sesión
+  index.css               todos los estilos y tokens de diseño
   types/index.ts
   lib/
     svgParser.ts
     waveGenerator.ts
     toolpath.ts
-    draw3D.ts
     gcodeGenerator.ts
+    gcodeStats.ts
+    draw3D.ts
+    palette.ts
     hopUtils.ts
     skirtUtils.ts
+    __tests__/
   components/
-    PathParams.tsx
-    LissajousParams.tsx
-    PathList.tsx
     Preview2D.tsx
-    LissajousPreview.tsx
-    GcodeOutput.tsx
+    PathParams.tsx
+    PathList.tsx
     CenterScaleParams.tsx
     CenterPad.tsx
+    LissajousParams.tsx
+    LissajousPreview.tsx
+    GcodeOutput.tsx
+    HelpDialog.tsx
     NumInput.tsx
 public/
-  sample.svg
-  logo.png
-  isotype.png
-  fonts/
-dist/
+  fonts/                  GSCode
+  favicon.black.ico, favicon.white.ico
 ```
 
 ## Documentación

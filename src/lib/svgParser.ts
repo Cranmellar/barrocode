@@ -301,7 +301,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   // Detect parser errors (malformed XML).
   const parseError = doc.querySelector('parsererror');
   if (parseError) {
-    throw new Error(`SVG parse error: ${parseError.textContent?.slice(0, 200)}`);
+    throw new Error(`El archivo no es un SVG válido: ${parseError.textContent?.slice(0, 200)}`);
   }
 
   const sourceSvgEl = doc.documentElement;
@@ -329,7 +329,7 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
   const liveSvgEl = container.querySelector('svg') as SVGSVGElement | null;
 
   if (!liveSvgEl) {
-    throw new Error('No <svg> element found in the uploaded file.');
+    throw new Error('El archivo no contiene un elemento <svg>.');
   }
 
   // Make the hidden SVG large enough that viewBox scaling doesn't distort
@@ -391,17 +391,10 @@ export function parseSVG(svgString: string, spacing: number): ParsedSVG {
 
   if (paths.length === 0) {
     throw new Error(
-      'No measurable geometry found. Make sure the SVG contains <path>, <polyline>, <circle>, <ellipse>, <rect>, or <line> elements.',
+      'No se encontró geometría medible. El SVG debe contener elementos <path>, <polyline>, <polygon>, <line>, <circle>, <ellipse> o <rect> visibles.',
     );
   }
 
   return { paths, viewBox, mmPerUnit, raw: svgString };
 }
 
-/**
- * Re-sample an already-parsed SVG with a different spacing value.
- * This is cheaper than re-parsing but still hits the DOM.
- */
-export function resampleSVG(raw: string, spacing: number): ParsedSVG {
-  return parseSVG(raw, spacing);
-}
