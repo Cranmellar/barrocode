@@ -26,6 +26,7 @@ import type { PrintParams } from '../types';
 import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 import { layerCount } from './waveGenerator';
+import type { GcodeStats } from './gcodeStats';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
@@ -35,6 +36,52 @@ function fmt(n: number, d = 3) { return n.toFixed(d); }
 
 function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(bx - ax, by - ay);
+}
+
+// ── Moves ───────────────────────────────────────────────────────────────────
+
+// Machine position plus the program summary, kept as each move is written so
+// the viewer needn't parse the G-code back. It reads the rounded values that
+// are written, as summarizeGcode would.
+interface Machine extends GcodeStats { x: number; y: number; z: number; e: number }
+
+function newMachine(): Machine {
+  return { x: 0, y: 0, z: 0, e: 0, timeSec: 0, printLength: 0, travelLength: 0, eTotal: 0 };
+}
+
+function statsOf({ timeSec, printLength, travelLength, eTotal }: Machine): GcodeStats {
+  return { timeSec, printLength, travelLength, eTotal };
+}
+
+function move(
+  m: Machine,
+  to: { x?: number; y?: number; z?: number; e?: number },
+  feed: number,
+  comment?: string,
+): string {
+  let line = 'G1';
+  let x = m.x, y = m.y, z = m.z, e = m.e;
+  if (to.x !== undefined) { const v = fmt(to.x); line += ` X${v}`; x = +v; }
+  if (to.y !== undefined) { const v = fmt(to.y); line += ` Y${v}`; y = +v; }
+  if (to.z !== undefined) { const v = fmt(to.z); line += ` Z${v}`; z = +v; }
+  if (to.e !== undefined) { const v = fmt(to.e); line += ` E${v}`; e = +v; }
+  line += ` F${feed}`;
+
+  const d = Math.hypot(x - m.x, y - m.y, z - m.z);
+  if (feed > 0) m.timeSec += d / (feed / 60);
+  if (e > m.e) {
+    m.printLength += d;
+    m.eTotal += e - m.e;
+  } else {
+    m.travelLength += d;
+  }
+  m.x = x; m.y = y; m.z = z; m.e = e;
+  return comment ? `${line}  ; ${comment}` : line;
+}
+
+function dwell(m: Machine, ms: number): string {
+  m.timeSec += ms / 1000;
+  return `G4 P${ms}  ; dwell — wait for clay flow`;
 }
 
 // Smoothstep: eases both ends of the transition curve.
@@ -93,6 +140,7 @@ function buildTransition(
   transitionLength: number,
   params: PrintParams,
   eRef: { value: number },
+  m: Machine,
 ): string[] {
   // Steps shorter than this would extrude less than E's printed resolution.
   const span = Math.hypot(to.x - from.x, to.y - from.y, zTo - zFrom);
@@ -111,8 +159,8 @@ function buildTransition(
 
     const segD = dist(prevX, prevY, x, y);
     eRef.value += segD * params.extrusionMultiplier;
-    const eStr = params.generateE ? ` E${fmt(eRef.value)}` : '';
-    lines.push(`G1 X${fmt(x)} Y${fmt(y)} Z${fmt(z)}${eStr} F${params.printSpeed}`);
+    const e = params.generateE ? eRef.value : undefined;
+    lines.push(move(m, { x, y, z, e }, params.printSpeed));
     prevX = x; prevY = y;
   }
   return lines;
@@ -154,15 +202,16 @@ function buildSkirtTravel(
   centroid: MM2,
   topZ: number,
   params: PrintParams,
+  m: Machine,
 ): string[] {
   const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
 
   const lines: string[] = [];
-  lines.push(`G1 Z${fmt(topZ + TRAVEL_CLEARANCE)} F${params.travelSpeed}  ; lift`);
+  lines.push(move(m, { z: topZ + TRAVEL_CLEARANCE }, params.travelSpeed, 'lift'));
 
   if (!arcPts) {
     // Short hop — direct XY travel
-    lines.push(`G1 X${fmt(to.x)} Y${fmt(to.y)} F${params.travelSpeed}  ; short hop`);
+    lines.push(move(m, { x: to.x, y: to.y }, params.travelSpeed, 'short hop'));
   } else {
     const rA = Math.hypot(from.x - centroid.x, from.y - centroid.y);
     const rB = Math.hypot(to.x   - centroid.x, to.y   - centroid.y);
@@ -173,11 +222,11 @@ function buildSkirtTravel(
     ));
     lines.push(`; ↻ Skirt arc r=${fmt(R, 1)} mm ~${fmt(arcLen, 1)} mm`);
     for (const pt of arcPts) {
-      lines.push(`G1 X${fmt(pt.x)} Y${fmt(pt.y)} F${params.travelSpeed}`);
+      lines.push(move(m, { x: pt.x, y: pt.y }, params.travelSpeed));
     }
   }
 
-  lines.push(`G1 Z${fmt(to.z)} F${params.travelSpeed}  ; descend`);
+  lines.push(move(m, { z: to.z }, params.travelSpeed, 'descend'));
   return lines;
 }
 
@@ -192,6 +241,7 @@ function pathToGcode(
   params: PrintParams,
   eRef: { value: number },
   zRef: { value: number },  // tracks current nozzle Z across calls
+  m: Machine,
 ): string[] {
   const lines: string[] = [];
 
@@ -202,12 +252,15 @@ function pathToGcode(
     if (d < 1e-6) continue;
 
     eRef.value += d * params.extrusionMultiplier;
-    const eStr = params.generateE ? ` E${fmt(eRef.value)}` : '';
     const zChanged = Math.abs(curr.z - zRef.value) > 0.001;
-    const zStr = zChanged ? ` Z${fmt(curr.z)}` : '';
     if (zChanged) zRef.value = curr.z;
 
-    lines.push(`G1 X${fmt(curr.x)} Y${fmt(curr.y)}${zStr}${eStr} F${params.printSpeed}`);
+    lines.push(move(m, {
+      x: curr.x,
+      y: curr.y,
+      z: zChanged ? curr.z : undefined,
+      e: params.generateE ? eRef.value : undefined,
+    }, params.printSpeed));
   }
 
   return lines;
@@ -215,11 +268,17 @@ function pathToGcode(
 
 // ── Main entry point ─────────────────────────────────────────────────────────
 
+export interface GcodeProgram {
+  text: string;
+  stats: GcodeStats;
+}
+
 export function generateGcode(
   toolpath: ToolpathLayer[],
   params: PrintParams,
-): string {
-  if (toolpath.length === 0) return '; No layers to generate.\n';
+): GcodeProgram {
+  const m = newMachine();
+  if (toolpath.length === 0) return { text: '; No layers to generate.\n', stats: statsOf(m) };
 
   const blocks: string[] = [];
   blocks.push(buildHeader(params));
@@ -231,7 +290,7 @@ export function generateGcode(
     (params.generateE ? 'M82       ; absolute extrusion\n' : '') +
     'G92 E0    ; reset E\n',
   );
-  blocks.push(`G1 Z${fmt(params.safeZ)} F${params.travelSpeed}  ; safe Z\n`);
+  blocks.push(`${move(m, { z: params.safeZ }, params.travelSpeed, 'safe Z')}\n`);
 
   const eRef = { value: 0 };
   const zRef = { value: params.safeZ };
@@ -243,14 +302,14 @@ export function generateGcode(
     const { x: px, y: py } = primingStart(toolpath[0]);
     blocks.push(
       `; --- Priming ---\n` +
-      `G1 X${fmt(px)} Y${fmt(py)} F${params.travelSpeed}\n` +
-      `G1 Z${fmt(pz)} F${params.travelSpeed}\n`,
+      `${move(m, { x: px, y: py }, params.travelSpeed)}\n` +
+      `${move(m, { z: pz }, params.travelSpeed)}\n`,
     );
     eRef.value += params.primingLength * params.extrusionMultiplier;
-    const eStr = params.generateE ? ` E${fmt(eRef.value)}` : '';
+    const e = params.generateE ? eRef.value : undefined;
     blocks.push(
-      `G1 X${fmt(px + params.primingLength)} Y${fmt(py)}${eStr} F${params.printSpeed}\n` +
-      `G1 Z${fmt(params.safeZ)} F${params.travelSpeed}\n; --- End priming ---\n`,
+      `${move(m, { x: px + params.primingLength, y: py, e }, params.printSpeed)}\n` +
+      `${move(m, { z: params.safeZ }, params.travelSpeed)}\n; --- End priming ---\n`,
     );
   }
 
@@ -279,19 +338,17 @@ export function generateGcode(
       blocks.push(`; --- Layer ${li + 1}, Path ${pi + 1} ---`);
 
       if (isFirstMove) {
-        blocks.push(`G1 X${fmt(start.x)} Y${fmt(start.y)} F${params.travelSpeed}  ; travel to start`);
-        blocks.push(`G1 Z${fmt(start.z)} F${params.travelSpeed}  ; descend`);
+        blocks.push(move(m, { x: start.x, y: start.y }, params.travelSpeed, 'travel to start'));
+        blocks.push(move(m, { z: start.z }, params.travelSpeed, 'descend'));
         zRef.value = start.z;
-        if (params.dwellAtStart > 0) {
-          blocks.push(`G4 P${params.dwellAtStart}  ; dwell — wait for clay flow`);
-        }
+        if (params.dwellAtStart > 0) blocks.push(dwell(m, params.dwellAtStart));
       } else if (!joined) {
-        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params);
+        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params, m);
         blocks.push(skirtLines.join('\n'));
         zRef.value = start.z;
       }
 
-      blocks.push(pathToGcode(pts, params, eRef, zRef).join('\n'));
+      blocks.push(pathToGcode(pts, params, eRef, zRef, m).join('\n'));
       isFirstMove = false;
       joined = false;
       cur = pts[pts.length - 1];
@@ -302,7 +359,7 @@ export function generateGcode(
         if (next && gap <= params.transitionLength) {
           if (Math.hypot(gap, next.z - zRef.value) > JOIN_TOLERANCE) {
             const tLines = buildTransition(
-              cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
+              cur, next, zRef.value, next.z, params.transitionLength, params, eRef, m,
             );
             zRef.value = next.z;
             blocks.push(tLines.join('\n'));
@@ -315,10 +372,10 @@ export function generateGcode(
 
   blocks.push('\n; ===== End =====');
   const finalZ = Math.max(params.safeZ, topZ[topZ.length - 1]) + FINAL_CLEARANCE;
-  blocks.push(`G1 Z${fmt(finalZ)} F${params.travelSpeed}  ; final lift`);
+  blocks.push(move(m, { z: finalZ }, params.travelSpeed, 'final lift'));
   blocks.push('M84  ; disable motors');
 
-  return blocks.join('\n');
+  return { text: blocks.join('\n'), stats: statsOf(m) };
 }
 
 // ── Download helper ──────────────────────────────────────────────────────────

@@ -3,19 +3,13 @@
  * and the exported G-code share the same hops.
  */
 
-export interface ArcPt { x: number; y: number; arc: number }
+type XY = { x: number; y: number };
 
-function dist2D(ax: number, ay: number, bx: number, by: number) {
-  return Math.hypot(bx - ax, by - ay);
-}
-
-/** Build a cumulative arc-length path from a flat array of XY points. */
-export function buildArcPath(pts: { x: number; y: number }[]): ArcPt[] {
-  const out: ArcPt[] = [];
-  let arc = 0;
-  for (let i = 0; i < pts.length; i++) {
-    if (i > 0) arc += dist2D(pts[i - 1].x, pts[i - 1].y, pts[i].x, pts[i].y);
-    out.push({ x: pts[i].x, y: pts[i].y, arc });
+/** Cumulative arc length at each point of a flat array of XY points. */
+export function arcLengths(pts: XY[]): Float64Array {
+  const out = new Float64Array(pts.length);
+  for (let i = 1; i < pts.length; i++) {
+    out[i] = out[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
   }
   return out;
 }
@@ -51,11 +45,12 @@ function segSegIntersect(
 const WARN_PTS = 3000;
 
 export function findCrossings(
-  arcPath: ArcPt[],
+  pts: XY[],
+  arcs: Float64Array,  // arcLengths(pts)
   cellSize = 3,
   gaps: ReadonlySet<number> = new Set(),
 ): number[] {
-  const n = arcPath.length;
+  const n = pts.length;
   if (n < 3) return [];
 
   if (n > WARN_PTS) {
@@ -66,7 +61,7 @@ export function findCrossings(
   const segCells = new Int32Array(4 * (n - 1));
   let minGx = Infinity, minGy = Infinity, maxGy = -Infinity;
   for (let i = 0; i < n - 1; i++) {
-    const a = arcPath[i], b = arcPath[i + 1];
+    const a = pts[i], b = pts[i + 1];
     const x0 = Math.floor(Math.min(a.x, b.x) / cellSize);
     const x1 = Math.floor(Math.max(a.x, b.x) / cellSize);
     const y0 = Math.floor(Math.min(a.y, b.y) / cellSize);
@@ -115,13 +110,13 @@ export function findCrossings(
           testedWith[j] = i;
 
           const s = segSegIntersect(
-            arcPath[i].x,     arcPath[i].y,     arcPath[i + 1].x, arcPath[i + 1].y,
-            arcPath[j].x,     arcPath[j].y,     arcPath[j + 1].x, arcPath[j + 1].y,
+            pts[i].x,     pts[i].y,     pts[i + 1].x, pts[i + 1].y,
+            pts[j].x,     pts[j].y,     pts[j + 1].x, pts[j + 1].y,
           );
           if (s !== null) {
             // Hop on the later pass (j > i): that is where the nozzle meets
             // the bead already deposited by segment i.
-            const crossArc = arcPath[j].arc + s * (arcPath[j + 1].arc - arcPath[j].arc);
+            const crossArc = arcs[j] + s * (arcs[j + 1] - arcs[j]);
             crossings.push(crossArc);
           }
         }

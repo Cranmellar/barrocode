@@ -7,8 +7,7 @@
  */
 
 import type { WaveLayer, PrintParams } from '../types';
-import { svgToMM } from './waveGenerator';
-import { buildArcPath, findCrossings, hopAtArc, hopSampleArcs } from './hopUtils';
+import { arcLengths, findCrossings, hopAtArc, hopSampleArcs } from './hopUtils';
 import { computeCentroid, type MM2 } from './skirtUtils';
 
 export interface ToolpathPoint { x: number; y: number; z: number }
@@ -88,12 +87,16 @@ export function buildToolpath(
     ? layers[1].z - layers[0].z
     : 0;
 
+  // svgToMM, inlined: one object per point instead of two.
+  const { scaleFactor: sf, originX, originY, flipY } = params;
+
   for (const layer of layers) {
     const closed = new Set<MM2[]>();
     const mmPaths = layer.paths.flatMap((path, pi) => {
       if (path.length < 2) return [];
       const mm = path.map(p => ({
-        ...svgToMM(p, params.scaleFactor, params.originX, params.originY, params.flipY, centre),
+        x: (p.x - centre.x) * sf + originX,
+        y: (flipY ? centre.y - p.y : p.y - centre.y) * sf + originY,
         zOffset: p.zOffset,
       }));
       if (layer.closed[pi]) closed.add(mm);
@@ -102,7 +105,7 @@ export function buildToolpath(
 
     const ordered = nearestNeighbourOrder(mmPaths, cur);
     const flat = ordered.flat();
-    const arcPath = buildArcPath(flat);
+    const arcs = arcLengths(flat);
 
     let crossings: number[] = [];
     if (params.zHopHeight > 0) {
@@ -113,7 +116,7 @@ export function buildToolpath(
         const gaps = new Set<number>();
         let end = -1;
         for (const path of ordered.slice(0, -1)) { end += path.length; gaps.add(end); }
-        crossings = findCrossings(arcPath, Math.max(params.hopRadius * 3, 2), gaps);
+        crossings = findCrossings(flat, arcs, Math.max(params.hopRadius * 3, 2), gaps);
       }
       recent.unshift({ ordered, crossings });
       if (recent.length > 2) recent.pop();
@@ -125,15 +128,15 @@ export function buildToolpath(
     let k = 0;
     const paths = ordered.map(path => {
       const out: ToolpathPoint[] = [];
-      const startArc = arcPath[k].arc, endArc = arcPath[k + path.length - 1].arc;
+      const startArc = arcs[k], endArc = arcs[k + path.length - 1];
       const rampLength = Math.min(params.transitionLength, endArc - startArc);
       const ramp = (arc: number) => rampStep > 0 && rampLength > 0 && closed.has(path)
         ? seamRamp(arc, endArc, rampLength, rampStep)
         : 0;
       path.forEach((p, i) => {
-        const arc = arcPath[k++].arc;
+        const arc = arcs[k++];
         if (i > 0 && crossings.length > 0) {
-          const prev = path[i - 1], prevArc = arcPath[k - 2].arc;
+          const prev = path[i - 1], prevArc = arcs[k - 2];
           for (const a of hopSampleArcs(prevArc, arc, crossings, params.hopRadius)) {
             const f = (a - prevArc) / (arc - prevArc);
             out.push({

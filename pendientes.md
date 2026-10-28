@@ -11,7 +11,7 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 ### Bugs
 
 - [X] **Drag-and-drop de SVG no resuelve** — actualmente no funciona; el `onDrop` está cableado en `App.tsx` pero hay un comportamiento que lo está rompiendo.
-- [ ] **Scrollwheel no actualiza el valor numérico visible** — al tener un field seleccionado y mover la rueda, los parámetros cambian en el visualizador, pero el número en el `NumInput` no se refresca mientras se gira. *Estaba marcado como hecho, pero `NumInput.tsx` sigue condicionando `setRaw` a `!focusedRef.current` (verificado 2026-10-28).*
+- [x] **Scrollwheel no actualiza el valor numérico visible** — al tener un field seleccionado y mover la rueda, el número en el `NumInput` no se refrescaba. Ahora cada paso de rueda o arrastre llama a `setRaw` directamente (`nudge` en `NumInput.tsx`), con el campo enfocado o no.
 
 ### Revisión crítica (oct. 2026)
 
@@ -22,6 +22,7 @@ Hallazgos de una revisión del pipeline SVG → G-code. Los marcados `[x]` está
 - [x] **Un SVG compartido podía ejecutar código.** `parseSVG` insertaba el texto con `innerHTML`, y los atributos `onerror` / `onload` se ejecutaban al cargar (comprobado en Chromium). Ahora se inserta el documento ya parseado, sin `<script>`, `<foreignObject>`, atributos `on*` ni enlaces `javascript:`, con `importNode`. Los SVG sin `xmlns` se reparsean con el namespace SVG; la salida de las muestras no cambia.
 - [ ] **Bajo un `transform` con escala, el muestreo y las longitudes de onda salen mal.** `getTotalLength` / `getPointAtLength` trabajan en longitud local del elemento: dentro de `<g transform="scale(2)">` un trazo de 20 unidades mide 10, así que el espaciado de muestra y las longitudes de onda quedan al doble. Recalcular `arcLength` y `totalLength` a partir de los puntos ya transformados (`svgParser.ts`).
 - [ ] **Z-hop: probable acumulación de arcilla en los cruces** (deducido del código; confirmar con una impresión de prueba). El salto solo se aplica en la segunda pasada de cada cruce. En la capa 0 el cruce recibe un cordón a Z 1.0 y otro a Z 3.5; la primera pasada de la capa 1 cruza a Z 3.5, sin hueco sobre ese cordón doble. Cada capa deja un cordón de más en el cruce. Propuesta: reducir o anular E dentro de la ventana del salto en vez de solo levantar la boquilla (`toolpath.ts` / `gcodeGenerator.ts`).
+- [ ] **Coordenadas negativas por defecto** — con *Posición X / Y* en 0, 0 el centro de la pieza va al origen, así que media pieza (y la línea de cebado) queda en X/Y negativos. En impresoras con origen en una esquina el movimiento se recorta o se rechaza. Avisar en el resumen del visor cuando el mínimo X o Y sea negativo, y escribir la caja min/max X/Y/Z en el encabezado del G-code. No requiere parámetro de cama.
 - [x] **"Reiniciar" del panel Lissajous borraba todos los parámetros** (`setParams(DEFAULT_PARAMS)`): capas, velocidades y escala incluidas. Ahora restablece solo los campos que edita el panel (amplitudes y longitudes de onda N/T/Z, delta, fase Z, desfase y desfase por capa); con un keyframe seleccionado, restablece la onda de ese keyframe. Se desactiva mientras los keyframes bloquean la onda global.
 - [x] **Los pull requests no pasan por CI.** Ahora `ci.yml` corre `npm test` y `npm run build` en cada pull request.
 - [ ] **E no compensa el grosor real del cordón con onda Z.** El hueco con la capa inferior varía entre 0.5× y ≈ 1.6× la altura de capa (con 0.8 mm de amplitud Z), pero E depende solo de la distancia XY. Escalar E por el hueco local (amplía NP-0a). El error por ignorar la componente Z de la distancia es menor (≈ 1.4 %).
@@ -43,15 +44,15 @@ Catálogo hecho pasando las 8 muestras por el pipeline real y midiendo la capa 0
 ### UX — controles
 
 - [ ] **Pivot drag en el visualizador** — *reabierto: estaba marcado pero no existe (`Preview2D` no edita `params`).* Permitir que el punto que corresponde al centro de escala se pueda desplazar arrastrando con el mouse en el viewport 3D.
-- [ ] **Shift = ajuste fino** — *reabierto: `NumInput` no lee `shiftKey`.* Agregar la opción de mantener Shift apretado para cambios muy leves al variar cualquier parámetro. Rueda = cambio grueso, Shift+rueda = cambio fino.
-- [ ] **Pivot fields con paso más grueso** — *reabierto: los campos de centro siguen con `step={1}`.* Al variar el centro de pivote, el desplazamiento por tick del wheel debiese ser mayor, para ubicar más rápidamente el punto donde quiero.
+- [x] **Shift = ajuste fino** — rueda = paso normal, Shift+rueda (o Shift al arrastrar la etiqueta) = `fineStep`, por defecto `step / 10`.
+- [x] **Pivot fields con paso más grueso** — los campos del centro avanzan de 5 en 5 mm (1 mm con Shift).
 - [x] **"Añadir keyframe aquí" → "OK" cuando hay keyframe seleccionada** — cuando se está trabajando con una keyframe existente, el botón debe cambiar a un OK para confirmar y evitar crear 2 keyframes en el mismo punto.
 
 ### UX — visualización
 
 - [x] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
 - [x] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
-- [ ] **Optimizar rendering con capas altas o muchos keyframes** — en gran parte hecho (memoización por etapa, reuso de cruces, LOD, caché del scrub, textarea truncado). Queda: G-code y estadísticas en un worker, y coalescer el arrastre de keyframes y de `CenterPad` con `requestAnimationFrame`. Detalle y cifras en CLAUDE.md, *Performance — user-side findings* #6 y #7.
+- [ ] **Optimizar rendering con capas altas o muchos keyframes** — en gran parte hecho (memoización por etapa, reuso de cruces, LOD, caché del scrub, textarea truncado). Re-medido el 2026-10-28: cada re-render de `App` redibujaba la escena (`insets` inestable), corregido. También hechos: las estadísticas se calculan al emitir el G-code (la pausa al final de cada edición bajó a la mitad) y el punto animado del Lissajous da una vuelta y se detiene (reposo de 12 % a 0 %; quieto con *reduced motion*). Hecho también: menos objetos por punto (el GC por tick bajó ≈70 %, el tick ≈15 % a 150 capas). Queda, en orden: reusar capas idénticas en `generateWaveLayers` y G-code en un worker. Detalle y cifras en CLAUDE.md, *Performance — user-side findings*.
 
 ### UI — layout y estilo
 
@@ -144,13 +145,13 @@ El plan original en ocho olas (oct. 2026) está casi cerrado; el detalle quedó 
 
 | Ola | Estado |
 |---|---|
-| 1 — Bugs P0 | Drag-and-drop hecho. **Abierto:** refresco del `NumInput` durante la rueda con el campo enfocado. |
-| 2 — Controles | Botón *Añadir → OK* hecho. **Abierto:** Shift = ajuste fino, paso grueso en el pivote. |
+| 1 — Bugs P0 | Hecha (drag-and-drop, refresco del `NumInput` con la rueda). |
+| 2 — Controles | Hecha (*Añadir → OK*, Shift = ajuste fino, paso de 5 mm en el pivote). |
 | 3 — Pivot drag en el visor | **Abierto**, sin empezar. |
 | 4 — UI polish | Absorbida por el overhaul gráfico ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)); tiempo estimado hecho. |
 | 5 — Panel derecho | Hecha (UI-4 y overhaul fase 3). |
 | 6 — Samples | 8 muestras en carrusel; la grilla queda opcional. |
 | 7 — Sesión | Hecha (UI-5). |
-| 8 — Performance | En gran parte hecha. **Abierto:** worker para G-code y estadísticas, coalescer arrastres. |
+| 8 — Performance | En gran parte hecha. **Abierto:** capas idénticas, worker (ver CLAUDE.md). |
 
 El orden de trabajo vigente (correcciones del G-code primero, luego mejoras rápidas de UX e higiene) está en CLAUDE.md, *Next steps — low effort, high impact*.

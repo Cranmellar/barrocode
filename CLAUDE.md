@@ -28,7 +28,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 | `npm run preview` | Local static preview of `dist/` |
 | `npm test` | Vitest, run once (`npm test -- -u` updates reference G-code) |
 
-Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI only runs `npm test` and `npm run build` on `main`, so a pull request gets no automated check.
+Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure `splitSubpaths`) and live in `src/lib/__tests__/`. There is no linter or formatter config wired into npm scripts. Don't add one without being asked. CI runs `npm test` and `npm run build` on every pull request (`ci.yml`) and again before deploying `main`.
 
 ---
 
@@ -42,9 +42,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 ---
 
-## Current state (verified 2026-10-28 on branch `claude/trusting-hawking-n8deba`, on top of `main` @ `96a8132`)
+## Current state (verified 2026-10-28 on branch `claude/nice-edison-frd7w6`, on top of `main` @ `dddc17b`)
 
-- `npm test` (156 tests) and `npm run build` pass (≈112 kB app JS + 141 kB vendor; gzip ≈84 kB).
+- `npm test` (187 tests) and `npm run build` pass (≈127 kB app JS + 141 kB vendor + 37 kB CSS; gzip ≈97 kB).
 - Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
@@ -66,7 +66,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
   - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
 - **Part centred on the bed.** `svgToMM` puts the centre of the enabled paths' bounding box (`partCentreSVG` in `waveGenerator.ts`) at (`originX`, `originY`), shown as *Posición X / Y* in *Escala y posición*; default 0, 0. Where the SVG placed the part on its artboard no longer matters (Illustrator exports put parts far from the viewBox origin). `centerX/Y` (pivot, params and keyframes) are mm offsets from that centre; *Centrar en la pieza* resets them. The 3D camera orbits around the part's centre (`orbit` in `Preview2D`), not the bed origin, and refits when another SVG is loaded (`partKey`). Disabling a path re-centres the rest.
-- **One `pendientes.md` ticket is ticked `[x]` but not implemented** — treat it as open: pivot drag in the 3D viewport (`Preview2D` has no params `onChange`; nothing draggable for the pivot).
+- **Pivot drag in the 3D viewport is not implemented** (`Preview2D` has no params `onChange`). `pendientes.md` lists it open (Ola 3, KF-C3); it was once ticked by mistake.
+- **Keyframe polish (Oct 2026)**: arrow keys jump between keyframes while one is selected, numbers stay stable mid-drag, *Borrar todos* needs a second click, the timeline shows "capa N · H mm", dragged keyframes snap to layer starts, auto-key, smooth keyframes (`smooth`), phase offset/shift held per keyframe, deleting the last keyframe adopts its values, loading another SVG keeps only the keyframes' wave. Open: KF-B2, KF-B3, KF-C2, KF-C3 in `pendientes.md`.
+- **Icons** (`components/icons.tsx`, one inline-SVG set) on panel tabs, headers, rails and keyframe fields; the export and add-keyframe buttons fill with `--signal-ramp`.
 - **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
 ---
@@ -77,24 +79,22 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ### Correctness (G-code that reaches the printer)
 
-1. **E ignores Z.** `pathToGcode` and `buildTransition` accumulate E from XY distance, and a Z-only move is dropped (`d < 1e-6`). Already wrong with `lissAmpZ > 0`. (`pendientes.md` NP-0a.)
-2. **A bead can lose its support.** The Z floor only acts downward. With `phaseShiftPerLayer`, a crest over the trough of the layer below leaves a gap up to `layerHeight + 2·lissAmpZ`, so the bead prints in the air. Warn in the viewer, or cap the gap upward the same way the floor works (`waveGenerator.ts`, next to `MIN_LAYER_GAP`).
-3. **Arc length ignores scaling transforms.** `getPointAtLength` works in **element-local** length, so under `<g transform="scale(2)">` sample spacing and wavelengths come out 2× in root units. Accumulate arc length from the transformed points (`svgParser.ts`).
-4. **Z-hop probably stacks clay at crossings** (inferred, confirm with a test print). Only the later pass hops, so a crossing gets two beads per layer and the next layer's first pass crosses at the height of that double bead with no gap. Reduce or zero E inside the hop window.
+1. **Negative coordinates on corner-origin beds.** Since the part is centred at (`originX`, `originY`) = (0, 0) by default, half of every part sits at negative X/Y. Centre-origin beds (most deltas) are fine; on a corner-origin Cartesian printer the move is clipped or rejected, and the hint under *Posición X / Y* is easy to miss, and the priming line goes negative too (`primingStart`). Cheapest fix, no bed parameter needed: when the toolpath's minimum X or Y is below 0, show a warning in the viewer summary ("coordenadas negativas: en una impresora con origen en esquina, ajusta *Posición X / Y*"), and write the min/max X/Y/Z box into the G-code header. A full bed-size check (item 9) can come later.
+2. **E ignores Z.** `pathToGcode` and `buildTransition` accumulate E from XY distance, and a Z-only move is dropped (`d < 1e-6`). Already wrong with `lissAmpZ > 0` and on the seam ramp. Use `Math.hypot(dx, dy, dz)` in both and keep Z-only moves (`pendientes.md` NP-0a). Snapshot diff expected; read it before `-u`.
+3. **G-code header misses fields.** `buildHeader` omits `lissAmpZ` / `lissWlZ` / `lissPhaseZ` (NP-0c), the number of keyframes (with keyframes the listed wave isn't what prints), `dwellAtStart`, priming, `safeZ` and `alternateDirection`. Header-only snapshot change.
+4. **A bead can lose its support.** The Z floor only acts downward. With `phaseShiftPerLayer`, a crest over the trough of the layer below leaves a gap up to `layerHeight + 2·lissAmpZ`, so the bead prints in the air. Warn in the viewer, or cap the gap upward the same way the floor works (`waveGenerator.ts`, next to `MIN_LAYER_GAP`).
+5. **Arc length ignores scaling transforms.** `getPointAtLength` works in **element-local** length, so under `<g transform="scale(2)">` sample spacing and wavelengths come out 2× in root units. Accumulate arc length from the transformed points (`svgParser.ts`). No automated test possible (DOM); verify in Chromium.
+6. **Z-hop probably stacks clay at crossings** (inferred, confirm with a test print). Only the later pass hops, so a crossing gets two beads per layer and the next layer's first pass crosses at the height of that double bead with no gap. Reduce or zero E inside the hop window.
 
 ### UX quick wins
 
-5. ~~NumInput wheel refresh while focused, Shift = fine step.~~ **Done.**
-6. ~~Coarser wheel step for the pivot fields.~~ **Done** (5 mm, 1 mm with Shift).
-7. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
-8. Warn when the part leaves the bed; needs a bed-size parameter first (UI-3 leftover).
+7. **Duplicate a keyframe** at the extruder (`D`) and copy a panel section from the previous keyframe (`pendientes.md` KF-C2).
+8. **Show what changes from the previous keyframe** in the editor ("N 2 → 6 mm", KF-B3).
+9. Warn when the part leaves the bed; needs a bed-size parameter (and centre vs corner origin) first (UI-3 leftover). Item 1 covers the commonest case without it.
 
 ### Hygiene (only when touching the area)
 
-9. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
-10. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
-11. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
-12. Fix the stale `pendientes.md` checkmark listed in "Current state" (pivot drag).
+10. Unused files: `src/assets/` entirely (`logo.svg`, `sample1..4.svg`; the eight samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other; the page uses `favicon.black.ico` / `favicon.white.ico`), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
 
 ### Lower priority / needs a decision
 
@@ -106,7 +106,35 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ---
 
-## Performance — user-side findings (measured 2026-10-26 on `main` @ `29ad9a1`)
+## Performance — user-side findings
+
+### Re-measured 2026-10-28 on `main` @ `dddc17b` (supersedes the older numbers below where they disagree)
+
+Same setup as below (production build, headless Chromium, CDP `TaskDuration`, sample 4, defaults). Stage times come from temporary `performance.now()` wrappers in the browser build; pure-JS times from `vite-node` on the 750-point flower.
+
+| Main thread | 60 layers | 150 layers |
+|---|---|---|
+| Idle, sample loaded or not (before → after #3) | ≈12 % → 0 % of a core | same |
+| Scale slider drag, per tick (before → after the `insets` fix) | ≈180 → ≈115 ms | ≈1065 → ≈480 ms |
+| One scale slider tick incl. the debounced G-code | ≈370 ms | ≈825 ms |
+| Long tasks after a print-speed edit (before → after #2) | ≈105 → ≈77 ms | ≈310 → ≈155 ms |
+| Print-speed wheel tick incl. G-code | ≈320 ms | ≈520 ms |
+| Full 3D redraw, no pipeline (*Color* toggle) | ≈30 ms | ≈35 ms |
+| Timeline scrub step / camera rotate step | ≈15 / ≈20 ms | ≈25 / ≈12 ms |
+
+Per scale slider tick at 150 layers (it reruns the whole pipeline, as a wave slider does): `generateWaveLayers` ≈60 ms, `buildToolpath` ≈47 ms, `flattenPoints` ≈13 ms, drawing ≈25 ms, the rest is GC and React. When the 400 ms debounce fired (before #2): `generateGcode` ≈160 ms then `summarizeGcode` ≈225 ms, so every edit ended in a ≈0.4 s freeze, and the stats cost more than the G-code itself. Pure JS (flower, 150 layers): wave 40–60, toolpath 35–95, G-code 75–145, stats 135–215 ms.
+
+Findings, by impact ÷ effort:
+
+1. ~~**`insets` was a new object on every `App` render.**~~ **Done.** It is in the draw effect's dependencies, so any `App` re-render (`setGcodeBusy`, `setGcode`, toasts…) redrew the scene, and because the geometry was unchanged it also built the scrub cache on a detached canvas, rasterised on the main thread (`drawImage` was the top entry of the profile). Now `useMemo` on `shown.left/right`. Keep every object or array passed to `Preview2D` that feeds the draw effect stable.
+2. ~~**Compute the G-code stats while emitting.**~~ **Done.** `generateGcode` returns `{ text, stats }`; every `G1`/`G4` line goes through `move` / `dwell`, which track the summary from the rounded values they write. `summarizeGcode` is now only the tests' oracle (`gcodeGenerator.test.ts`, *summary*, over the invariant matrix plus no-E and dwell). The end-of-edit freeze halved at 150 layers; what is left is the G-code text itself, mostly `toFixed`.
+3. ~~**The Lissajous dot loop was the whole idle cost.**~~ **Done.** The dot now runs one lap (`LAP_MS`, 5 s) when the figure appears or changes, then rests; under `prefers-reduced-motion` it doesn't move. Idle main thread ≈12 % → 0 %.
+4. **Identical layers are recomputed.** Without keyframes and with `phaseShiftPerLayer = 0` (the defaults) every layer's XY is the same (every other one with `alternateDirection`); only the Z floor differs, and only when `lissAmpZ > 0`. Compute the transformed wave once per direction and run just the floor per layer: `generateWaveLayers` ≈60 → a few ms at 150 layers. `buildToolpath` can reuse the `svgToMM` XY the same way it reuses crossings. Snapshots pin exactness. *Effort: low–medium.*
+5. ~~**Allocation churn.**~~ **Done.** Per point and edit the pipeline built 5–7 objects where 2 are needed. Now `applyTransformSVG` transforms the fresh `lissajousPoint` result in place; the keyframe sampler (`createKeyframeSampler`) writes into one reused `LocalParams` (read it before the next call); the per-point `[wN, wT, wZ]` array is gone; `buildToolpath` inlines `svgToMM`; `arcLengths` (`hopUtils.ts`) returns a `Float64Array` in place of `{x, y, arc}` objects and `findCrossings` takes the points plus those arcs; `flattenPoints` returns the toolpath's own points, and `keyframeMarkers` gets each keyframe's layer from `layerOfPoint` (so `MarkerScene` includes `toolpath`). Output identical to the old code in 1,000 random configurations (layers, toolpath, flattened points, `layerAtT`, keyframe markers, `getParamsAtT`, G-code). Browser, sample 4, per slider tick: 150 layers ≈263 → ≈225 ms (GC ≈46 → ≈13 ms), 60 layers ≈145 → ≈125 ms. Pure JS, flower at 150 layers, wave + toolpath + flatten: −25 to −42 % (keyframes the most), `flattenPoints` 7–25 → ≈2 ms. Typed arrays for the whole toolpath were not needed.
+6. **Coalesce pipeline runs while dragging a wave slider.** Each `input` event runs the whole pipeline synchronously; at 150 layers ticks arrive faster than they finish. `useDeferredValue` on the pipeline's inputs (params, keyframes) lets React skip stale intermediate values; measure before keeping it. *Effort: low, benefit unproven.*
+7. **G-code in a worker** (old #6) removes what is left of the freeze after #2. Mind `file://`: Chromium refuses `new Worker(url)` from a `file://` page, so use Vite's inline worker (`?worker&inline`, a blob URL) or fall back to the main thread. *Effort: medium.*
+
+### Measured 2026-10-26 on `main` @ `29ad9a1`
 
 **Setup:** `npm run build && npx vite preview`, headless Chromium driven by Playwright. Main-thread time comes from CDP `Performance.getMetrics` (`TaskDuration`). Inputs: sample 4, default params (z-hop is **on** by default), 60 and 150 layers. At 60 layers that is 68,160 points, 180 hop crossings and 1.6 MB of G-code. Headless Chromium rasterises canvas in software, so treat canvas numbers as relative. The pure-JS numbers come from `vite-node` on a 750-point flower curve and match what the browser shows.
 
@@ -129,7 +157,7 @@ Proposed fixes, ordered by impact ÷ effort. Each is one or two small commits. G
 5. **Per-frame waste in the 3D preview.**
    - ~~Projection trig and canvas reallocation.~~ **Done.** `makeProjector(az, el)` in `draw3D.ts` computes the camera trig once per draw; `project` wraps it. `Preview2D` takes its canvas size from a `ResizeObserver` and reallocates the buffer only when the size changes; each draw runs inside `save`/`restore`. Main-thread time per step at 60 layers: camera rotate 13 → 6.5 ms, timeline scrub 21 → 10 ms; at 150 layers, 18 → 10 ms and 37 → 17 ms. Output is pixel-identical in 24 preview states (1× and 2×). This also fixes two old bugs: the 3D view came back blank after visiting the G-code tab, and didn't redraw when a side panel was dragged. `CenterPad` was left alone: its 56 px canvas costs nothing to reallocate.
    - ~~The timeline scrub redraws every layer at full quality.~~ **Done.** `draw3D.ts` splits the layer strokes and their overlays (skirt travel, soft-join lines) into `drawGeometry`, which reads only `GeometryScene` (no timeline, no text). When a redraw leaves those inputs unchanged, `Preview2D` builds a cached copy once and `drawScene` copies it in, so a scrub redraws only the backdrop, centre axis, extruder and markers. Scrub wall time per step: ≈50 → ≈17 ms at 60 layers, ≈190 → ≈22 ms at 150. Building the cache on every geometry change was tried and dropped: a detached canvas rasterises on the main thread, so camera rotation went from 6 to 41 ms of main thread per step. Output is pixel-identical except the scrubbed states, which differ by ≤ 3/255 from compositing.
-6. **G-code generation and stats still run on the main thread.** When the 400 ms debounce fires, `generateGcode` (≈70 ms at 60 layers, ≈350 ms on a wave with many loops) and `summarizeGcode` (50–150 ms: `split`, a regex and an object per line) block the UI mid-interaction. Now that #2 and #3 are done, move both into a worker (perf spec Phase 5), or compute the stats in the same pass that emits the G-code. *Effort: medium.*
+6. **G-code generation still runs on the main thread** (stats: done, 2026-10-28 #2; worker: #7 there). When the 400 ms debounce fires, `generateGcode` (≈70 ms at 60 layers, ≈350 ms on a wave with many loops) and `summarizeGcode` (50–150 ms: `split`, a regex and an object per line) block the UI mid-interaction. Now that #2 and #3 are done, move both into a worker (perf spec Phase 5), or compute the stats in the same pass that emits the G-code. *Effort: medium.*
 7. **Keyframe drag and `CenterPad` drag** call `setKeyframes` on every `mousemove`, so each move runs the full pipeline, about the cost of a slider tick. The timeline keyframe drag now applies moves once per animation frame, but in Chromium that measured within noise (60 moves at 60 layers: ≈5.4–6.7 s of main thread before, ≈5.1–5.9 s after): Chromium already delivers at most one `mousemove` per frame and React batches updates within a task. The real cost is the pipeline itself, ≈85 ms per frame at 60 layers. `CenterPad` drag is unchanged. `CenterPad.partBounds` also passes every point through `svgToMM` each time the layers or params change; take the bounds from the shared toolpath instead.
 
 Lower priority:
@@ -204,7 +232,7 @@ WaveLayer[] + PrintParams + part centre (partCentreSVG)
          goes to (originX, originY)
        • nearest-neighbour path order O(n²) per layer, each layer starting
          where the previous one ended
-       • buildArcPath + findCrossings (inter-path gaps excluded, reused when
+       • arcLengths + findCrossings (inter-path gaps excluded, reused when
          a layer's XY matches one of the two before it) + hopAtArc;
          hopSampleArcs inserts points across each hop window so the parabola
          is resolved even when hopRadius < sample spacing
@@ -225,10 +253,13 @@ ToolpathLayer[] consumed by BOTH:
   │      skipped when the seam ramp already reached the next start
   │    • E accumulates: E += dist * extrusionMultiplier
   │    • final lift to max(safeZ, highest printed Z) + 10
-  │  → string
-  ├─ Preview2D             — so the preview always draws what gets printed
-  └─ summarizeGcode()      [lib/gcodeStats.ts] reads the G-code back for the
-                           viewer's time / length / E summary
+  │    • move() / dwell() write each line and keep the time / length / E
+  │      summary from the rounded values written
+  │  → { text, stats }    (stats feed the viewer summary)
+  └─ Preview2D             — so the preview always draws what gets printed
+
+summarizeGcode() [lib/gcodeStats.ts] reads a program back; only tests use it,
+to check the emitted stats.
 ```
 
 Regeneration in `App.tsx`: `layers` and `toolpath` are `useMemo`s keyed on `parsedSVG`, `keyframes` and the fields in `WAVE_PARAMS` / `TOOLPATH_PARAMS`, so they recompute during render only when geometry can change. When a stage starts reading a new param, add it to that list; `paramDeps.test.ts` fails otherwise. G-code is an effect on `[toolpath, params]`, debounced 400 ms (via `gcodeTimerRef`) to avoid freezing the UI during slider/keyframe edits. Re-sampling (re-parsing the raw SVG) only happens when `params.sampleSpacing` changes.
@@ -257,11 +288,11 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 ```
 src/
   main.tsx                  React root, StrictMode
-  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈790 lines)
-  index.css                 All styles (≈1320 lines, design tokens in :root)
+  App.tsx                   Master state, floating panels, inline samples, keyframe dock controls, shortcuts, session (≈980 lines)
+  index.css                 All styles (≈1620 lines, design tokens in :root)
   types/index.ts            All shared types
   components/
-    Preview2D.tsx           Full-window 3D canvas, interaction, top bar, layer slider, timeline dock, G-code drawer (≈570 lines)
+    Preview2D.tsx           Full-window 3D canvas, interaction, top bar, layer slider, timeline dock, G-code drawer (≈910 lines)
     LissajousParams.tsx     Right panel: wave sliders + presets; edits the selected keyframe
     LissajousPreview.tsx    Small animated Lissajous strip under the wave panel header
     PathParams.tsx          Left panel: Pieza / Trayecto / Máquina tabs
@@ -270,16 +301,18 @@ src/
     CenterPad.tsx           56×56 canvas pivot picker
     GcodeOutput.tsx         G-code drawer: textarea + copy + close
     HelpDialog.tsx          "?" quick-start modal (native <dialog>)
-    NumInput.tsx            Controlled number input with wheel-to-change
+    NumInput.tsx            Controlled number input: wheel, Shift fine step, label drag
+    FlowSteps.tsx           Four-step icon row in the empty 3D view
+    icons.tsx               Inline-SVG icon set (`Icon`, `IconName`)
   lib/
     __tests__/              Vitest specs, fixtures, reference .gcode snapshots
     svgParser.ts            DOM-based SVG sampling
     waveGenerator.ts        Lissajous math + keyframe interp + scale
     toolpath.ts             Final mm trajectory shared by G-code + preview
-    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈625 lines)
+    draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈670 lines)
     palette.ts              CSS tokens copied for canvas code + OKLCH layer ramp
-    gcodeGenerator.ts       G-code assembly (≈325 lines)
-    gcodeStats.ts           Time / length / E summary read back from the G-code
+    gcodeGenerator.ts       G-code assembly (≈330 lines)
+    gcodeStats.ts           GcodeStats type; summary read back from G-code (test oracle)
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
 docs/                       usage, architecture, fabrication notes, research notes,
@@ -382,7 +415,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - Layer visibility comes from the layer slider: `drawScene` gets `layerCap` (top visible layer index) and `layerSolo`. New overlays tied to a layer should respect it.
 - Canvas colours come from `lib/palette.ts`: `loadPalette()` (called in `main.tsx`) copies the CSS tokens once; its defaults mirror them for tests. Never hardcode a colour in canvas code.
 - Layer colors are an OKLCH ramp from electric indigo through magenta to `--signal` (`rampColor` in `palette.ts`, wrapped by `layerColor`); with *Color por capa* off every layer is `--ink-2` and the legend is hidden. *Cotas* draws the bounding box's X/Y lengths and the height (`numLayers · layerHeight`, as in the toolbar) in the foreground band. Clicking a keyframe diamond on the canvas selects it (`keyframeAt`, from the same `keyframeMarkers` the drawing uses). Keyframes are numbered diamonds coloured by `keyframeColor(t)`. The number is the keyframe's index in `keyframes`, which `App` keeps sorted by `t` except during a timeline drag (sorted on release), so a dragged keyframe keeps its number (the ramp hue at their position, at a fixed light tone so the dark number reads on every hue). Number and colour are the same on the timeline lane, the canvas, the keyframe strip and the Lissajous header; the selected one gets a dark outline. The canvas extruder is a dark square, like the slider thumb, so it never reads as a keyframe.
-- `LissajousPreview` cancels its `requestAnimationFrame` when both `ampN` and `ampT` are ≈0. Don't remove this — it's a battery and CPU optimization. Its static canvas redraws only on change; per-frame work belongs on the dot canvas.
+- `LissajousPreview`'s dot runs one lap (`LAP_MS`) after the figure changes and then stops; it doesn't run at all when both `ampN` and `ampT` are ≈0 or under reduced motion. Don't make it loop again: a permanent loop cost ≈12 % of a core while idle. Its static canvas redraws only on change; per-frame work belongs on the dot canvas.
 - Canvas text takes `font-variation-settings` from the canvas element's computed style, so `:root`'s `'wght' 450` overrides the weight in `ctx.font`: every in-page canvas draws GSCode at 450. A canvas that isn't in the DOM (e.g. `document.createElement('canvas')` used as an offscreen buffer) draws the real weight instead, so text cached that way looks bolder. Keep text on in-page canvases.
 - Auto-fit in `LissajousPreview` keys off `lissAmpN`, `lissAmpT` and the observed canvas size, and always centres the figure. The preview is read-only (no pan/zoom).
 
@@ -404,7 +437,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 
 ### Motion
 
-Phase 5 of the overhaul. Durations and easing come from `--dur-fast` / `--dur` / `--dur-slow` / `--ease`; everything collapses under `prefers-reduced-motion` (a global rule at the end of `index.css`, and JS animations check `matchMedia` and jump to the end). Nothing loops on the 3D canvas except while something is actually moving.
+Phase 5 of the overhaul. Durations and easing come from `--dur-fast` / `--dur` / `--dur-slow` / `--ease`; everything collapses under `prefers-reduced-motion` (a global rule at the end of `index.css`, and JS animations check `matchMedia` and jump to the end). Nothing loops, on the 3D canvas or elsewhere, except while something is actually moving.
 - **Entrances are CSS animations on mount**; exits keep the element mounted for the exit animation: closing a side panel (`leaving` in `App.tsx`, `PANEL_LEAVE_MS`), removed keyframes on the timeline (`leavingKfs` in `Preview2D`), the keyframe editor (`closingEditor`). Keep the JS timeouts and the CSS durations in step.
 - To replay a CSS animation on every change, remount with a new `key` (toasts, `NumInput` step readout) or alternate two identical keyframes (`num-flash-a/-b`).
 - **Sliding highlights**: the Pieza/Trayecto/Máquina tab and Iso/Planta/Frente share one moving element (`.panel-tabs-ind`, `.view-presets-ind`); the view one fades out when the camera matches no preset.

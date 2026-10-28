@@ -7,7 +7,7 @@
 
 import type { SampledPath, PrintParams, WaveKeyframe } from '../types';
 import { svgToMM, getParamsAtT } from './waveGenerator';
-import type { ToolpathLayer } from './toolpath';
+import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 import { palette, rampColor, withAlpha } from './palette';
 
@@ -66,29 +66,33 @@ export function boundsOf<T>(
   return { minX, maxX, minY, maxY };
 }
 
-export interface FlatPoint { x: number; y: number; z: number; layerIndex: number }
-
-export function flattenPoints(toolpath: ToolpathLayer[]): FlatPoint[] {
-  const pts: FlatPoint[] = [];
+// Every toolpath point in print order. The points are the toolpath's own,
+// not copies: this runs on every geometry change.
+export function flattenPoints(toolpath: ToolpathLayer[]): ToolpathPoint[] {
+  const pts: ToolpathPoint[] = [];
   for (const layer of toolpath) {
     for (const path of layer.paths) {
-      for (const p of path) pts.push({ ...p, layerIndex: layer.index });
+      for (const p of path) pts.push(p);
     }
   }
   return pts;
 }
 
+// Layer of the idx-th point of flattenPoints(toolpath).
+function layerOfPoint(toolpath: ToolpathLayer[], idx: number): number {
+  for (const layer of toolpath) {
+    const n = layer.paths.reduce((sum, p) => sum + p.length, 0);
+    if (idx < n) return layer.index;
+    idx -= n;
+  }
+  return toolpath.length > 0 ? toolpath[toolpath.length - 1].index : 0;
+}
+
 // Index of the layer the extruder sits on at timeline position t: the same
 // point the preview draws it at, counted without flattening.
 export function layerAtT(toolpath: ToolpathLayer[], t: number): number {
-  const sizes = toolpath.map(l => l.paths.reduce((n, p) => n + p.length, 0));
-  const total = sizes.reduce((a, b) => a + b, 0);
-  let idx = Math.min(total - 1, Math.floor(t * (total - 1)));
-  for (let i = 0; i < toolpath.length; i++) {
-    if (idx < sizes[i]) return toolpath[i].index;
-    idx -= sizes[i];
-  }
-  return toolpath.length > 0 ? toolpath[toolpath.length - 1].index : 0;
+  const total = toolpath.reduce((sum, l) => sum + l.paths.reduce((n, p) => n + p.length, 0), 0);
+  return layerOfPoint(toolpath, Math.min(total - 1, Math.floor(t * (total - 1))));
 }
 
 // Timeline position of each layer's first point (its seam), nudged past
@@ -114,7 +118,7 @@ export function layerLabel(layerIndex: number, layerHeight: number): string {
 export interface Scene {
   view: View3D;
   toolpath: ToolpathLayer[];
-  flatPoints: FlatPoint[];
+  flatPoints: ToolpathPoint[];
   modelBounds: { minX: number; maxX: number; minY: number; maxY: number } | null;
   sampledPaths: SampledPath[];
   params: PrintParams;
@@ -152,20 +156,22 @@ function screenMapper(view: View3D): (x: number, y: number, z: number) => [numbe
 }
 
 export type MarkerScene = Pick<Scene,
-  'view' | 'flatPoints' | 'keyframes' | 'selectedKfId' | 'layerCap' | 'layerSolo'>;
+  'view' | 'toolpath' | 'flatPoints' | 'keyframes' | 'selectedKfId' | 'layerCap' | 'layerSolo'>;
 
 export interface KeyframeMarker { kf: WaveKeyframe; number: number; x: number; y: number; r: number }
 
 // Screen position of each visible keyframe diamond, numbered by its place in
 // `keyframes`, in drawing order (the last one is on top).
 export function keyframeMarkers(scene: MarkerScene): KeyframeMarker[] {
-  const { view, flatPoints: flat, keyframes, selectedKfId, layerCap, layerSolo } = scene;
+  const { view, toolpath, flatPoints: flat, keyframes, selectedKfId, layerCap, layerSolo } = scene;
   if (flat.length === 0) return [];
   const toScreen = screenMapper(view);
   const markers: KeyframeMarker[] = [];
   keyframes.forEach((kf, i) => {
-    const pt = flat[Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)))];
-    if (layerSolo ? pt.layerIndex !== layerCap : pt.layerIndex > layerCap) return;
+    const idx = Math.min(flat.length - 1, Math.round(kf.t * (flat.length - 1)));
+    const pt = flat[idx];
+    const layer = layerOfPoint(toolpath, idx);
+    if (layerSolo ? layer !== layerCap : layer > layerCap) return;
     const [x, y] = toScreen(pt.x, pt.y, pt.z);
     markers.push({ kf, number: i + 1, x, y, r: kf.id === selectedKfId ? 14 : 12 });
   });
@@ -444,7 +450,7 @@ function fmtDim(v: number): string {
  * vertical one beside the part's leftmost point on screen.
  */
 function drawDimensions(
-  ctx: CanvasRenderingContext2D, view: View3D, flat: FlatPoint[],
+  ctx: CanvasRenderingContext2D, view: View3D, flat: ToolpathPoint[],
   b: { minX: number; maxX: number; minY: number; maxY: number }, height: number,
 ) {
   const toScreen = screenMapper(view);
@@ -632,7 +638,7 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
 /** Top-down XY thumbnail shown next to the G-code. */
 export function drawTopDown(
   ctx: CanvasRenderingContext2D, W: number, H: number,
-  toolpath: ToolpathLayer[], flatPoints: FlatPoint[],
+  toolpath: ToolpathLayer[], flatPoints: ToolpathPoint[],
 ) {
   ctx.clearRect(0, 0, W, H);
   ctx.fillStyle = palette.surface;

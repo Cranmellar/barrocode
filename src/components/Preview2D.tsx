@@ -17,7 +17,7 @@ import { useRef, useEffect, useLayoutEffect, useCallback, useState, useMemo, typ
 import type { SampledPath, PrintParams, WaveKeyframe } from '../types';
 import { findKeyframeAt, partCentreSVG } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
-import { summarizeGcode } from '../lib/gcodeStats';
+import type { GcodeStats } from '../lib/gcodeStats';
 import {
   type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt, layerAtT, layerLabel, layerStartTs,
 } from '../lib/draw3D';
@@ -40,6 +40,7 @@ interface Props {
   centerTab: 'preview' | 'gcode';
   onTabChange: (tab: 'preview' | 'gcode') => void;
   gcode: string;
+  gcodeStats: GcodeStats | null;
   // An edit is waiting for its G-code; the shown G-code and stats are stale.
   gcodeBusy: boolean;
   gcodeFilename: string;
@@ -157,7 +158,7 @@ export function Preview2D({
   sampledPaths, toolpath, params, partKey,
   timelineProgress, onTimelineChange, onScrub,
   keyframes, onKeyframesChange,
-  centerTab, onTabChange, gcode, gcodeBusy, gcodeFilename, toast, onToast,
+  centerTab, onTabChange, gcode, gcodeStats: stats, gcodeBusy, gcodeFilename, toast, onToast,
   selectedKfId, onKfSelect, onAddKeyframe, onHelp,
   insets, timelineLead, timelineActions, timelineEditor,
 }: Props) {
@@ -591,7 +592,7 @@ export function Preview2D({
   const kfUnder = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
     return keyframeAt(
-      { view, flatPoints, keyframes, selectedKfId, layerCap: visibleCap, layerSolo },
+      { view, toolpath, flatPoints, keyframes, selectedKfId, layerCap: visibleCap, layerSolo },
       e.clientX - rect.left, e.clientY - rect.top,
     );
   };
@@ -680,7 +681,6 @@ export function Preview2D({
   const totalPts = flatPoints.length;
   const shownCap = Math.min(layerCap ?? numLayers, numLayers);
 
-  const stats = useMemo(() => (gcode ? summarizeGcode(gcode) : null), [gcode]);
   const shownTime = useCountUp(stats ? stats.timeSec : null);
   const crossings = toolpath.reduce((n, l) => n + l.crossings, 0);
 
