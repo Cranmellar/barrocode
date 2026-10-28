@@ -10,7 +10,10 @@ const CORNER_SPAN = 0.5;
 const SMOOTH_TURN = (10 * Math.PI) / 180;
 // Mm either side of a node where its tangent is read.
 const TANGENT_SPAN = 0.5;
-const MAX_DEPTH = 6;
+// An edge this close to a line through two of its points counts as straight.
+const STRAIGHT_MM = 0.01;
+// Deep enough for a long imported contour with no fixed node for hundreds of mm.
+const MAX_DEPTH = 12;
 
 /** How many times the family's outline repeats around its centre. */
 export function familySymmetry(doc: ShapeDoc): number {
@@ -74,6 +77,31 @@ function nodeAt(loop: Loop, s: number, before: number, after: number): PathNode 
   };
 }
 
+/**
+ * A corner between straight edges: its tangents are read a little before and
+ * after the corner, and the node sits where those two lines meet. Samples
+ * rarely fall on the corner itself, and a tangent read across it would bend
+ * the whole edge. A corner between curves (a cusp) keeps the plain node.
+ */
+function cornerAt(loop: Loop, s: number, before: number, after: number): PathNode {
+  const d = Math.min(1, Math.max(before, after) / 4);
+  const a1 = loop.at(s - 2 * d), a2 = loop.at(s - d), b1 = loop.at(s + d), b2 = loop.at(s + 2 * d);
+  const unit = (p: Pt, q: Pt) => { const l = Math.hypot(q.x - p.x, q.y - p.y) || 1; return { x: (q.x - p.x) / l, y: (q.y - p.y) / l }; };
+  const tin = unit(a1, a2), tout = unit(b1, b2);
+  const offLine = (o: Pt, q: Pt, t: Pt) => Math.abs((q.x - o.x) * t.y - (q.y - o.y) * t.x);
+  const cross = tin.x * tout.y - tin.y * tout.x;
+  const straight = offLine(a1, loop.at(s - 3 * d), tin) < STRAIGHT_MM && offLine(b1, loop.at(s + 3 * d), tout) < STRAIGHT_MM;
+  if (!straight || Math.abs(cross) < 1e-6) return { ...nodeAt(loop, s, before, after), smooth: false };
+  const t = ((b1.x - a2.x) * tout.y - (b1.y - a2.y) * tout.x) / cross;
+  const p = { x: a2.x + tin.x * t, y: a2.y + tin.y * t };
+  return {
+    x: p.x, y: p.y,
+    inX: p.x - (tin.x * before) / 3, inY: p.y - (tin.y * before) / 3,
+    outX: p.x + (tout.x * after) / 3, outY: p.y + (tout.y * after) / 3,
+    smooth: false,
+  };
+}
+
 /** Largest distance from the outline between arcs s0 and s1 to the cubic path given, and where. */
 function deviation(loop: Loop, s0: number, s1: number, curve: Pt[]): { dist: number; s: number } {
   let worst = 0, where = (s0 + s1) / 2;
@@ -104,7 +132,8 @@ function sampleCubic(a: PathNode, b: PathNode): Pt[] {
 
 /** Arc positions in [0, sector) where the outline turns sharply. */
 function corners(loop: Loop, sector: number): number[] {
-  const step = loop.length / loop.pts.length;
+  // Finer than the window, or a corner between two coarse samples slips through.
+  const step = Math.min(loop.length / loop.pts.length, CORNER_SPAN / 2);
   const out: number[] = [];
   let run: { s: number; turn: number } | null = null;
   for (let s = 0; s < sector; s += step) {
@@ -145,14 +174,22 @@ export function fitOutline(outline: Pt[], order: number, tolMM = 0.2): { nodes: 
 
   // Fixed nodes: the seam (sector start), corners, and the tip and valley.
   const fixed = [0];
-  for (const s of [...corners(loop, sector), ...extremes(loop, sector)]) {
+  const cornerArcs = new Set<number>();
+  for (const s of corners(loop, sector)) {
+    if (s < minGap || sector - s < minGap) cornerArcs.add(0);
+    else if (fixed.every(f => Math.abs(f - s) > minGap)) { fixed.push(s); cornerArcs.add(s); }
+  }
+  for (const s of extremes(loop, sector)) {
     if (fixed.every(f => Math.abs(f - s) > minGap) && sector - s > minGap) fixed.push(s);
   }
   fixed.sort((a, b) => a - b);
+  // The sector's end is the next sector's seam.
+  const node = (s: number, before: number, after: number) =>
+    cornerArcs.has(s) || (s === sector && cornerArcs.has(0)) ? cornerAt(loop, s, before, after) : nodeAt(loop, s, before, after);
 
   // Split each gap where its cubic strays most, until every piece is within tolerance.
   const split = (a: number, b: number, depth: number): number[] => {
-    const dev = deviation(loop, a, b, sampleCubic(nodeAt(loop, a, 0, b - a), nodeAt(loop, b, b - a, 0)));
+    const dev = deviation(loop, a, b, sampleCubic(node(a, 0, b - a), node(b, b - a, 0)));
     if (dev.dist <= tolMM || depth >= MAX_DEPTH) return [a];
     const m = Math.min(b - (b - a) * 0.2, Math.max(a + (b - a) * 0.2, dev.s));
     return [...split(a, m, depth + 1), ...split(m, b, depth + 1)];
@@ -171,7 +208,7 @@ export function fitOutline(outline: Pt[], order: number, tolMM = 0.2): { nodes: 
   const sectorNodes = arcs.map((s, k) => {
     const prev = k > 0 ? arcs[k - 1] : arcs[arcs.length - 1] - sector;
     const next = k + 1 < arcs.length ? arcs[k + 1] : sector;
-    return nodeAt(loop, s, s - prev, next - s);
+    return node(s, s - prev, next - s);
   });
   // Turn sector 0 into the others, the way the outline runs.
   const p0 = loop.at(0), p1 = loop.at(sector);

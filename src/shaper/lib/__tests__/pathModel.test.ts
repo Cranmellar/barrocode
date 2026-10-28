@@ -144,6 +144,18 @@ describe('fitOutline', () => {
     ['superformula, n2 ≠ n3', { family: 'superformula', sfM: 6, sfN1: 3, sfN2: 4, sfN3: 9 }],
     ['circle', { family: 'superformula', sfM: 0 }],
   ];
+  // An imported contour has no symmetry, so only its seam, corners and two
+  // extremes are fixed: long smooth gaps with many lobes in between.
+  for (const [name, patch] of [
+    ['large flower', { lobeCount: 8, lobeDepthPct: 30, sizeMM: 480 }],
+    ['large cusped flower', { lobeCount: 10, lobeDepthPct: 40, lobeSharp: 0.5, sizeMM: 400 }],
+  ] as [string, Partial<ShapeDoc>][]) {
+    it(`follows a ${name} fitted without symmetry, as an import is`, () => {
+      const outline = shapePoints({ ...DEFAULT_SHAPE, ...patch });
+      expect(maxDeviation(outline, fitOutline(outline, 1).nodes)).toBeLessThan(0.21);
+    });
+  }
+
   for (const [name, patch] of docs) {
     it(`follows the ${name} within 0.2 mm with few nodes`, () => {
       const doc = { ...DEFAULT_SHAPE, ...patch };
