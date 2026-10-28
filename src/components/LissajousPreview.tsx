@@ -53,22 +53,22 @@ export function LissajousPreview({ params }: Props) {
     };
   }, []);
 
+  // Framed from the observed size, so the figure stays centred when the
+  // panel lays out or resizes after the amplitudes were set.
   const autoFit = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0) return;
+    const { w, h } = size;
+    if (w === 0 || h === 0) return;
     const maxAmp = Math.max(lissAmpN, lissAmpT, 0.5);
     const margin = 10;
     const scale = Math.min(
-      (rect.width  - margin * 2) / (maxAmp * 2 || 1),
-      (rect.height - margin * 2) / (maxAmp * 2 || 1),
+      (w - margin * 2) / (maxAmp * 2 || 1),
+      (h - margin * 2) / (maxAmp * 2 || 1),
       60,
     );
-    viewRef.current = { offsetX: rect.width / 2, offsetY: rect.height * 0.48, scale };
-  }, [lissAmpN, lissAmpT]);
+    viewRef.current = { offsetX: w / 2, offsetY: h / 2, scale };
+  }, [lissAmpN, lissAmpT, size]);
 
-  // Auto-fit whenever amplitudes change
+  // Auto-fit whenever the amplitudes or the size change
   useEffect(() => { autoFit(); }, [autoFit]);
 
   const drawDot = useCallback(() => {
