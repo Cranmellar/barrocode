@@ -568,6 +568,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   text-align: right;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
+.param-row input[type="number"]:hover:not(:disabled) { border-color: var(--faint); }
 .param-row input[type="number"]:focus { outline: none; border-color: var(--ink); }
 
 .param-check { justify-content: flex-start; gap: 10px; }
@@ -673,12 +674,15 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) var(--ease);
   background: var(--field);
   border: 1px solid var(--border-strong);
   color: var(--ink);
 }
 .btn-small:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-small:active:not(:disabled),
+.btn-primary:active:not(:disabled) { transform: scale(0.98); }
+.btn-icon:active:not(:disabled) { transform: scale(0.94); }
 
 .btn-icon {
   display: inline-flex;
@@ -696,7 +700,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), transform var(--dur-fast) var(--ease);
 }
 .btn-icon:hover:not(:disabled) { background: var(--surface-2); color: var(--ink); }
 .btn-icon:disabled { opacity: 0.35; cursor: default; }
@@ -734,7 +738,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast), transform var(--dur-fast) var(--ease);
   background: var(--accent);
   border: 1px solid var(--accent);
   color: var(--on-ink);
@@ -824,9 +828,10 @@ input[type="range"]::-webkit-slider-thumb {
   border: 2px solid var(--field);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease);
+  transition: transform var(--dur-fast) var(--ease), box-shadow var(--dur-fast);
 }
-input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); }
+input[type="range"]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(74,74,81,0.12); }
+input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.2); box-shadow: 0 0 0 5px rgba(74,74,81,0.14); }
 
 input[type="range"]::-moz-range-thumb {
   width: 14px; height: 14px;
@@ -853,7 +858,8 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid var(--border);
   color: var(--ink-2);
   cursor: pointer;
-  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
+  transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast),
+    transform var(--dur) var(--ease);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -861,7 +867,7 @@ input[type="range"]::-moz-range-thumb {
   gap: 4px;
 }
 .btn-preset:hover { background: var(--surface-2); border-color: var(--border-strong); color: var(--ink); }
-.btn-preset:active { opacity: 0.75; }
+.btn-preset:active { transform: scale(0.96); }
 .btn-preset svg { opacity: 0.7; transition: opacity var(--dur-fast); }
 .btn-preset:hover svg { opacity: 1; }
 
@@ -1309,9 +1315,48 @@ input[type="radio"] {
   flex-shrink: 0;
 }
 
+/* On/off options read as switches; still a native checkbox for keyboard and forms. */
+.param-check input[type="checkbox"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: relative;
+  width: 28px;
+  height: 16px;
+  margin: 0;
+  border-radius: 8px;
+  background: var(--border-strong);
+  transition: background var(--dur) var(--ease);
+}
+.param-check input[type="checkbox"]::after {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--field);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur) var(--ease), width var(--dur-fast) var(--ease);
+}
+.param-check input[type="checkbox"]:checked { background: var(--accent); }
+.param-check input[type="checkbox"]:checked::after { transform: translateX(12px); }
+.param-check input[type="checkbox"]:active::after { width: 15px; }
+.param-check input[type="checkbox"]:checked:active::after { transform: translateX(9px); }
+
 /* ── Hide number spinners ────────────────────────────────────────────────── */
 code, kbd { font-family: var(--font-ui); }
 
 input[type="number"] { -moz-appearance: textfield; }
 input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+/* ── Reduced motion ──────────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+  }
+}
