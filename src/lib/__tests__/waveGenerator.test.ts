@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath, WaveKeyframe } from '../../types';
-import { generateWaveLayers, roundCorners } from '../waveGenerator';
+import { cornerRadius, generateWaveLayers, roundCorners } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
-import { PARAMS, VIEWBOX, polyline, sampledPath } from './fixtures';
+import { PARAMS, VIEWBOX, curve, polyline, sampledPath } from './fixtures';
 
 /** Circle with its exact frame, so the seam has no frame error of its own. */
 function circle(r: number, n: number): SampledPath {
@@ -59,6 +59,14 @@ describe('generateWaveLayers — closed paths', () => {
     for (const gap of seamGaps(path, { lissAmpT: 0 }, [kf(0, 12), kf(1, 30)])) {
       expect(gap.xy).toBeLessThan(1e-6);
     }
+  });
+
+  it('closes when the end sample has a stray tangent', () => {
+    // A `Z` closing a tiny gap gives the parser's last sample that gap's direction.
+    const stray = circle(47, 300);
+    const last = stray.points[stray.points.length - 1];
+    stray.points[stray.points.length - 1] = { ...last, tangentX: 0, tangentY: -1, normalX: 1, normalY: 0 };
+    for (const gap of seamGaps(stray, { lissPhaseOffset: 1.1 })) expect(gap.xy).toBeLessThan(1e-6);
   });
 
   it('changes the wavelength by less than half a cycle over the path', () => {
@@ -139,6 +147,38 @@ describe('roundCorners', () => {
     expect(r.points[0]).toMatchObject({ x: 0, y: 0 });
     expect(r.points[r.points.length - 1]).toMatchObject({ x: 60, y: 60 });
     expect(maxCurvature(r)).toBeLessThan(1 / 4 * 1.05);
+  });
+
+  it('follows curved legs without a gap or a kink', () => {
+    // A lens: two arcs of radius 60 that meet at (100 ± 44.7, 100) at 84°.
+    const a0 = Math.asin(40 / 60);
+    const arc = (cy: number, from: number, to: number) => curve(u => {
+      const a = from + (to - from) * u;
+      return [100 + 60 * Math.cos(a), cy + 60 * Math.sin(a)];
+    }, 60);
+    const top = arc(60, Math.PI - a0, a0);
+    const bottom = arc(140, -a0, -(Math.PI - a0));
+    const r = roundCorners(sampledPath('lens', [...top, ...bottom.slice(1), top[0]]), 12);
+    const pts = r.points;
+    for (let i = 1; i < pts.length; i++) {
+      const [a, b] = [pts[i - 1], pts[i]];
+      expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThan(2.5);
+      const jump = Math.abs(Math.atan2(a.tangentX * b.tangentY - a.tangentY * b.tangentX, a.tangentX * b.tangentX + a.tangentY * b.tangentY));
+      expect(jump).toBeLessThan(0.3);
+      // Each step runs along the tangents at its ends: no sideways jump onto
+      // the fillet, as tangent lines drifting off a curved leg would make.
+      const sx = (b.x - a.x), sy = (b.y - a.y), sl = Math.hypot(sx, sy);
+      expect(Math.abs(sx * a.tangentY - sy * a.tangentX) / sl).toBeLessThan(0.3);
+    }
+  });
+
+  it('sizes the fillet so the T wave cannot fold the inner edge', () => {
+    expect(cornerRadius(3, 0, 20)).toBeCloseTo(3.75, 9);
+    // ampT·2π/wlT = 0.5 halves the forward speed the inner edge has left.
+    expect(cornerRadius(3, 1, 4 * Math.PI)).toBeCloseTo(7.5, 9);
+    // A T wave that loops by itself: the radius stops growing.
+    expect(cornerRadius(3, 4, 12)).toBeCloseTo(7.5, 9);
+    expect(cornerRadius(0, 2, 20)).toBeCloseTo(2.5, 9);
   });
 
   it('returns smooth paths and a zero radius untouched', () => {

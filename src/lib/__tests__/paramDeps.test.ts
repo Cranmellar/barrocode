@@ -24,10 +24,14 @@ const KEYFRAMES: WaveKeyframe[] = [
   { id: 'b', t: 0.7, ampN: 5, ampT: 1, wlN: 25, wlT: 18, delta: 1.2 },
 ];
 
-const lemniscate = () => [sampledPath('l', curve(u => {
-  const t = 2 * Math.PI * u + 0.3;
-  return [100 + 80 * Math.sin(t), 100 + 40 * Math.sin(2 * t)];
-}, 95))];
+// A closed curve and an open one: closePath only acts on the open one.
+const lemniscate = () => [
+  sampledPath('l', curve(u => {
+    const t = 2 * Math.PI * u + 0.3;
+    return [100 + 80 * Math.sin(t), 100 + 40 * Math.sin(2 * t)];
+  }, 95)),
+  sampledPath('arc', curve(u => [100 + 30 * Math.cos(3 * u), 180 + 30 * Math.sin(3 * u)], 40)),
+];
 
 function perturbed(params: PrintParams, key: keyof PrintParams): PrintParams {
   const v = params[key];

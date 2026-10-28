@@ -164,12 +164,19 @@ SVG string
 SampledPath[] + PrintParams + WaveKeyframe[]
   └─ generateWaveLayers()  [lib/waveGenerator.ts]
        • filters enabled paths; roundCorners() fillets every stretch of the
-         centerline tighter than 1.25 × the largest wave displacement
-         (√(ampN² + ampT²), max over keyframes), using the legs' own
-         tangents; closed paths are cut open at their smoothest point so a
-         corner on the seam is rounded too. Unrounded, the wave folded into
-         loops (which got z-hops) on the inside of corners and jumped on the
-         outside. Paths with nothing that tight pass through untouched.
+         centerline (chord turn or sample-tangent jump) tighter than
+         cornerRadius(ampN, ampT, wlT) = 1.25 · max(ampN / (1 − ampT·2π/wlT),
+         ampT), the denominator clamped to [0.5, 1]; max over keyframes.
+         Fillets start and end on the path with its tangents (a cubic
+         between them), grow until they reach the radius when the legs bend
+         inward, and shrink when two corners leave no room. Closed paths are
+         cut open at their smoothest point so a corner on the seam is
+         rounded too. Unrounded, the wave folded into loops (which got
+         z-hops) on the inside of corners and jumped on the outside. Paths
+         with nothing that tight pass through untouched.
+       • closed paths: both seam samples get one tangent, along the chord
+         between their neighbours (joinSeamFrame); the parser's one-sided
+         ones differ on a corner or after a `Z` that closes a tiny gap
        • per layer: phaseBase = lissPhaseOffset + li * phaseShiftPerLayer
        • per point: createKeyframeSampler() lerps between keyframes
          (cursor-based, t must increase monotonically)
