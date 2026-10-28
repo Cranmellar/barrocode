@@ -117,6 +117,18 @@ El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin
 | **Iso / Planta / Frente** | Vistas predefinidas, con encuadre |
 | Slider de capas (borde derecho) | Muestra hasta la capa elegida; **Sola** deja solo esa capa en color y las inferiores en gris |
 
+Las vistas y el encuadre se animan; al soltar una rotación la cámara sigue un instante por inercia. El azimut y la elevación aparecen junto al cubo de orientación solo mientras la cámara gira.
+
+### Campos numéricos y sliders
+
+| Gesto | Acción |
+|---|---|
+| Rueda sobre un número | Sube o baja un paso (con `Shift`, un paso fino) |
+| Arrastrar la etiqueta de un número | Desliza el valor a izquierda o derecha (con `Shift`, en pasos finos) |
+| Arrastrar un slider de la onda | Se pega al valor por defecto (la marca en la pista) y muestra el valor sobre el control |
+
+Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`).
+
 ### Atajos de teclado
 
 | Tecla | Acción |

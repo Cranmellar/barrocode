@@ -169,7 +169,9 @@ Móvil queda fuera (D-5). Solo asegurar que todo se ve bien entre 1024 y 1920 px
 2. La barra superior no se trunca: el resumen se compacta antes de cortar botones.
 3. Verificar a 1024, 1280, 1440 y 1920 px.
 
-### Fase 5 — Feedback animado, simple (≈ 1–2 sesiones · riesgo bajo)
+### ✅ Fase 5 — Feedback animado, simple (≈ 1–2 sesiones · riesgo bajo)
+
+> **Hecha (2026-10-28).** Todo lo de la tabla salvo el resaltado al arrastrar un SVG, que ya existía. Además, de un estudio de interacción en seis mesas de trabajo: indicador deslizante en las pestañas y en Iso/Planta/Frente, inercia al soltar una rotación, azimut/elevación visibles solo al girar, rombos que se encogen al borrarlos, salto suave del extrusor al keyframe, editor del keyframe que se despliega y pliega, tiempo estimado que cuenta hasta el nuevo valor, "Copiado" dentro del botón, presión en los botones, interruptores para las opciones sí/no, Shift = paso fino y arrastre de etiqueta en los campos numéricos, y sliders de onda con marca e imán en el valor por defecto. Detalle en CLAUDE.md › CSS › Motion.
 
 Todo con los tokens de movimiento y desactivado con `prefers-reduced-motion`. Solo CSS o una interpolación corta; nada que redibuje el 3D en bucle.
 
@@ -204,4 +206,4 @@ Todo con los tokens de movimiento y desactivado con `prefers-reduced-motion`. So
 | 5 Animación | Sensación de producto pulido, feedback claro | Bajo-medio | Bajo | Fase 1 |
 | 6 QA / docs | Sin regresiones, CLAUDE.md al día | Bajo | — | cada fase |
 
-**Estado:** Fases 1 y 3 hechas (y lo esencial de la 4). Siguiente: lo que queda de la Fase 2 (duplicados y textos) y la Fase 5 (animaciones).
+**Estado:** Fases 1, 3 y 5 hechas (y lo esencial de la 4). Siguiente: lo que queda de la Fase 2 (duplicados y textos) y la Fase 6 (QA).

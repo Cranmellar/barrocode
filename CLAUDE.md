@@ -42,14 +42,14 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 ---
 
-## Current state (verified 2026-10-27 on branch `claude/modest-gauss-ety6d2`, on top of `main` @ `883e209`)
+## Current state (verified 2026-10-28 on branch `claude/trusting-hawking-n8deba`, on top of `main` @ `96a8132`)
 
-- `npm test` (116 tests) and `npm run build` pass (≈87 kB app JS + 141 kB vendor; gzip ≈75 kB).
+- `npm test` (156 tests) and `npm run build` pass (≈112 kB app JS + 141 kB vendor; gzip ≈84 kB).
 - Core pipeline is complete: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`) and priming. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - UI waves UI-1 … UI-5 from `pendientes.md` are done: unified keyframe editing, left panel grouped as Pieza / Trayecto / Máquina, viewer summary (time, size) with view presets and layer range, number fields on every Lissajous slider, keyboard shortcuts and session autosave.
 - Performance (Ola 8) is partly done: layers and toolpath memoized in `App.tsx` on the fields each stage reads, LOD stride and skipped overlays while the camera moves (`isInteracting`), cursor-based keyframe sampler, G-code debounced 400 ms. Worker offload remains; see [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md). The measured hot spots, in priority order, are in "Performance — user-side findings" below; that section supersedes the spec where they disagree.
 - Drag-and-drop of an SVG onto the upload area works (verified in a browser).
-- **Graphical overhaul** ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)): decisions closed (full-screen 3D with floating containers, Claude-like typography in GSCode, neutrals + one signal colour, desktop only, no dark mode). Done: phase 1 (design tokens, unified controls, canvas palette from CSS, OKLCH layer ramp) and phase 3 (full-window 3D view with floating panels, see "Layout and file map"), plus the canvas text sizes from phase 2. Open: the rest of phase 2 (duplicates and copy), phase 5 (animated feedback), phase 6 (QA).
+- **Graphical overhaul** ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)): decisions closed (full-screen 3D with floating containers, Claude-like typography in GSCode, neutrals + one signal colour, desktop only, no dark mode). Done: phase 1 (design tokens, unified controls, canvas palette from CSS, OKLCH layer ramp), phase 3 (full-window 3D view with floating panels, see "Layout and file map"), phase 5 (animated feedback, see "Motion" under CSS), plus the canvas text sizes from phase 2. Open: the rest of phase 2 (duplicates and copy), phase 6 (QA). The interaction study for phase 5 is a Design canvas (six interactive artboards), not in the repo.
 - **Seam ramp (soft join).** The layer→layer join used to be a Z-only move in place on closed paths (end = start XY), with no E. Now `buildToolpath` spreads the rise over the last `transitionLength` mm of every closed path, so the climb happens while printing and the preview shows it. Each ramp sits on the one below; only layer 0's tail lifts off the bed by up to one layer height (accepted; flow compensation belongs with NP-0a). Open paths and `alternateDirection` keep the old transition.
 - **Machine-safety pass (Oct 2026)** — the G-code can no longer drive the nozzle into the bed or the part:
   - `M82` (absolute E) in the preamble when `generateE` is on.
@@ -65,11 +65,8 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
   - Soft join only runs when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths used to extrude a chord back across the part at every layer change.
   - `parseSVG` skips geometry that is never drawn: under `defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, or with `display:none` on itself or an ancestor. Illustrator's artboard clip rect used to print as an extra square.
   - `parseSVG` no longer uses `innerHTML`: it strips `<script>`, `<foreignObject>`, `on*` attributes and `javascript:` links from the parsed XML and inserts it with `importNode` (an `onerror` in a shared SVG used to run). SVGs without `xmlns` are re-parsed with the SVG namespace.
-- **Some `pendientes.md` tickets are ticked `[x]` but not implemented** — treat them as open:
-  - NumInput refresh while focused during wheel (`NumInput.tsx` still guards `setRaw` with `!focusedRef.current`).
-  - Shift = fine adjust on wheel (no `shiftKey` handling anywhere).
-  - Coarser step for pivot fields (`CenterScaleParams.tsx` centre inputs are still `step={1}`).
-  - Pivot drag in the 3D viewport (`Preview2D` has no params `onChange`; nothing draggable for the pivot).
+- **One `pendientes.md` ticket is ticked `[x]` but not implemented** — treat it as open: pivot drag in the 3D viewport (`Preview2D` has no params `onChange`; nothing draggable for the pivot).
+- **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
 ---
 
@@ -86,8 +83,8 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ### UX quick wins
 
-5. Fix the NumInput-while-focused wheel refresh and add Shift = fine step (both in `NumInput.tsx`, one handler; covers every numeric field).
-6. Coarser wheel step for the pivot fields in `CenterScaleParams.tsx` (5 or 10 mm; Shift keeps it fine once #5 lands).
+5. ~~NumInput wheel refresh while focused, Shift = fine step.~~ **Done.**
+6. ~~Coarser wheel step for the pivot fields.~~ **Done** (5 mm, 1 mm with Shift).
 7. Translate parser errors in `lib/svgParser.ts` to Spanish (convention #6); they are still English.
 8. Warn when the part leaves the bed; needs a bed-size parameter first (UI-3 leftover).
 
@@ -96,7 +93,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 9. Run `npm test` and `npm run build` on `pull_request` too (a separate workflow next to `deploy.yml`); today a failure surfaces only when deploying.
 10. Unused files: `src/assets/sample1..4.svg` (samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
 11. `.claude/settings.local.json` is committed and holds stale Windows paths from the old `svg-clay-wave` folder; it is normally a per-user file. `.claude/worktrees/*` are committed leftovers of local worktrees (gitlinks) and should not be in the repo either.
-12. Fix the stale `pendientes.md` checkmarks listed in "Current state".
+12. Fix the stale `pendientes.md` checkmark listed in "Current state" (pivot drag).
 
 ### Lower priority / needs a decision
 
@@ -368,7 +365,19 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - Sentence case everywhere: no `text-transform: uppercase`, no letter-spacing. Hierarchy comes from weight and ink (`--ink` / `--ink-2` / `--muted`), not caps.
 - Every `font-weight` must be paired with `font-variation-settings: 'wght' N`: `:root` sets the variation, which overrides a plain `font-weight` on GSCode.
 - Smallest text size in CSS is **10px** (`--fs-xs`). Don't go below. (Some canvas captions are still 7–9 px; overhaul phase 2 removes or enlarges them.)
-- Sliders apply a dynamic `linear-gradient` fill inline (see `LissajousParams.Slider`). Keep this pattern when adding new sliders.
+- Sliders apply a dynamic `linear-gradient` fill inline (see `LissajousParams.Slider`). Keep this pattern when adding new sliders. Wave sliders also take a `def` (default value): a notch marks it, a pointer drag snaps to it within 1.5 % of the range (keyboard steps don't), and a bubble shows the value while dragging.
+- On/off options in `.param-check` rows are native checkboxes styled as switches (`appearance: none`).
+
+### Motion
+
+Phase 5 of the overhaul. Durations and easing come from `--dur-fast` / `--dur` / `--dur-slow` / `--ease`; everything collapses under `prefers-reduced-motion` (a global rule at the end of `index.css`, and JS animations check `matchMedia` and jump to the end). Nothing loops on the 3D canvas except while something is actually moving.
+- **Entrances are CSS animations on mount**; exits keep the element mounted for the exit animation: closing a side panel (`leaving` in `App.tsx`, `PANEL_LEAVE_MS`), removed keyframes on the timeline (`leavingKfs` in `Preview2D`), the keyframe editor (`closingEditor`). Keep the JS timeouts and the CSS durations in step.
+- To replay a CSS animation on every change, remount with a new `key` (toasts, `NumInput` step readout) or alternate two identical keyframes (`num-flash-a/-b`).
+- **Sliding highlights**: the Pieza/Trayecto/Máquina tab and Iso/Planta/Frente share one moving element (`.panel-tabs-ind`, `.view-presets-ind`); the view one fades out when the camera matches no preset.
+- **Camera** (`Preview2D`): `animateView` tweens presets, Encuadrar and panel reframes over `VIEW_TWEEN_MS` with the part's centre moving straight on screen; a rotation drag coasts on release (`coast`). Both keep `isInteracting` on, so they draw with LOD; any mouse-down or wheel cancels them. `showAngles` shows az/el only while turning.
+- **Wave presets**: `LissajousParams.onChange(p, true)` bumps `lissMorph` in `App`; `LissajousPreview` morphs its figure over 250 ms and the changed numbers flash. Slider edits don't morph.
+- **Keyframes**: new ones pop (timeline CSS, canvas via `Scene.kfPop`); selecting one glides the timeline (`glideTimeline` in `App`, cancelled by any direct `setTimeline`).
+- **G-code**: `gcodeBusy` (App) is true from an edit until its debounced G-code lands; it drives the indeterminate bar (`.gcode-progress`, 150 ms delay), the dimmed summary and G-code text. The time in the summary counts to its new value (`useCountUp`). Toasts (`showToast` in `App`, rendered by `Preview2D` above the dock) confirm download and session restore; Copiar confirms in its own button.
 - Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost). Segmented controls (`.seg-switch`, `.view-presets`) share one pill style.
 - Floating containers (`.float-panel`, top bar groups, `.layer-slider`, `.dock`, `.gcode-drawer`) share one surface: white, `--border`, `--radius-lg`, `--shadow-float`. Opaque on purpose: a translucent or blurred panel would make the browser recomposite it on every canvas frame.
 
