@@ -152,6 +152,9 @@ SVG string
          the parsed doc into a hidden 1000×1000 DOM div
        • queries path / polyline / polygon / line / circle / ellipse / rect,
          skipping defs/clipPath/mask/symbol/marker/pattern and display:none
+       • a <path> with several subpaths (a contour with a hole) is split by
+         splitSubpaths() into one SampledPath per subpath (id-1, id-2…);
+         sampled whole, the jump between them printed as a bead
        • arc-length sampling via getTotalLength + getPointAtLength
        • finite-difference tangent/normal per sample
        • getScreenCTM() for transforms
