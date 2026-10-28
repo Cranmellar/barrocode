@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, WAVE_PARAMS } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
@@ -16,6 +16,7 @@ import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
 import { Icon } from './components/icons';
 import type { ShapeDoc } from './shaper/lib/shape';
+import type { WaveLimit } from './shaper/lib/printability';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -280,6 +281,16 @@ export default function App() {
     [parsedSVG, keyframes, waveKey],
   );
   const centre = useMemo(() => partCentreSVG(parsedSVG?.paths ?? []), [parsedSVG]);
+
+  // Forma warns where this wave can't follow a shape.
+  const waveLimit = useMemo<WaveLimit>(() => ({
+    radiusMM: waveCornerRadius(params, keyframes),
+    spacingMM: params.sampleSpacing,
+    label: keyframes.length > 0
+      ? `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`
+      : [`N ${params.lissAmpN} mm`, params.lissAmpT ? `T ${params.lissAmpT} mm` : ''].filter(Boolean).join(' · '),
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [params.lissAmpN, params.lissAmpT, params.lissWlT, params.sampleSpacing, keyframes]);
   const toolpathKey = TOOLPATH_PARAMS.map(k => params[k]).join('|');
   const toolpath = useMemo(
     () => buildToolpath(layers, params, centre),
@@ -845,7 +856,7 @@ export default function App() {
   if (workspace === 'forma') return (
     <>
       <Suspense fallback={<div className="app-stage" />}>
-        <ShaperView doc={shape} onChange={setShape} switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)} />
+        <ShaperView doc={shape} onChange={setShape} wave={waveLimit} switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)} />
       </Suspense>
       <HelpDialog open={helpOpen} onClose={closeHelp} />
     </>

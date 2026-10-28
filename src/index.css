@@ -1225,6 +1225,28 @@ input[type="range"]::-moz-range-thumb {
 .shaper-size { fill: none; stroke: var(--faint); stroke-width: 1; stroke-dasharray: 4 4; }
 .shaper-arrow { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .slider-row--off { opacity: 0.5; }
+.shaper-tight { fill: none; stroke: var(--err); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.shaper-spot { fill: none; stroke: var(--err); stroke-width: 1.5; }
+.shaper-value { color: var(--ink); font-variant-numeric: tabular-nums; }
+.shaper-check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: var(--sp-1) var(--sp-4) var(--sp-2);
+  white-space: normal;
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.shaper-check p { margin: 0; }
+.shaper-check--ok { color: var(--ok); }
+.shaper-check--warn {
+  margin-inline: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius);
+  background: var(--err-bg);
+  color: var(--ink);
+}
 
 /* ── Lissajous figure ────────────────────────────────────────────────────── */
 /* Absolute so the buffer size set in device pixels never sizes the box */

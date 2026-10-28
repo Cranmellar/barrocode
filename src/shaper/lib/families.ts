@@ -7,8 +7,9 @@ export interface Pt { x: number; y: number }
 // Samples of the angle for the polar families; resampling by arc length
 // later evens them out.
 const POLAR_SAMPLES = 4096;
-// Fillet arcs get a sample every 2°.
-const ARC_STEP = (2 * Math.PI) / 180;
+// Fillet arcs get a sample every half degree, fine enough that measuring the
+// outline at its own spacing sees a circle and not the chords.
+const ARC_STEP = (0.5 * Math.PI) / 180;
 
 function polar(r: (phi: number) => number): Pt[] {
   const pts: Pt[] = [];

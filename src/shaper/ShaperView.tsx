@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { FamilyPanel } from './components/FamilyPanel';
-import { DEFAULT_SHAPE, FAMILY_FILES, fmt, shapeLabel, shapePath, shapePoints, type ShapeDoc } from './lib/shape';
+import { PrintCheck } from './components/PrintCheck';
+import { checkShape, spotIndices, type WaveLimit } from './lib/printability';
+import { DEFAULT_SHAPE, FAMILY_FILES, fmt, shapeBounds, shapeLabel, shapePath, shapePoints, type ShapeDoc } from './lib/shape';
 import { shapeToSvg } from './lib/toSvg';
 
 interface Props {
   // Null until the first edit; App keeps it so switching workspaces keeps the shape.
   doc: ShapeDoc | null;
   onChange: (doc: ShapeDoc) => void;
+  // The print workspace's current wave, to warn where it can't follow the shape.
+  wave: WaveLimit;
   // The Forma · Impresión switch, owned by App so both workspaces share it.
   switcher: ReactNode;
   onSend: (svg: string, name: string) => void;
@@ -17,11 +21,15 @@ const MAJOR_EVERY = 5;
 const LABEL_PX = 11;
 const SEAM_PX = 5;
 const ARROW_PX = 14;
+const SPOT_PX = 10;
 
-export function ShaperView({ doc: docIn, onChange, switcher, onSend, onHelp }: Props) {
+export function ShaperView({ doc: docIn, onChange, wave, switcher, onSend, onHelp }: Props) {
   const doc = docIn ?? DEFAULT_SHAPE;
   const pts = useMemo(() => shapePoints(doc), [doc]);
   const d = useMemo(() => shapePath(pts), [pts]);
+  const check = useMemo(() => checkShape(pts, wave), [pts, wave]);
+  const tightPaths = useMemo(() => check.tight.map(t =>
+    'M' + spotIndices(t, pts.length).map(i => `${fmt(pts[i].x, 2)} ${fmt(-pts[i].y, 2)}`).join('L')), [check, pts]);
 
   // The frame grows in steps, so changing the size visibly changes the
   // shape against the grid instead of rescaling the view.
@@ -80,6 +88,12 @@ export function ShaperView({ doc: docIn, onChange, switcher, onSend, onHelp }: P
           <title>Diámetro exterior: {fmt(doc.sizeMM, 1)} mm</title>
         </circle>
         <path className="shaper-shape" d={d} />
+        {tightPaths.map((td, i) => <path key={i} className="shaper-tight" d={td} />)}
+        {check.tight.map((t, i) => (
+          <circle key={i} className="shaper-spot" cx={pts[t.index].x} cy={-pts[t.index].y} r={SPOT_PX * mmPerPx}>
+            <title>Más cerrado que lo que la onda puede seguir: R {fmt(t.radiusMM, 1)} mm</title>
+          </circle>
+        ))}
         <path className="shaper-arrow" d={`M${wing(0.5)}L${tip.x} ${tip.y}L${wing(-0.5)}`} />
         <circle className="shaper-seam" cx={seam.x} cy={-seam.y} r={SEAM_PX * mmPerPx}>
           <title>Costura: aquí empieza y termina cada capa. La flecha marca el sentido.</title>
@@ -90,6 +104,7 @@ export function ShaperView({ doc: docIn, onChange, switcher, onSend, onHelp }: P
         <div className="panel-scroll">
           <div className="panel-header">{switcher}</div>
           <FamilyPanel doc={doc} onChange={onChange} />
+          <PrintCheck check={check} wave={wave} doc={doc} bounds={shapeBounds(pts)} />
         </div>
       </aside>
 

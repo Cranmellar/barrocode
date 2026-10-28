@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0 y F1 hechas (ver sección 6); el resto, propuesta.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0, F1 y F2 hechas (ver sección 6); el resto, propuesta.
 
 ---
 
@@ -132,6 +132,10 @@ Esto es lo propio de BarroCode, que ningún referente tiene.
 - `printability.ts`: contorno cerrado, **radio de curvatura mínimo** (circunradio de tres muestras consecutivas sobre la polilínea densa), autointersecciones (rejilla, como `findCrossings`), caja en mm, sentido.
 - `PrintCheck` compara el radio mínimo con `waveRadiusMM`, que llega de `App` calculado con la onda actual. Aviso del tipo "la onda actual (N 6 mm) plegará esta forma en 4 puntos", con los puntos marcados en el lienzo.
 - **Hecho cuando:** una estrella aguda con la onda por defecto marca exactamente las puntas que `roundCorners` redondearía.
+- **Hecho (2026-10-28).** `checkShape` (`printability.ts`) mide como `roundCorners`: en cada muestra, el giro entre las cuerdas a las muestras situadas a un `sampleSpacing` de distancia, contra el largo medio de esas cuerdas. Marca los tramos más cerrados que `waveCornerRadius(params, keyframes)` (nueva en `waveGenerator.ts`, también la usa `generateWaveLayers`). `App` le pasa ese radio, `sampleSpacing` y una etiqueta de la onda. En el lienzo los tramos van en rojo con un círculo; el panel *Imprimibilidad* explica el aviso, da un arreglo por familia (con el polígono, si el radio de esquina ya no crece porque lo limita el largo de los lados, lo dice) y muestra la curva más cerrada (medida a 0,25 mm; "esquina viva" por debajo de 0,5 mm) y la caja.
+  - **Coincidencia con `roundCorners`.** Un test corre `roundCorners` sobre la forma muestreada como lo hace el parser: en 7 formas de referencia (incluida la estrella aguda: 10 de 10) coinciden exactamente. En 400 formas al azar, `roundCorners` redondea el 91 % de los tramos marcados. Un 3 % son vueltas casi completas que deja a propósito (giro > 3 rad, la onda se pliega allí), y un 6 % son tramos que con su muestreo fijo no llega a ver o agrupa con el vecino. Por eso el aviso dice "la onda no puede seguir", no "se redondeará".
+  - **Descartado:** distinguir en el aviso las vueltas que `roundCorners` no redondea. Las cúspides quedan cerca del umbral y el resultado depende de dónde caen las muestras, así que la distinción habría sido falsa en los casos límite.
+  - **Pospuesto a F4:** autointersecciones. Las familias de F1 son polares respecto al centro y no pueden cortarse; con la edición libre del trazado sí.
 
 ### F3 — Modo descubrimiento (SuperformulaSVG) (1 sesión)
 
