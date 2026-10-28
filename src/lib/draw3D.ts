@@ -99,6 +99,8 @@ export interface Scene {
   // false: every layer in one colour instead of the cobalt → terracotta ramp.
   layerColors: boolean;
   showDims: boolean;
+  // Size factor of keyframe diamonds that are popping in (absent = 1).
+  kfPop?: Map<string, number>;
 }
 
 // What drawGeometry reads. It excludes the timeline, so a scrub can reuse a
@@ -156,7 +158,7 @@ export function drawScene(
 ) {
   const {
     view, toolpath, flatPoints, modelBounds, sampledPaths, params, svgH,
-    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims, inset,
+    keyframes, selectedKfId, timelineProgress, isInteracting, layerColors, showDims, inset, kfPop,
   } = scene;
   const { azimuth, elevation } = view;
 
@@ -278,15 +280,21 @@ export function drawScene(
     ctx.textBaseline = 'middle';
     for (const { kf, number, x: kx, y: ky, r } of keyframeMarkers(scene)) {
       const isSelected = kf.id === selectedKfId;
+      const pop = kfPop?.get(kf.id) ?? 1;
+      if (pop <= 0) continue;
+      ctx.save();
+      ctx.translate(kx, ky);
+      ctx.scale(pop, pop);
       ctx.beginPath();
-      ctx.moveTo(kx, ky - r); ctx.lineTo(kx + r, ky); ctx.lineTo(kx, ky + r); ctx.lineTo(kx - r, ky);
+      ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0);
       ctx.closePath();
       ctx.fillStyle   = keyframeColor(kf.t);
       ctx.strokeStyle = isSelected ? palette.ink : palette.surface;
       ctx.lineWidth   = 2;
       ctx.fill(); ctx.stroke();
       ctx.fillStyle = palette.surface;
-      ctx.fillText(String(number), kx, ky + 0.5);
+      ctx.fillText(String(number), 0, 0.5);
+      ctx.restore();
     }
     ctx.restore();
   }

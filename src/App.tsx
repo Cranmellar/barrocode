@@ -89,6 +89,7 @@ const RIGHT_W = 296;
 const RAIL_W  = 44;
 const BAR_H   = 40;
 const NARROW_W = 1280;
+const TIMELINE_GLIDE_MS = 220;
 // Matches the panel-leave animation in index.css.
 const PANEL_LEAVE_MS = 140;
 
@@ -202,6 +203,28 @@ export default function App() {
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Jumping to a keyframe glides the extruder there; any direct edit of the
+  // timeline cancels the glide.
+  const timelineRef = useRef(timelineProgress);
+  timelineRef.current = timelineProgress;
+  const glideRef = useRef(0);
+  const setTimeline = useCallback((v: number | ((t: number) => number)) => {
+    cancelAnimationFrame(glideRef.current);
+    setTimelineProgress(v);
+  }, []);
+  function glideTimeline(target: number) {
+    cancelAnimationFrame(glideRef.current);
+    const from = timelineRef.current;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setTimelineProgress(target); return; }
+    const t0 = performance.now();
+    const step = (now: number) => {
+      const p = Math.min(1, (now - t0) / TIMELINE_GLIDE_MS);
+      setTimelineProgress(from + (target - from) * (1 - (1 - p) ** 4));
+      if (p < 1) glideRef.current = requestAnimationFrame(step);
+    };
+    glideRef.current = requestAnimationFrame(step);
+  }
+
   const selectedKf = keyframes.find(k => k.id === selectedKfId) ?? null;
   const svgH = parsedSVG?.viewBox.height ?? 200;
 
@@ -267,7 +290,7 @@ export default function App() {
   function selectKf(id: string | null) {
     setSelectedKfId(id);
     const kf = keyframes.find(k => k.id === id);
-    if (kf) setTimelineProgress(kf.t);
+    if (kf) glideTimeline(kf.t);
   }
 
   function addKeyframe() {
@@ -313,7 +336,7 @@ export default function App() {
     setKeyframes(keyframes
       .map(k => k.id === selectedKfId ? { ...k, t } : k)
       .sort((a, b) => a.t - b.t));
-    setTimelineProgress(t);
+    setTimeline(t);
   }
 
   function closeHelp() {
@@ -348,7 +371,7 @@ export default function App() {
         setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]')) {
         const step = (e.shiftKey ? 0.001 : 0.01) * (key === 'arrowleft' ? -1 : 1);
-        setTimelineProgress(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
+        setTimeline(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
       } else if (key === 'escape' && id) {
         setSelectedKfId(null);
       } else if ((key === 'delete' || key === 'backspace') && id) {
@@ -664,7 +687,7 @@ export default function App() {
         params={params}
         viewBox={parsedSVG?.viewBox ?? null}
         timelineProgress={timelineProgress}
-        onTimelineChange={setTimelineProgress}
+        onTimelineChange={setTimeline}
         keyframes={keyframes}
         onKeyframesChange={setKeyframes}
         centerTab={centerTab}

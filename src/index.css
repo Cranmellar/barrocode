@@ -1169,6 +1169,14 @@ input[type="range"]::-moz-range-thumb {
 .kf-marker:hover::before,
 .kf-marker.kf-dragging::before { transform: rotate(45deg) scale(1.15); }
 .kf-marker.kf-dragging { z-index: 5; cursor: grabbing; }
+.kf-marker.kf-born  { animation: kf-pop 320ms var(--ease) both; }
+.kf-marker.kf-leave { z-index: 2; pointer-events: none; animation: kf-leave 180ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes kf-pop {
+  0%   { transform: translate(-50%, -50%) scale(0); }
+  60%  { transform: translate(-50%, -50%) scale(1.25); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes kf-leave { to { transform: translate(-50%, -50%) scale(0); opacity: 0; } }
 .kf-badge.kf-selected::before,
 .kf-nav-label .kf-badge::before,
 .liss-context--kf .kf-badge::before { border-color: var(--ink); }
@@ -1225,8 +1233,14 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: row;
   height: 116px;
   flex-shrink: 0;
+  overflow: hidden;
   border-bottom: 1px solid var(--border);
+  animation: editor-in 220ms var(--ease) both;
 }
+@keyframes editor-in { from { height: 0; opacity: 0; } }
+.dock-editor-leave { overflow: hidden; pointer-events: none; animation: editor-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
+.dock-editor-leave .kf-editor { animation: none; }
+@keyframes editor-out { from { max-height: 117px; } to { max-height: 0; opacity: 0; } }
 .kf-group {
   display: flex;
   flex-direction: column;

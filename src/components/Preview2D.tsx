@@ -66,6 +66,19 @@ export function KeyframeAddIcon({ size = 16, dashed = false }: { size?: number; 
 }
 const LAYER_SLIDER_W = 44 + STAGE_GAP;
 
+// Keyframe appear / disappear and keyframe-editor close, matching index.css.
+const KF_POP_MS = 320;
+const KF_LEAVE_MS = 180;
+const EDITOR_LEAVE_MS = 160;
+
+// Diamond size while popping in: overshoots to 1.25, settles at 1.
+function popScale(p: number): number {
+  const out = (x: number) => 1 - (1 - x) ** 3;
+  return p < 0.6 ? 1.25 * out(p / 0.6) : 1.25 - 0.25 * out((p - 0.6) / 0.4);
+}
+
+const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
 
 const VIEW_PRESETS = [
   { label: 'Isométrica', azimuth: 325, elevation: 28, title: 'Vista isométrica' },
@@ -152,6 +165,71 @@ export function Preview2D({
   useEffect(() => { onTimelineRef.current   = onTimelineChange;  }, [onTimelineChange]);
 
   const svgH = viewBox?.height ?? 200;
+
+  // ── Keyframes appearing and disappearing ─────────────────────────────────
+  // New keyframes pop in on the timeline and in the 3D view; removed ones
+  // shrink away on the timeline before they go.
+  const [born, setBorn] = useState<Record<string, number>>({});
+  const bornRef = useRef(born);
+  bornRef.current = born;
+  const [popNow, setPopNow] = useState(0);
+  const [leavingKfs, setLeavingKfs] = useState<{ kf: WaveKeyframe; number: number }[]>([]);
+  const prevKfsRef = useRef<WaveKeyframe[] | null>(null);
+  useEffect(() => {
+    const prev = prevKfsRef.current;
+    prevKfsRef.current = keyframes;
+    if (!prev || reducedMotion()) return;
+    const ids = new Set(keyframes.map(k => k.id));
+    const prevIds = new Set(prev.map(k => k.id));
+    const added = keyframes.filter(k => !prevIds.has(k.id));
+    if (added.length > 0) {
+      const now = performance.now();
+      setBorn(b => ({ ...b, ...Object.fromEntries(added.map(k => [k.id, now])) }));
+    }
+    const removed = [...prev].sort((a, b) => a.t - b.t)
+      .map((kf, i) => ({ kf, number: i + 1 }))
+      .filter(m => !ids.has(m.kf.id));
+    if (removed.length > 0) {
+      setLeavingKfs(l => [...l, ...removed]);
+      setTimeout(() => setLeavingKfs(l => l.filter(m => !removed.includes(m))), KF_LEAVE_MS);
+    }
+  }, [keyframes]);
+
+  const popping = Object.keys(born).length > 0;
+  useEffect(() => {
+    if (!popping) return;
+    let raf = 0;
+    const step = (now: number) => {
+      setPopNow(now);
+      if (Object.values(bornRef.current).every(t => now - t > KF_POP_MS)) { setBorn({}); return; }
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [popping]);
+
+  const kfPop = useMemo(() => {
+    if (!popping) return undefined;
+    const m = new Map<string, number>();
+    for (const [id, t0] of Object.entries(born)) m.set(id, popScale(Math.max(0, Math.min(1, (popNow - t0) / KF_POP_MS))));
+    return m;
+  }, [born, popNow, popping]);
+
+  // The keyframe editor folds away instead of vanishing: its last content
+  // stays mounted for the length of the closing animation.
+  const lastEditorRef = useRef<ReactNode>(null);
+  const [closingEditor, setClosingEditor] = useState<ReactNode>(null);
+  const hasEditor = Boolean(timelineEditor);
+  if (timelineEditor) lastEditorRef.current = timelineEditor;
+  useLayoutEffect(() => {
+    if (hasEditor) { setClosingEditor(null); return; }
+    const last = lastEditorRef.current;
+    lastEditorRef.current = null;
+    if (!last || reducedMotion()) return;
+    setClosingEditor(last);
+    const t = setTimeout(() => setClosingEditor(null), EDITOR_LEAVE_MS);
+    return () => clearTimeout(t);
+  }, [hasEditor]);
 
   const flatPoints = useMemo(() => flattenPoints(toolpath), [toolpath]);
 
@@ -313,11 +391,11 @@ export function Preview2D({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
       ...geometry, flatPoints, modelBounds, sampledPaths, svgH, timelineProgress,
-      keyframes, selectedKfId, showDims: viewOpts.showDims,
+      keyframes, selectedKfId, showDims: viewOpts.showDims, kfPop,
       inset: { left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset },
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, svgH, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {
@@ -539,7 +617,7 @@ export function Preview2D({
 
       {hasDock && (
         <div className="dock" ref={dockRef} style={{ left: insets.left, right: insets.right, bottom: STAGE_GAP }}>
-          {timelineEditor}
+          {timelineEditor ?? (closingEditor && <div className="dock-editor-leave" aria-hidden="true">{closingEditor}</div>)}
           <div className="dock-row">
             {timelineLead}
             <div className="timeline-track">
@@ -568,7 +646,7 @@ export function Preview2D({
                   return (
                     <div
                       key={kf.id}
-                      className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}`}
+                      className={`kf-badge kf-marker${kf.id === selectedKfId ? ' kf-selected' : ''}${dragging ? ' kf-dragging' : ''}${born[kf.id] ? ' kf-born' : ''}`}
                       style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}
                       onMouseDown={e => {
                         e.preventDefault();
@@ -579,6 +657,11 @@ export function Preview2D({
                     >{i + 1}</div>
                   );
                 })}
+
+                {leavingKfs.map(({ kf, number }) => (
+                  <div key={`leave-${kf.id}`} className="kf-badge kf-marker kf-leave" aria-hidden="true"
+                    style={{ left: `${kf.t * 100}%`, '--kf-c': keyframeColor(kf.t) } as CSSProperties}>{number}</div>
+                ))}
 
                 {(() => {
                   const kf = keyframes.find(k => k.id === draggingKfId);
