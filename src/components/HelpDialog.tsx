@@ -165,7 +165,7 @@ export function HelpDialog({ open, onClose }: Props) {
           <p id="help-intro" className="help-lead">
             BarroCode convierte curvas SVG en G-code para impresoras 3D de arcilla.
             Cada trazo se muestrea, se ondula con una onda de Lissajous y se apila
-            en capas. Todo ocurre en tu navegador: nada se sube a un servidor.
+            en capas.
           </p>
 
           <section aria-labelledby="help-steps">
