@@ -94,7 +94,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ### Hygiene (only when touching the area)
 
-10. Unused files: `src/assets/` entirely (`logo.svg`, `sample1..4.svg`; the eight samples are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other; the page uses `favicon.black.ico` / `favicon.white.ico`), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
+10. Unused files: `src/assets/` entirely (`logo.svg`, `sample1..4.svg`; the samples, including five primitives (square, triangle, circle, pentagon, hexagon), are inlined in `App.tsx`), `public/icon.png`, `public/icon.ico`, `public/favicon.ico` and `make_ico.py` (only referenced by each other; the page uses `favicon.black.ico` / `favicon.white.ico`), `public/isotype.png` and `public/sample.svg` (only referenced by README/docs). `public/logo-43n-editable.svg` is a source asset — keep. Ask before deleting.
 
 ### Lower priority / needs a decision
 
