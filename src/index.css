@@ -21,8 +21,8 @@
   --surface-3:     #EBEBED;
   --field:         #FFFFFF;
 
-  --ink:           #18181B;
-  --ink-2:         #3F3F46;
+  --ink:           #38383E;
+  --ink-2:         #55555D;
   --muted:         #71717A;
   --faint:         #A1A1AA;
   --on-ink:        #FFFFFF;
@@ -31,10 +31,10 @@
   --border-strong: #D4D4D8;
   --scrim:         rgba(24,24,27,0.36);
 
-  /* Everyday interaction is ink; --signal is reserved for the final action,
+  /* Everyday interaction is dark grey; --signal is reserved for the final action,
      adding a keyframe and the keyboard focus ring. */
-  --accent:        var(--ink);
-  --accent-hi:     #52525B;
+  --accent:        #4A4A51;
+  --accent-hi:     #606068;
   --signal:        #FF5A1F;
   --signal-hi:     #FF7A47;
   --signal-bg:     rgba(255,90,31,0.10);
@@ -48,9 +48,9 @@
   --err:           #DC2626;
   --err-bg:        rgba(220,38,38,0.07);
 
-  /* Type: Geist for the interface, GSCode for numbers and code */
-  --font-ui:   'Geist Variable', system-ui, sans-serif;
-  --font-mono: 'GSCode', 'Cascadia Code', ui-monospace, monospace;
+  /* Type: GSCode for the interface, Geist for running text */
+  --font-ui:   'GSCode', 'Cascadia Code', ui-monospace, monospace;
+  --font-text: 'Geist Variable', system-ui, sans-serif;
   --fs-xs:  11px;
   --fs-sm:  12px;
   --fs-md:  13px;
@@ -329,7 +329,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   color: var(--ink-2);
   cursor: pointer;
 }
-.help-close:hover { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.help-close:hover { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
 
 .help-body {
   overflow-y: auto;
@@ -709,7 +709,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 
 .btn-small:hover:not(:disabled) { background: var(--surface-2); }
 .btn-small--on,
-.btn-small--on:hover:not(:disabled) { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.btn-small--on:hover:not(:disabled) { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
 
 .btn-primary {
   display: inline-flex;
@@ -725,12 +725,12 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   white-space: nowrap;
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
-  background: var(--ink);
-  border: 1px solid var(--ink);
+  background: var(--accent);
+  border: 1px solid var(--accent);
   color: var(--on-ink);
 }
 .btn-primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
-.btn-signal       { background: var(--signal); border-color: var(--signal); color: var(--ink); }
+.btn-signal       { background: var(--signal); border-color: var(--signal); color: var(--on-ink); }
 .btn-signal:hover { background: var(--signal-hi); border-color: var(--signal-hi); }
 .btn-signal:disabled { background: var(--surface-3); border-color: var(--surface-3); color: var(--faint); opacity: 1; }
 
@@ -810,7 +810,7 @@ input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 14px; height: 14px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--accent);
   border: 2px solid var(--field);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
@@ -821,7 +821,7 @@ input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); }
 input[type="range"]::-moz-range-thumb {
   width: 14px; height: 14px;
   border-radius: 50%;
-  background: var(--ink);
+  background: var(--accent);
   border: 2px solid var(--field);
   box-shadow: var(--shadow-sm);
   cursor: pointer;
@@ -932,8 +932,8 @@ input[type="range"]::-moz-range-thumb {
   direction: rtl;
 }
 /* The thumb takes the colour of the top visible layer */
-.layer-slider input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; background: var(--thumb-c, var(--ink)); }
-.layer-slider input[type="range"]::-moz-range-thumb     { width: 16px; height: 16px; background: var(--thumb-c, var(--ink)); }
+.layer-slider input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; background: var(--thumb-c, var(--accent)); }
+.layer-slider input[type="range"]::-moz-range-thumb     { width: 16px; height: 16px; background: var(--thumb-c, var(--accent)); }
 .layer-slider-value {
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
@@ -1056,7 +1056,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-ghost .kfi-diamond { fill: var(--field); transition: fill var(--dur-fast), stroke var(--dur-fast); }
 .kf-ghost:hover .kfi-diamond { fill: var(--signal); stroke: var(--signal); stroke-dasharray: none; }
-.kf-ghost:hover { color: var(--ink); }
+.kf-ghost:hover { color: var(--on-ink); }
 /* Numbered keyframe diamond. The diamond is a rotated ::before so the number stays upright. */
 .kf-badge {
   position: relative;
@@ -1107,7 +1107,7 @@ input[type="range"]::-moz-range-thumb {
   transform: translateX(-50%);
   z-index: 4;
   padding: 2px 6px;
-  background: var(--ink);
+  background: var(--accent);
   color: var(--on-ink);
   border-radius: var(--radius-sm);
   font-size: var(--fs-sm);
@@ -1122,11 +1122,11 @@ input[type="range"]::-moz-range-thumb {
   gap: 7px;
   background: var(--signal);
   border-color: var(--signal);
-  color: var(--ink);
+  color: var(--on-ink);
   font-size: var(--fs-md);
   font-weight: 700; font-variation-settings: 'wght' 700;
 }
-.kf-add-btn .kfi-diamond { fill: var(--ink); }
+.kf-add-btn .kfi-diamond { fill: var(--on-ink); stroke: var(--on-ink); }
 .kf-add-btn .kfi-plus { stroke: var(--signal); stroke-width: 1.8; }
 .kf-add-btn:hover:not(:disabled) { background: var(--signal-hi); border-color: var(--signal-hi); }
 .kf-del-btn { color: var(--err); }
@@ -1146,7 +1146,7 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
 }
 .kf-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.kf-add-btn--on { background: var(--ink); border-color: var(--ink); color: var(--on-ink); }
+.kf-add-btn--on { background: var(--accent); border-color: var(--accent); color: var(--on-ink); }
 .kf-add-btn--on:hover:not(:disabled) { background: var(--accent-hi); border-color: var(--accent-hi); }
 /* ── Keyframe editor panel ───────────────────────────────────────────────── */
 .kf-editor {
@@ -1304,10 +1304,9 @@ input[type="number"]::-webkit-outer-spin-button,
 input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
 
 
-/* Numbers, values and code use the monospaced face. Scoped to the stage so
-   it outranks the `font: inherit` resets in the field rules above. */
+/* Sentences read better in the proportional face. Scoped to the stage so it
+   outranks the `font: inherit` resets in the rules above. */
 .app-stage :is(
-  input[type="number"], .slider-value, .layer-slider-value, .stage-summary,
-  .timeline-pct, .gcode-info, .gcode-textarea, .path-len, .kf-badge,
-  .kf-drag-label, .sample-nav-title, .file-name, .help-body code, .help-body kbd
-) { font-family: var(--font-mono); }
+  .help-body, .liss-context, .session-banner, .error-msg, .warn-note
+) { font-family: var(--font-text); }
+.app-stage :is(.help-body code, .help-body kbd) { font-family: var(--font-ui); }

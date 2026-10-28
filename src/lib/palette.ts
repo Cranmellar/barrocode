@@ -3,8 +3,8 @@
 export const palette = {
   bg:      '#F1F1F3',
   surface: '#FFFFFF',
-  ink:     '#18181B',
-  ink2:    '#3F3F46',
+  ink:     '#38383E',
+  ink2:    '#55555D',
   muted:   '#71717A',
   border:  '#E4E4E7',
   signal:  '#FF5A1F',
