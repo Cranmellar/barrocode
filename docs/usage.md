@@ -16,7 +16,7 @@ flowchart TD
 
 ## 1. Cargar Un SVG
 
-Arrastra un archivo SVG al área de carga o haz clic en ella.
+Arrastra un archivo SVG sobre la ventana o usa **Cargar SVG** en el panel izquierdo.
 
 Elementos soportados:
 
@@ -28,7 +28,7 @@ Elementos soportados:
 - `<ellipse>`
 - `<rect>`
 
-Si no tienes un archivo a mano, usa el navegador de muestras integrado: cuatro SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
+Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
 
 ## 2. Revisar Trayectos
 
@@ -44,7 +44,7 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
-El panel izquierdo agrupa los parámetros en tres bloques plegables: **Pieza** (capas, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). Un bloque plegado muestra un resumen de sus valores clave, y el estado de cada bloque se recuerda entre sesiones.
+El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
 
 | Parámetro | Efecto |
 |---|---|
@@ -124,7 +124,7 @@ El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin
 | `←` / `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %) |
 | `K` | Añade un keyframe en el extrusor, o selecciona el que ya está ahí |
 | `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
-| `G` | Alterna Trayectoria / G-code |
+| `G` | Abre o cierra el panel de G-code |
 | `?` | Abre la ayuda |
 
 ### Sesión
@@ -133,4 +133,4 @@ BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estad
 
 ## 7. Exportar
 
-Haz clic en **Descargar .gcode**. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.
+Haz clic en **Descargar** en la barra superior. El panel **G-code** de la misma barra muestra el archivo (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.
