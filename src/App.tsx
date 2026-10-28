@@ -350,9 +350,11 @@ export default function App() {
   const selectedKfIdRef = useRef(selectedKfId);
   const helpOpenRef = useRef(helpOpen);
   const addKeyframeRef = useRef(addKeyframe);
+  const neighbourKfRef = useRef({ prev: prevKf, next: nextKf, select: selectKf });
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
   useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
+  useEffect(() => { neighbourKfRef.current = { prev: prevKf, next: nextKf, select: selectKf }; }, [keyframes, timelineProgress, selectedKfId]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -372,6 +374,12 @@ export default function App() {
         addKeyframeRef.current();
       } else if (key === 'g') {
         setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
+      } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]') && id) {
+        // With a keyframe open the arrows walk between keyframes, so the
+        // extruder never drifts away from the one being edited.
+        const { prev, next, select } = neighbourKfRef.current;
+        const target = key === 'arrowleft' ? prev : next;
+        if (target) select(target.id);
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]')) {
         const step = (e.shiftKey ? 0.001 : 0.01) * (key === 'arrowleft' ? -1 : 1);
         setTimeline(t => Math.min(1, Math.max(0, +(t + step).toFixed(4))));
@@ -562,7 +570,7 @@ export default function App() {
     <div className="kf-nav">
       <button className="btn-icon" disabled={!prevKf}
         onClick={() => prevKf && selectKf(prevKf.id)}
-        title="Keyframe anterior (←)" aria-label="Keyframe anterior"><Chevron dir="left" /></button>
+        title={selectedKf ? 'Keyframe anterior (←)' : 'Keyframe anterior'} aria-label="Keyframe anterior"><Chevron dir="left" /></button>
       <span className="kf-nav-label">
         {selectedKf
           ? <><span className="kf-badge" style={{ '--kf-c': keyframeColor(selectedKf.t) } as CSSProperties}>
@@ -573,7 +581,7 @@ export default function App() {
       </span>
       <button className="btn-icon" disabled={!nextKf}
         onClick={() => nextKf && selectKf(nextKf.id)}
-        title="Keyframe siguiente (→)" aria-label="Keyframe siguiente"><Chevron dir="right" /></button>
+        title={selectedKf ? 'Keyframe siguiente (→)' : 'Keyframe siguiente'} aria-label="Keyframe siguiente"><Chevron dir="right" /></button>
     </div>
   );
 

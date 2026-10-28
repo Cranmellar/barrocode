@@ -309,7 +309,7 @@ Keyframes (`WaveKeyframe[]`) override Lissajous and pivot/scale/rotation fields 
 
 Other `localStorage` keys: `barrocode.leftTab` (active left-panel tab in `PathParams`), `barrocode.panels` (which side panels are open, in `App.tsx`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
 
-Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. They are ignored while typing in text/number fields.
+Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. `←/→` move the extruder, or jump to the previous/next keyframe while one is selected. They are ignored while typing in text/number fields.
 
 ---
 
