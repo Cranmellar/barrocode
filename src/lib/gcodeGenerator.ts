@@ -75,6 +75,11 @@ function buildHeader(params: PrintParams): string {
 
 // ── Soft transition between layers ──────────────────────────────────────────
 
+const MIN_STEP = 0.25;  // mm
+// Below this the seam ramp counts as having reached the next layer's start;
+// its first move absorbs the rest.
+const JOIN_TOLERANCE = 0.05;  // mm
+
 /**
  * Build G-code lines for a smooth Z-rise transition from `from` to `to`.
  * The extruder continues extruding throughout (no retract, no lift).
@@ -89,7 +94,9 @@ function buildTransition(
   params: PrintParams,
   eRef: { value: number },
 ): string[] {
-  const nSteps = Math.max(6, Math.ceil(transitionLength / 2));
+  // Steps shorter than this would extrude less than E's printed resolution.
+  const span = Math.hypot(to.x - from.x, to.y - from.y, zTo - zFrom);
+  const nSteps = Math.min(Math.max(6, Math.ceil(transitionLength / 2)), Math.max(1, Math.ceil(span / MIN_STEP)));
   const lines: string[] = [
     `; ↗ Soft transition Z ${fmt(zFrom)} → ${fmt(zTo)} mm`,
   ];
@@ -293,7 +300,7 @@ export function generateGcode(
         const next = nextLayer.paths[0]?.[0];
         const gap = next ? dist(cur.x, cur.y, next.x, next.y) : Infinity;
         if (next && gap <= params.transitionLength) {
-          if (Math.hypot(gap, next.z - zRef.value) > 0.001) {
+          if (Math.hypot(gap, next.z - zRef.value) > JOIN_TOLERANCE) {
             const tLines = buildTransition(
               cur, next, zRef.value, next.z, params.transitionLength, params, eRef,
             );

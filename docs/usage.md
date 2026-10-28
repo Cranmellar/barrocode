@@ -32,7 +32,7 @@ Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVG
 
 ## 2. Revisar Trayectos
 
-Cada elemento geométrico detectado aparece en **Trayectos SVG**.
+Cada elemento geométrico detectado aparece en **Trayectos SVG**. Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) aparece como un trayecto por subtrazado, con el nombre del original seguido de `-1`, `-2`…
 
 Puedes:
 
@@ -70,9 +70,9 @@ El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, e
 
 | Parámetro | Efecto |
 |---|---|
-| **Amplitud N** | Semi-amplitud lateral, sobre la normal del trayecto. |
+| **Amplitud N** | Semi-amplitud lateral, sobre la normal del trayecto. Las esquinas y curvas más cerradas de lo que la onda puede seguir se redondean con un radio de 1,25 × la amplitud N (más si la onda T es grande), para que la onda no forme bucles hacia dentro ni saltos hacia fuera. Con amplitud 0 la trayectoria conserva las esquinas tal como están. |
 | **Amplitud T** | Semi-amplitud adelante/atrás, sobre la tangente. |
-| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. |
+| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. En un trayecto cerrado se ajusta levemente para que entre un número entero de ciclos y la onda cierre sin escalón en la costura (de 20 a 19,97 mm en un contorno de 3,5 m). |
 | **Delta** | Diferencia de fase entre N y T. `0°` tiende a línea; `90°` tiende a elipse cuando las longitudes de onda coinciden. |
 | **Offset de fase** | Fase inicial de la onda. |
 | **Amplitud Z** | Oscilación vertical de la boquilla. La primera capa no baja de su altura y cada punto queda al menos media altura de capa sobre la capa anterior: con amplitudes grandes o desfase por capa, los valles se aplanan en vez de chocar. |

@@ -29,6 +29,17 @@ Hallazgos de una revisión del pipeline SVG → G-code. Los marcados `[x]` está
 - [x] **Nombre por defecto del G-code** — ahora `barrocode.gcode` (antes `curva.de.barro.gcode`, y `clay-wave.gcode` en `downloadGcode`). Las muestras y los SVG subidos siguen usando su propio nombre.
 - [x] **Mensajes de error del parser en inglés** (`svgParser.ts`). Traducidos.
 
+### Accidentes de trayectoria (oct. 2026)
+
+Catálogo hecho pasando las 8 muestras por el pipeline real y midiendo la capa 0; todos corregidos en la rama `claude/keen-turing-ysrsj5`. Un barrido posterior (onda Z, desfase por capa, dirección alterna, keyframes, onda T grande, escala 0,5) encontró y corrigió los casos que los valores por defecto escondían.
+
+- [x] **C — Subtrazados unidos por un cordón.** Un `<path>` con varios subtrazados se muestreaba como uno: el salto entre ellos se imprimía (230 mm a través de la muestra 4, con tres z-hops). `splitSubpaths()` corta el `d` en cada moveto.
+- [x] **A — La costura no cerraba.** La onda terminaba en fase arbitraria: el final quedaba hasta 2 × amplitud al costado del inicio, un escalón en cada capa. Cada trayecto cerrado tiene ahora un número entero de ciclos de N, T y Z, y sus dos muestras de costura comparten la tangente (el parser les daba tangentes de un solo lado, distintas en una esquina o tras un `Z` que cierra un hueco mínimo).
+- [x] **B — Esquinas: bucles, cúspides y tramos rectos.** La onda se desplaza sobre la normal, que gira de golpe en una esquina. Ahora se redondea el eje con un radio de 1,25 × amplitud N, ajustado por la onda T (`cornerRadius`), sobre el propio trazo y con tangentes continuas.
+- [x] **D — Saltos en Z sobre cruces falsos.** Eran consecuencia de A, B y C: de 13 a 0 en las muestras.
+- [ ] **Puntas muy agudas pierden largo.** Redondear una punta de 30° con radio 3,75 mm la acorta ≈ 15 mm: es lo que la onda puede seguir sin plegarse, pero cambia el diseño. Alternativa a decidir: atenuar la amplitud cerca de la punta en vez de redondear tanto.
+- [ ] **Keyframes que cambian la amplitud dejan un escalón en la costura** (≈ 0,5 mm con N de 1 a 5 mm en 4 capas): la amplitud del final de la vuelta ya es la de la capa siguiente. Es continuo hacia la capa de arriba, pero no cierra la propia vuelta.
+
 ### UX — controles
 
 - [ ] **Pivot drag en el visualizador** — *reabierto: estaba marcado pero no existe (`Preview2D` no edita `params`).* Permitir que el punto que corresponde al centro de escala se pueda desplazar arrastrando con el mouse en el viewport 3D.
