@@ -11,11 +11,11 @@ Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecuci
 ### Bugs
 
 - [X] **Drag-and-drop de SVG no resuelve** — actualmente no funciona; el `onDrop` está cableado en `App.tsx` pero hay un comportamiento que lo está rompiendo.
-- [x] **Scrollwheel no actualiza el valor numérico visible** — al tener un field seleccionado y mover la rueda, los parámetros cambian en el visualizador, pero el número en el `NumInput` no se refresca mientras se gira.
+- [ ] **Scrollwheel no actualiza el valor numérico visible** — al tener un field seleccionado y mover la rueda, los parámetros cambian en el visualizador, pero el número en el `NumInput` no se refresca mientras se gira. *Estaba marcado como hecho, pero `NumInput.tsx` sigue condicionando `setRaw` a `!focusedRef.current` (verificado 2026-10-28).*
 
 ### Revisión crítica (oct. 2026)
 
-Hallazgos de una revisión del pipeline SVG → G-code. Los marcados `[x]` están corregidos en la rama `claude/modest-gauss-ety6d2`; el resto queda abierto, en orden de prioridad.
+Hallazgos de una revisión del pipeline SVG → G-code. Los marcados `[x]` están corregidos en `main`; el resto queda abierto, en orden de prioridad.
 
 - [x] **Transición suave en trayectos abiertos extruía un cordón a través de la pieza.** Un trayecto abierto termina en el extremo opuesto a donde empieza la capa siguiente; con `softJoin` (activo por defecto) `buildTransition` unía ambos puntos extruyendo: 160 mm de arcilla por cambio de capa en una línea de 160 mm. Ahora la transición solo se hace si el inicio de la capa siguiente está a ≤ `transitionLength` en XY; si no, viaje elevado normal. El test de invariantes acota el largo de cada transición y cubre una línea abierta.
 - [x] **El parser imprimía geometría que no se dibuja.** Se muestreaban las formas de `<clipPath>` y `<mask>`, el contenido de `<defs>` / `<symbol>` / `<marker>` / `<pattern>` y los elementos con `display:none` (capas ocultas de Inkscape). Illustrator exporta a menudo un `clipPath` del tamaño de la mesa de trabajo, que salía impreso como un cuadrado extra. Ahora se omiten. Limitación: `visibility:hidden` no se detecta (el contenedor de medición ya es `visibility:hidden`).
@@ -23,30 +23,30 @@ Hallazgos de una revisión del pipeline SVG → G-code. Los marcados `[x]` está
 - [ ] **Bajo un `transform` con escala, el muestreo y las longitudes de onda salen mal.** `getTotalLength` / `getPointAtLength` trabajan en longitud local del elemento: dentro de `<g transform="scale(2)">` un trazo de 20 unidades mide 10, así que el espaciado de muestra y las longitudes de onda quedan al doble. Recalcular `arcLength` y `totalLength` a partir de los puntos ya transformados (`svgParser.ts`).
 - [ ] **Z-hop: probable acumulación de arcilla en los cruces** (deducido del código; confirmar con una impresión de prueba). El salto solo se aplica en la segunda pasada de cada cruce. En la capa 0 el cruce recibe un cordón a Z 1.0 y otro a Z 3.5; la primera pasada de la capa 1 cruza a Z 3.5, sin hueco sobre ese cordón doble. Cada capa deja un cordón de más en el cruce. Propuesta: reducir o anular E dentro de la ventana del salto en vez de solo levantar la boquilla (`toolpath.ts` / `gcodeGenerator.ts`).
 - [x] **"Reiniciar" del panel Lissajous borraba todos los parámetros** (`setParams(DEFAULT_PARAMS)`): capas, velocidades y escala incluidas. Ahora restablece solo los campos que edita el panel (amplitudes y longitudes de onda N/T/Z, delta, fase Z, desfase y desfase por capa); con un keyframe seleccionado, restablece la onda de ese keyframe. Se desactiva mientras los keyframes bloquean la onda global.
-- [ ] **Los pull requests no pasan por CI.** `deploy.yml` solo corre en `main`, así que un fallo se descubre al desplegar. Añadir un workflow `pull_request` con `npm test` y `npm run build`.
+- [x] **Los pull requests no pasan por CI.** Ahora `ci.yml` corre `npm test` y `npm run build` en cada pull request.
 - [ ] **E no compensa el grosor real del cordón con onda Z.** El hueco con la capa inferior varía entre 0.5× y ≈ 1.6× la altura de capa (con 0.8 mm de amplitud Z), pero E depende solo de la distancia XY. Escalar E por el hueco local (amplía NP-0a). El error por ignorar la componente Z de la distancia es menor (≈ 1.4 %).
 - [x] **"Núm. de capas" sin máximo** — escribir 10000 (o una "Altura total" grande con capas finas) congelaba la pestaña. `layerCount()` en `waveGenerator.ts` calcula el número efectivo de capas en un solo sitio, con tope `MAX_LAYERS = 500` (≈ 0,6 s de pipeline y 13 MB de G-code en una curva de 750 puntos); el panel muestra el tope.
 - [x] **Nombre por defecto del G-code** — ahora `barrocode.gcode` (antes `curva.de.barro.gcode`, y `clay-wave.gcode` en `downloadGcode`). Las muestras y los SVG subidos siguen usando su propio nombre.
-- [ ] **Mensajes de error del parser en inglés** (`svgParser.ts`).
+- [x] **Mensajes de error del parser en inglés** (`svgParser.ts`). Traducidos.
 
 ### UX — controles
 
-- [x] **Pivot drag en el visualizador** — permitir que el punto que corresponde al centro de escala se pueda desplazar arrastrando con el mouse en el viewport 3D.
-- [x] **Shift = ajuste fino** — agregar la opción de mantener Shift apretado para cambios muy leves al variar cualquier parámetro. Rueda = cambio grueso, Shift+rueda = cambio fino.
-- [x] **Pivot fields con paso más grueso** — al variar el centro de pivote, el desplazamiento por tick del wheel debiese ser mayor, para ubicar más rápidamente el punto donde quiero.
+- [ ] **Pivot drag en el visualizador** — *reabierto: estaba marcado pero no existe (`Preview2D` no edita `params`).* Permitir que el punto que corresponde al centro de escala se pueda desplazar arrastrando con el mouse en el viewport 3D.
+- [ ] **Shift = ajuste fino** — *reabierto: `NumInput` no lee `shiftKey`.* Agregar la opción de mantener Shift apretado para cambios muy leves al variar cualquier parámetro. Rueda = cambio grueso, Shift+rueda = cambio fino.
+- [ ] **Pivot fields con paso más grueso** — *reabierto: los campos de centro siguen con `step={1}`.* Al variar el centro de pivote, el desplazamiento por tick del wheel debiese ser mayor, para ubicar más rápidamente el punto donde quiero.
 - [x] **"Añadir keyframe aquí" → "OK" cuando hay keyframe seleccionada** — cuando se está trabajando con una keyframe existente, el botón debe cambiar a un OK para confirmar y evitar crear 2 keyframes en el mismo punto.
 
 ### UX — visualización
 
 - [x] **Estimación de tiempo en el header del visualizador** — a la izquierda del contador de capas y puntos, agregar una estimación del tiempo total considerando velocidad y distancia total de la trayectoria.
 - [x] **Cache periódico del SVG cargado** — guardar el estado del SVG en localStorage cada N segundos para restaurarlo en caso de cierre abrupto del navegador.
-- [] **Optimizar rendering con capas altas o muchos keyframes** — el `useEffect([parsedSVG, params, keyframes])` actual recompila todo en cada cambio; con muchas capas o keyframes la edición se siente lenta.
+- [ ] **Optimizar rendering con capas altas o muchos keyframes** — en gran parte hecho (memoización por etapa, reuso de cruces, LOD, caché del scrub, textarea truncado). Queda: G-code y estadísticas en un worker, y coalescer el arrastre de keyframes y de `CenterPad` con `requestAnimationFrame`. Detalle y cifras en CLAUDE.md, *Performance — user-side findings* #6 y #7.
 
 ### UI — layout y estilo
 
-- [ ] **Botón "Descargar .gcode" del mismo tamaño que "Copiar"** — manteniendo el resto de sus propiedades visuales.
-- [ ] **Color del menú desplegable de keyframe** — igualar al resto del tema y luego oscurecerlo levemente para diferenciarlo del color general.
-- [ ] **Alinear ancho de "Carga un SVG" con "Cargar SVG de ejemplo"** — el `upload-area` debiese tener el mismo ancho de bounding box que el botón de sample debajo.
+- [x] ~~**Botón "Descargar .gcode" del mismo tamaño que "Copiar"**~~ — obsoleto: con el overhaul, *Descargar* pasó a la barra superior.
+- [x] ~~**Color del menú desplegable de keyframe**~~ — obsoleto: el editor de keyframe es ahora el dock flotante, con la superficie común.
+- [x] ~~**Alinear ancho de "Carga un SVG" con "Cargar SVG de ejemplo"**~~ — obsoleto: el `upload-area` ya no existe; se suelta el SVG sobre la ventana.
 - [x] **Panel derecho más denso** — valores más pequeños, espaciado más ajustado sin sentirse atestado, permitiendo que se vean más presets sin scroll.
 - [x] **Input fields en panel derecho (Lissajous)** — los parámetros de Lissajous solo tienen slider; agregar también el campo numérico editable como en el panel izquierdo.
 - [x] **Acoplar la previsualización Lissajous con su panel modificador** — actualmente el panel derecho modifica los parámetros y la previsualización está abajo al centro; juntarlos visualmente.
@@ -86,7 +86,7 @@ Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 �
 
 ### Contenido / assets
 
-- [ ] **Biblioteca de SVG samples** — actualizar la carpeta de samples y mostrar 12 (o más) pads pequeños con vistas mini de cada sample (tomando el ícono del propio SVG), para elegir visualmente. Alternativa: flechas left/right para navegar entre samples.
+- [ ] **Biblioteca de SVG samples** — *parcial: hay 8 muestras en un carrusel ‹ › con miniatura.* Falta la grilla de pads, si se quiere. Actualizar la carpeta de samples y mostrar 12 (o más) pads pequeños con vistas mini de cada sample (tomando el ícono del propio SVG), para elegir visualmente. Alternativa: flechas left/right para navegar entre samples.
 
 ### Completado en sesiones previas
 
@@ -95,87 +95,19 @@ Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 �
 
 ---
 
-## Propuesta priorizada
+## Estado de las olas (revisado 2026-10-28)
 
-La estrategia es atacar primero lo que **bloquea uso real** (bugs), luego lo que **mejora la productividad por interacción** (controles, atajos), luego **layout/estilo**, y dejar al final lo que requiere infraestructura nueva (cache, performance, biblioteca de samples).
+El plan original en ocho olas (oct. 2026) está casi cerrado; el detalle quedó en el historial de git. Lo que sigue abierto:
 
-Cada ola está pensada para ser un commit independiente que pueda mergearse sin esperar al resto.
+| Ola | Estado |
+|---|---|
+| 1 — Bugs P0 | Drag-and-drop hecho. **Abierto:** refresco del `NumInput` durante la rueda con el campo enfocado. |
+| 2 — Controles | Botón *Añadir → OK* hecho. **Abierto:** Shift = ajuste fino, paso grueso en el pivote. |
+| 3 — Pivot drag en el visor | **Abierto**, sin empezar. |
+| 4 — UI polish | Absorbida por el overhaul gráfico ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)); tiempo estimado hecho. |
+| 5 — Panel derecho | Hecha (UI-4 y overhaul fase 3). |
+| 6 — Samples | 8 muestras en carrusel; la grilla queda opcional. |
+| 7 — Sesión | Hecha (UI-5). |
+| 8 — Performance | En gran parte hecha. **Abierto:** worker para G-code y estadísticas, coalescer arrastres. |
 
-### Ola 1 — Bugs bloqueantes (P0)
-
-1. **Fix drag-and-drop de SVG.** Diagnóstico mínimo: verificar que `onDragOver` está invocando `preventDefault` en el contenedor padre correcto y que el evento llega al `onDrop`. Probable causa: algún ancestro o el `body.dragging-h/-v` interfiriendo. Ticket pequeño, alto impacto.
-2. **NumInput refresca display durante wheel.** En [src/components/NumInput.tsx:53](src/components/NumInput.tsx), el `setRaw(String(out))` ya está pero solo corre cuando `!focusedRef.current`. Si el field está focused, no actualiza. La fix: actualizar el `raw` siempre tras el wheel (el wheel es una acción intencional del usuario, no un commit accidental desde el parent).
-
-**Estimación combinada: 1–2 horas.**
-
-### Ola 2 — Controles y atajos de teclado (P1)
-
-3. **Shift = ajuste fino en NumInput wheel.** Modificar el handler `onWheel` en `NumInput.tsx`: si `e.shiftKey`, dividir `step` por 10. Cero side-effects: el step base de cada input ya está bien calibrado. Cubre todos los fields del proyecto de una sola modificación.
-4. **Pivot fields con paso más grueso.** En `CenterScaleParams.tsx` (o donde se renderice el `NumInput` de `centerX`/`centerY`), subir el `step` a `5` o `10`. Con Shift+wheel queda el paso fino preservado.
-5. **Toggle "Añadir keyframe" → "OK" cuando hay KF seleccionada.** En `Preview2D.tsx`, ya existe el estado de "kf seleccionada" (highlight en el visualizador). Detectar si `timelineProgress` corresponde a un kf existente dentro de una tolerancia (ej. ±1% en t), y cambiar el label del botón. La acción del botón mantiene el comportamiento normal: si ya hay KF en ese punto, no crear duplicado (devolver al estado seleccionado).
-
-**Estimación: 2–3 horas.** Ola muy ROI-positiva: tres cambios pequeños que multiplican la sensación de control.
-
-### Ola 3 — Pivot drag en el viewport (P1)
-
-6. **Drag del centro de pivote en `Preview2D`.** Es el ticket más vistoso de la lista, pero requiere más diseño:
-   - Renderizar un handle visible (cross + ring) en la posición actual del pivote, proyectado al espacio de pantalla.
-   - Hit-testing en `onMouseDown`: si el click está cerca del handle (umbral ~8px en pantalla), iniciar drag-pivot en vez de pan.
-   - En `onMouseMove`: unproject la posición del mouse al plano XY (z=0 o z=primera capa) y setear `params.centerX/centerY`.
-   - Coordinarlo con el `CenterPad` existente — son dos UIs sobre el mismo state, deben quedar consistentes.
-   - **Estimación: 3–5 horas.** Aislada al `Preview2D` + un `onChange(params)`.
-
-### Ola 4 — UI polish (P2)
-
-7. **Igualar tamaño botón "Descargar .gcode" y "Copiar".** En `GcodeOutput.tsx`: ambos botones ya usan `btn-small`/`btn-primary`. Unificar a una sola clase o forzar `min-width`/`padding` iguales.
-8. **Color del menú de keyframe.** Igualar `background-color` al token de panel existente (`--card` / `--card-2`) y luego aplicar un `filter: brightness(0.96)` o usar una variante nueva tipo `--card-3`.
-9. **Alinear ancho upload-area y botón sample.** En `App.tsx`/`index.css`, envolver ambos en un contenedor con `width: 100%` y dejar que ambos elementos hereden ese ancho, o setear el mismo `max-width` explícito.
-10. **Tiempo estimado en header del visualizador.** Cálculo: ya tenemos `WaveLayer[]` con coordenadas mm. Sumar distancia total entre puntos consecutivos + transiciones + travel, dividir por `params.printSpeed` (mm/min). Mostrar como `hh:mm:ss`. Un util en `lib/` reusable.
-
-**Estimación combinada: 2–3 horas.**
-
-### Ola 5 — Reorg panel derecho (P2)
-
-11. **Input fields en panel Lissajous.** Reemplazar los sliders solos por slider + `NumInput` lado a lado, igual al panel izquierdo. Reutilizar el componente `Num`/`Slider` ya local a `LissajousParams.tsx`.
-12. **Densificar panel derecho.** Bajar `font-size` de los valores, ajustar `padding` de `.param-row` dentro de `.right-sidebar`. Verificar que el grid de presets quepa con más items visibles sin scroll.
-13. **Co-localizar previsualización Lissajous con su panel modificador.** Decisión de layout: mover `LissajousPreview` desde la fila inferior central a un slot dentro del panel derecho, o crear un panel "Forma de Lissajous" que contenga ambos. Implica retocar `useResize` y el flex/grid de `App.tsx`. Hacerlo en este orden (11 → 12 → 13) porque cada paso ya cambia el panel.
-
-**Estimación: 3–4 horas.** Una sola PR coherente.
-
-### Ola 6 — Biblioteca de samples (P3)
-
-14. **Ampliar navegador de samples.** Actualmente hay 4 SVGs geométricos embebidos directamente en `App.tsx` con navegación prev/next. El ticket original pedía una grilla de 12+ mini-pads. Lo que queda: agregar más samples y, opcionalmente, presentarlos como grilla (~48×48 px por pad) en vez de carrusel. Los samples adicionales pueden ser SVGs hardcodeados en `App.tsx` o cargados desde `public/samples/` vía `fetch`.
-
-**Estimación: 1–2 horas** (la infraestructura de navegación ya existe).
-
-### Ola 7 — Resiliencia (P3)
-
-15. **Cache periódico del SVG cargado.** Usar `localStorage` con clave única (ej. `barrocode:lastSession`) y guardar `{ raw, filename, params, keyframes }` cada vez que cambian (debounced 1–2 s). En el mount de `App.tsx`, si existe la key, mostrar un banner "Restaurar sesión anterior?" con un botón. Una vez restaurado, comportamiento normal. **Estimación: 2 horas.**
-
-### Ola 8 — Performance (P3)
-
-16. **Optimizar rendering con muchas capas/keyframes.** El cuello de botella es el `useEffect([parsedSVG, params, keyframes])` que recorre todas las capas en cada cambio. Estrategias:
-    - Debounce en el `setParams` (no en el useEffect — debounce a nivel de los `onChange` de los panels).
-    - Memoizar capas por `(parsedSVG.id, paramsHash, keyframesHash)` con `useMemo`.
-    - Mover el cálculo a un Web Worker cuando supere algún umbral (ej. capas × puntos > 50.000).
-    - El draw de `Preview2D` puede usar `requestAnimationFrame` throttling.
-    - **Estimación: 4–8 horas** según cuánto se quiera abarcar. Idealmente hacer una medición con Performance API antes de optimizar a ciegas.
-
----
-
-## Resumen
-
-| Ola | Tickets | Estimación | Cuándo |
-|---|---|---|---|
-| 1 — Bugs P0 | drag-drop, NumInput wheel display | 1–2 h | Inmediato |
-| 2 — Atajos | Shift fino, pivot step, KF toggle | 2–3 h | Siguiente |
-| 3 — Pivot drag viewport | drag del centro en `Preview2D` | 3–5 h | Aislado |
-| 4 — UI polish | botones, color KF menu, upload alignment, tiempo estimado | 2–3 h | Cuando hay aire |
-| 5 — Panel derecho | input fields + densidad + co-location | 3–4 h | Una PR |
-| 6 — Samples | ampliar navegador (infra ya lista) | 1–2 h | Contenido |
-| 7 — Cache | localStorage restore | 2 h | Tranquilo |
-| 8 — Performance | memoization / worker / RAF | 4–8 h | Cuando duela |
-
-Total estimado: 19–30 horas para limpiar el backlog completo.
-
-El orden propuesto refleja **dependencias y costo de oportunidad**, no urgencia subjetiva — si querés reordenar (por ejemplo poner samples antes que pivot drag), avísame y reajusto.
+El orden de trabajo vigente (correcciones del G-code primero, luego mejoras rápidas de UX e higiene) está en CLAUDE.md, *Next steps — low effort, high impact*.
