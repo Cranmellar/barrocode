@@ -8,6 +8,7 @@
  * its artboard.
  */
 
+import { useEffect, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 
@@ -27,6 +28,51 @@ function set<K extends keyof PrintParams>(
 
 const SCALE_MIN = 0.1;
 const SCALE_MAX = 3.0;
+// A drag within this fraction of the range snaps to 1×, as on the wave sliders.
+const SNAP = 0.015;
+
+// One control per axis: the number field and the slider edit the same value.
+function ScaleSlider({ label, value, onChange }: {
+  label: string; value: number; onChange: (v: number) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!dragging) return;
+    const end = () => setDragging(false);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+  }, [dragging]);
+  const at = (f: number) => `calc(7px + (100% - 14px) * ${Math.max(0, Math.min(1, f))})`;
+  const frac = (v: number) => (v - SCALE_MIN) / (SCALE_MAX - SCALE_MIN);
+  const fill = at(frac(value));
+  return (
+    <div className="slider-row">
+      <div className="slider-header">
+        <span className="slider-label">{label}</span>
+        <span className="slider-num">
+          <NumInput value={value} min={SCALE_MIN} max={SCALE_MAX} step={0.01} fineStep={0.01} onChange={onChange} />
+          <span className="slider-value-unit">×</span>
+        </span>
+      </div>
+      <div className="slider-track">
+        <span className={`slider-notch${value === 1 ? ' slider-notch--on' : ''}`}
+          style={{ left: at(frac(1)) }} aria-hidden="true" />
+        <input type="range" min={SCALE_MIN} max={SCALE_MAX} step={0.01} value={value}
+          aria-label={label}
+          style={{ background: `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)` }}
+          onPointerDown={() => setDragging(true)}
+          onChange={e => {
+            const v = parseFloat(e.target.value);
+            onChange(dragging && Math.abs(v - 1) <= (SCALE_MAX - SCALE_MIN) * SNAP ? 1 : v);
+          }} />
+      </div>
+    </div>
+  );
+}
 
 export function CenterScaleParams({ params, onChange }: Props) {
   function setVal<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
@@ -108,69 +154,9 @@ export function CenterScaleParams({ params, onChange }: Props) {
           </label>
         </div>
 
-        <div className="param-row">
-          <label>{params.scaleUniform ? 'Escala' : 'Escala X'}</label>
-          <NumInput
-            value={params.scaleX}
-            min={SCALE_MIN}
-            max={SCALE_MAX}
-            step={0.05}
-            onChange={setScaleX}
-          />
-        </div>
-
+        <ScaleSlider label={params.scaleUniform ? 'Escala' : 'Escala X'} value={params.scaleX} onChange={setScaleX} />
         {!params.scaleUniform && (
-          <div className="param-row">
-            <label>Escala Y</label>
-            <NumInput
-              value={params.scaleY}
-              min={SCALE_MIN}
-              max={SCALE_MAX}
-              step={0.05}
-              onChange={setScaleY}
-            />
-          </div>
-        )}
-
-        {/* Quick-access scale slider */}
-        <div className="slider-row">
-          <div className="slider-header">
-            <span className="slider-label">
-              {params.scaleUniform ? 'Escala' : 'Escala X'}
-            </span>
-            <span className="slider-value" style={{ fontSize: 16 }}>
-              {params.scaleX.toFixed(2)}
-              <span className="slider-value-unit">×</span>
-            </span>
-          </div>
-          <input
-            type="range"
-            min={SCALE_MIN}
-            max={SCALE_MAX}
-            step={0.01}
-            value={params.scaleX}
-            onChange={e => setScaleX(parseFloat(e.target.value))}
-          />
-        </div>
-
-        {!params.scaleUniform && (
-          <div className="slider-row">
-            <div className="slider-header">
-              <span className="slider-label">Escala Y</span>
-              <span className="slider-value" style={{ fontSize: 16 }}>
-                {params.scaleY.toFixed(2)}
-                <span className="slider-value-unit">×</span>
-              </span>
-            </div>
-            <input
-              type="range"
-              min={SCALE_MIN}
-              max={SCALE_MAX}
-              step={0.01}
-              value={params.scaleY}
-              onChange={e => setScaleY(parseFloat(e.target.value))}
-            />
-          </div>
+          <ScaleSlider label="Escala Y" value={params.scaleY} onChange={setScaleY} />
         )}
 
         <button
