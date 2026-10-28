@@ -1043,23 +1043,20 @@ input[type="range"]::-moz-range-thumb {
   top: 50%;
   transform: translate(-50%, -50%);
   z-index: 2;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--field);
-  border: 1.5px dashed var(--ink-2);
-  border-radius: var(--radius);
+  background: transparent;
+  border: none;
   color: var(--ink-2);
-  font: inherit;
-  font-size: var(--fs-lg);
-  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
-  line-height: 1;
   cursor: pointer;
 }
-.kf-ghost:hover { background: var(--signal); border: 1.5px solid var(--signal); color: var(--ink); }
+.kf-ghost .kfi-diamond { fill: var(--field); transition: fill var(--dur-fast), stroke var(--dur-fast); }
+.kf-ghost:hover .kfi-diamond { fill: var(--signal); stroke: var(--signal); stroke-dasharray: none; }
+.kf-ghost:hover { color: var(--ink); }
 /* Numbered keyframe diamond. The diamond is a rotated ::before so the number stays upright. */
 .kf-badge {
   position: relative;
@@ -1119,7 +1116,18 @@ input[type="range"]::-moz-range-thumb {
   pointer-events: none;
 }
 
-.kf-add-btn { background: var(--signal); border-color: var(--signal); color: var(--ink); }
+.kf-add-btn {
+  height: 30px;
+  padding: 0 var(--sp-3) 0 9px;
+  gap: 7px;
+  background: var(--signal);
+  border-color: var(--signal);
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 700; font-variation-settings: 'wght' 700;
+}
+.kf-add-btn .kfi-diamond { fill: var(--ink); }
+.kf-add-btn .kfi-plus { stroke: var(--signal); stroke-width: 1.8; }
 .kf-add-btn:hover:not(:disabled) { background: var(--signal-hi); border-color: var(--signal-hi); }
 .kf-del-btn { color: var(--err); }
 .kf-del-btn:hover { background: var(--err-bg); color: var(--err); }

@@ -51,6 +51,18 @@ interface Props {
 }
 
 export const STAGE_GAP = 12;
+
+// "Add keyframe": a plus inside the keyframe diamond. `dashed` is the
+// placeholder drawn on the timeline at the extruder.
+export function KeyframeAddIcon({ size = 16, dashed = false }: { size?: number; dashed?: boolean }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor"
+      strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path className="kfi-diamond" d="M8 1.4 14.6 8 8 14.6 1.4 8Z" strokeDasharray={dashed ? '2.2 2' : undefined} />
+      <path className="kfi-plus" d="M8 5.3v5.4M5.3 8h5.4" />
+    </svg>
+  );
+}
 const LAYER_SLIDER_W = 44 + STAGE_GAP;
 
 
@@ -526,7 +538,7 @@ export function Preview2D({
                     onClick={onAddKeyframe}
                     title="Añadir keyframe aquí (K)"
                     aria-label="Añadir keyframe aquí"
-                  >+</button>
+                  ><KeyframeAddIcon size={22} dashed /></button>
                 )}
 
                 {[...keyframes].sort((a, b) => a.t - b.t).map((kf, i) => {

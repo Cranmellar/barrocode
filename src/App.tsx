@@ -8,7 +8,7 @@ import { keyframeColor } from './lib/draw3D';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
 import { LissajousPreview } from './components/LissajousPreview';
-import { Preview2D, STAGE_GAP } from './components/Preview2D';
+import { Preview2D, STAGE_GAP, KeyframeAddIcon } from './components/Preview2D';
 import { PathList } from './components/PathList';
 import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
@@ -525,7 +525,7 @@ export default function App() {
       >
         {kfAtCursor
           ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${sortedKfs.indexOf(kfAtCursor) + 1}`
-          : '+ Keyframe'}
+          : <><KeyframeAddIcon />Keyframe</>}
       </button>
       {selectedKf && (
         <button className="btn-icon kf-del-btn" onClick={deleteKeyframe}
