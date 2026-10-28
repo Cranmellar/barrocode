@@ -15,6 +15,7 @@ import { NumInput } from './components/NumInput';
 import { CenterPad } from './components/CenterPad';
 import { HelpDialog } from './components/HelpDialog';
 import { Icon } from './components/icons';
+import type { ShapeDoc } from './shaper/lib/shape';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -237,6 +238,7 @@ export default function App() {
   const [helpOpen, setHelpOpen] = useState(() => !hasSeenHelp());
   const [savedSession, setSavedSession] = useState(loadSession);
   const [workspace, setWorkspace] = useState<Workspace>('impresion');
+  const [shape, setShape] = useState<ShapeDoc | null>(null);
   // The last SVG sent from Forma; while it is the loaded one, Impresión offers to edit it.
   const [sentShapeSvg, setSentShapeSvg] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -843,7 +845,7 @@ export default function App() {
   if (workspace === 'forma') return (
     <>
       <Suspense fallback={<div className="app-stage" />}>
-        <ShaperView switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)} />
+        <ShaperView doc={shape} onChange={setShape} switcher={switcher} onSend={sendShape} onHelp={() => setHelpOpen(true)} />
       </Suspense>
       <HelpDialog open={helpOpen} onClose={closeHelp} />
     </>

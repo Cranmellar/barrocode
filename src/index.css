@@ -1221,13 +1221,10 @@ input[type="range"]::-moz-range-thumb {
 .shaper-axes line { stroke: var(--faint); stroke-width: 1; }
 .shaper-shape { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
 .shaper-seam { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
-.shaper-value { color: var(--ink); font-variant-numeric: tabular-nums; }
-.shaper-note {
-  margin: var(--sp-2) var(--sp-4) 0;
-  white-space: normal;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
+.shaper-ruler text { fill: var(--muted); font-variant-numeric: tabular-nums; }
+.shaper-size { fill: none; stroke: var(--faint); stroke-width: 1; stroke-dasharray: 4 4; }
+.shaper-arrow { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.slider-row--off { opacity: 0.5; }
 
 /* ── Lissajous figure ────────────────────────────────────────────────────── */
 /* Absolute so the buffer size set in device pixels never sizes the box */

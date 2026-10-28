@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0 hecha (ver sección 6); el resto, propuesta.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0 y F1 hechas (ver sección 6); el resto, propuesta.
 
 ---
 
@@ -123,6 +123,7 @@ Cada fase termina con `npm test` y `npm run build` en verde y algo usable. "Sesi
 - `FamilyPanel` con `NumInput` y sliders con el patrón de relleno existente; lienzo con regla en mm y una marca en la costura.
 - Tests: cierre, tamaño exacto, costura en el ángulo pedido, sentido, número de puntos estable.
 - **Hecho cuando:** las tres familias se envían a impresión y salen al tamaño pedido, con la costura donde se marcó.
+- **Hecho (2026-10-28).** `families.ts` da cada contorno alrededor de (0, 0); `shapePoints` (`shape.ts`) lo gira, lo escala para que el punto más lejano quede a la mitad del diámetro, corta en la costura (el rayo desde el centro), lo remuestrea cada 0,25 mm desde ahí y lo invierte si es horario. El polígono agranda su radio hasta que, con el redondeo en mm, el vértice queda en el diámetro pedido. Con m impar, n3 sigue a n2 y su slider se desactiva. El `ShapeDoc` es plano (campos `sf*`, `poly*`, `lobe*`) y vive en `App`, así que cambiar de espacio conserva la forma. En el lienzo: círculo discontinuo del diámetro, regla en mm, costura y una flecha con el sentido. En Chromium, un hexágono de 120 mm con radio de esquina 8 y costura a 90° salió de 120 × 106,06 mm (lo esperado) y la primera extrusión arrancó en (0, 53,03) hacia −X, antihorario visto desde arriba. Una punta aguda sin redondeo puede quedar hasta ≈0,03 mm corta, porque cae entre dos muestras.
 
 ### F2 — Imprimibilidad (1 sesión)
 

@@ -130,7 +130,7 @@ Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 �
 
 ### Módulo *Forma* (shaper)
 
-- [ ] **SH — Generador y editor de formas.** Plan completo, decisiones abiertas (D-S1…D-S7) y fases F0–F6 en [docs/shaper-plan.md](docs/shaper-plan.md). F0 hecha (selector *Forma · Impresión*, círculo de 80 mm, ida y vuelta). Siguiente: F1, familias de formas. F0–F3 resuelven el cuello de botella sin la edición de trazado.
+- [ ] **SH — Generador y editor de formas.** Plan completo, decisiones abiertas (D-S1…D-S7) y fases F0–F6 en [docs/shaper-plan.md](docs/shaper-plan.md). F0 hecha (selector *Forma · Impresión*, ida y vuelta) y F1 hecha (lóbulos, polígono o estrella redondeados, superfórmula; diámetro, giro, costura y sentido). Siguiente: F2, avisos de imprimibilidad. F0–F3 resuelven el cuello de botella sin la edición de trazado.
 
 ### Contenido / assets
 

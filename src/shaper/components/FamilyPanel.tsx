@@ -1,0 +1,156 @@
+import { useEffect, useState, type ReactNode } from 'react';
+import { NumInput } from '../../components/NumInput';
+import { superformulaN3 } from '../lib/families';
+import { DEFAULT_SHAPE, familyName, type Family, type ShapeDoc } from '../lib/shape';
+
+interface Props { doc: ShapeDoc; onChange: (doc: ShapeDoc) => void }
+
+const FAMILIES: Family[] = ['lobes', 'polygon', 'superformula'];
+
+// A pointer drag snaps to the default within this fraction of the range.
+const SNAP = 0.015;
+
+type NumKey = { [K in keyof ShapeDoc]: ShapeDoc[K] extends number ? K : never }[keyof ShapeDoc];
+
+function Slider({ label, value, min, max, step, unit, hint, def, disabled, onChange }: {
+  label: string; value: number; min: number; max: number; step: number;
+  unit?: string; hint?: string; def: number; disabled?: boolean;
+  onChange: (v: number) => void;
+}) {
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    if (!dragging) return;
+    const end = () => setDragging(false);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+  }, [dragging]);
+  const at = (f: number) => `calc(7px + (100% - 14px) * ${Math.max(0, Math.min(1, f))})`;
+  const decimals = String(step).split('.')[1]?.length ?? 0;
+  const fillPct = ((value - min) / (max - min)) * 100;
+  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fillPct}%,var(--border) ${fillPct}%,var(--border) 100%)`;
+  const clamp = (v: number) => Math.min(max, Math.max(min, v));
+  return (
+    <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={hint}>
+      <div className="slider-header">
+        <span className="slider-label">{label}</span>
+        <span className="slider-num">
+          <NumInput value={parseFloat(value.toFixed(decimals))} min={min} max={max} step={step}
+            disabled={disabled} onChange={v => onChange(clamp(v))} />
+          {unit && <span className="slider-value-unit">{unit}</span>}
+        </span>
+      </div>
+      <div className="slider-track">
+        <span className={`slider-notch${value === def ? ' slider-notch--on' : ''}`}
+          style={{ left: at((def - min) / (max - min)) }} aria-hidden="true" />
+        {dragging && (
+          <span className="slider-bubble" style={{ left: at((value - min) / (max - min)) }} aria-hidden="true">
+            {value.toFixed(decimals)}{unit && ` ${unit}`}
+          </span>
+        )}
+        <input type="range" min={min} max={max} step={step} value={value} disabled={disabled}
+          aria-label={label}
+          style={{ background: trackBg }}
+          onPointerDown={() => setDragging(true)}
+          onChange={e => {
+            const v = parseFloat(e.target.value);
+            onChange(dragging && Math.abs(v - def) <= (max - min) * SNAP ? def : v);
+          }} />
+      </div>
+    </div>
+  );
+}
+
+function Num({ label, value, min, max, step, unit, hint, onChange }: {
+  label: string; value: number; min?: number; max?: number;
+  step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
+}) {
+  return (
+    <div className="param-row" title={hint}>
+      <label>{label}{unit && <span className="unit"> {unit}</span>}</label>
+      <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
+    </div>
+  );
+}
+
+function Sec({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <div className="section">
+      <div className="section-title">{title}</div>
+      {children}
+    </div>
+  );
+}
+
+export function FamilyPanel({ doc, onChange }: Props) {
+  const set = <K extends keyof ShapeDoc>(k: K, v: ShapeDoc[K]) => onChange({ ...doc, [k]: v });
+  const slider = (k: NumKey, label: string, min: number, max: number, step: number, unit?: string, hint?: string) => (
+    <Slider label={label} value={doc[k]} min={min} max={max} step={step} unit={unit} hint={hint}
+      def={DEFAULT_SHAPE[k]} onChange={v => set(k, v)} />
+  );
+  const famIdx = FAMILIES.indexOf(doc.family);
+  const oddM = doc.sfM % 2 === 1;
+
+  return (
+    <>
+      <div className="panel-tabs" role="tablist" aria-label="Familia de formas">
+        <span className="panel-tabs-ind" aria-hidden="true"
+          style={{ transform: `translateX(calc(${famIdx} * (100% + 2px)))` }} />
+        {FAMILIES.map(f => (
+          <button key={f} role="tab" aria-selected={doc.family === f}
+            className={`panel-tab${doc.family === f ? ' panel-tab--on' : ''}`}
+            onClick={() => set('family', f)}>{familyName(f)}</button>
+        ))}
+      </div>
+
+      <div key={doc.family} className="tab-pane" role="tabpanel">
+        {doc.family === 'lobes' && (
+          <Sec title="Lóbulos">
+            {slider('lobeCount', 'Número', 2, 24, 1)}
+            {slider('lobeDepthPct', 'Profundidad', 0, 90, 1, '%', 'Cuánto se hunden los valles respecto a las crestas')}
+            {slider('lobeSharp', 'Agudeza', 0.2, 5, 0.1, undefined,
+              '1: ondulación suave. Más de 1: lóbulos estrechos como pétalos. Menos de 1: valles en punta')}
+          </Sec>
+        )}
+        {doc.family === 'polygon' && (
+          <Sec title="Polígono">
+            {slider('polySides', 'Lados', 3, 24, 1, undefined, 'Con estrella, número de puntas')}
+            {slider('polyStarPct', 'Estrella', 0, 90, 1, '%', '0: polígono regular. Más: las puntas se separan y los vértices interiores se hunden')}
+            {slider('polyFilletMM', 'Radio de esquina', 0, 40, 0.5, 'mm', 'Redondeo de cada esquina; se reduce donde el lado es demasiado corto')}
+          </Sec>
+        )}
+        {doc.family === 'superformula' && (
+          <Sec title="Superfórmula">
+            {slider('sfM', 'Simetría (m)', 0, 24, 1, undefined, 'Número de repeticiones alrededor del centro')}
+            {slider('sfN1', 'n1', 0.2, 20, 0.1, undefined, 'Hinchazón: bajo, puntas afiladas; alto, forma llena')}
+            {slider('sfN2', 'n2', 0.2, 20, 0.1, undefined, 'Forma de cada repetición')}
+            <Slider label="n3" min={0.2} max={20} step={0.1} def={DEFAULT_SHAPE.sfN3} disabled={oddM}
+              value={superformulaN3(doc.sfM, doc.sfN2, doc.sfN3)}
+              hint={oddM ? 'Con m impar, n3 sigue a n2 para que la forma cierre' : 'Forma de cada repetición, lado contrario'}
+              onChange={v => set('sfN3', v)} />
+          </Sec>
+        )}
+      </div>
+
+      <Sec title="Tamaño y costura">
+        <Num label="Diámetro exterior" unit="mm" value={doc.sizeMM} min={5} max={1000} step={1}
+          hint="Dos veces la distancia del centro al punto más lejano"
+          onChange={v => set('sizeMM', Math.max(5, v))} />
+        <Num label="Giro" unit="°" value={doc.rotation} step={5}
+          hint="Gira la forma, antihorario visto desde arriba" onChange={v => set('rotation', v)} />
+        <Num label="Costura" unit="°" value={doc.seamAngle} step={5}
+          hint="Dónde empieza y termina cada capa: ángulo desde +X, antihorario visto desde arriba"
+          onChange={v => set('seamAngle', v)} />
+        <div className="param-row param-check" title="Sentido en que la boquilla recorre el contorno, visto desde arriba">
+          <label>
+            <input type="checkbox" checked={doc.clockwise} onChange={e => set('clockwise', e.target.checked)} />
+            Sentido horario
+          </label>
+        </div>
+      </Sec>
+    </>
+  );
+}
