@@ -368,6 +368,10 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - Sliders apply a dynamic `linear-gradient` fill inline (see `LissajousParams.Slider`). Keep this pattern when adding new sliders. Wave sliders also take a `def` (default value): a notch marks it, a pointer drag snaps to it within 1.5 % of the range (keyboard steps don't), and a bubble shows the value while dragging.
 - On/off options in `.param-check` rows are native checkboxes styled as switches (`appearance: none`).
 
+- Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost). Segmented controls (`.seg-switch`, `.view-presets`) share one pill style.
+- Floating containers (`.float-panel`, top bar groups, `.layer-slider`, `.dock`, `.gcode-drawer`) share one surface: white, `--border`, `--radius-lg`, `--shadow-float`. Opaque on purpose: a translucent or blurred panel would make the browser recomposite it on every canvas frame.
+
+
 ### Motion
 
 Phase 5 of the overhaul. Durations and easing come from `--dur-fast` / `--dur` / `--dur-slow` / `--ease`; everything collapses under `prefers-reduced-motion` (a global rule at the end of `index.css`, and JS animations check `matchMedia` and jump to the end). Nothing loops on the 3D canvas except while something is actually moving.
@@ -378,8 +382,6 @@ Phase 5 of the overhaul. Durations and easing come from `--dur-fast` / `--dur` /
 - **Wave presets**: `LissajousParams.onChange(p, true)` bumps `lissMorph` in `App`; `LissajousPreview` morphs its figure over 250 ms and the changed numbers flash. Slider edits don't morph.
 - **Keyframes**: new ones pop (timeline CSS, canvas via `Scene.kfPop`); selecting one glides the timeline (`glideTimeline` in `App`, cancelled by any direct `setTimeline`).
 - **G-code**: `gcodeBusy` (App) is true from an edit until its debounced G-code lands; it drives the indeterminate bar (`.gcode-progress`, 150 ms delay), the dimmed summary and G-code text. The time in the summary counts to its new value (`useCountUp`). Toasts (`showToast` in `App`, rendered by `Preview2D` above the dock) confirm download and session restore; Copiar confirms in its own button.
-- Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost). Segmented controls (`.seg-switch`, `.view-presets`) share one pill style.
-- Floating containers (`.float-panel`, top bar groups, `.layer-slider`, `.dock`, `.gcode-drawer`) share one surface: white, `--border`, `--radius-lg`, `--shadow-float`. Opaque on purpose: a translucent or blurred panel would make the browser recomposite it on every canvas frame.
 
 ---
 
