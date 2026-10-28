@@ -1460,6 +1460,34 @@ input[type="radio"] {
   flex-shrink: 0;
 }
 
+/* Number fields: the amount a wheel or label-drag step added floats up
+   beside the field and fades. Rows are positioned so it scrolls with them. */
+.param-row, .kf-field, .slider-num { position: relative; }
+.num-delta {
+  position: absolute;
+  z-index: 3;
+  padding: 0 4px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular); font-variation-settings: 'wght' 450;
+  font-variant-numeric: tabular-nums;
+  line-height: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: num-delta 650ms var(--ease) both;
+}
+@keyframes num-delta {
+  0%   { opacity: 0; transform: translate(calc(-100% - 6px), -50%) translateY(4px); }
+  20%  { opacity: 1; transform: translate(calc(-100% - 6px), -50%); }
+  70%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(calc(-100% - 6px), -50%) translateY(-6px); }
+}
+/* Dragging a number field's label left or right changes its value. */
+label.num-scrub { cursor: ew-resize; touch-action: none; }
+label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration: underline dotted var(--faint); text-underline-offset: 3px; }
+
 /* On/off options read as switches; still a native checkbox for keyboard and forms. */
 .param-check input[type="checkbox"] {
   -webkit-appearance: none;

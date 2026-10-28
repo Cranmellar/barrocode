@@ -671,7 +671,7 @@ export default function App() {
           <div className="kf-field">
             <label>Centro X</label>
             <div className="kf-field-input-row">
-              <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={1}
+              <NumInput value={parseFloat((selectedKf.centerX ?? params.centerX).toFixed(1))} step={5} fineStep={1}
                 onChange={v => updateKf('centerX', v)} />
               <span className="kf-unit">mm</span>
             </div>
@@ -679,7 +679,7 @@ export default function App() {
           <div className="kf-field">
             <label>Centro Y</label>
             <div className="kf-field-input-row">
-              <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={1}
+              <NumInput value={parseFloat((selectedKf.centerY ?? params.centerY).toFixed(1))} step={5} fineStep={1}
                 onChange={v => updateKf('centerY', v)} />
               <span className="kf-unit">mm</span>
             </div>
