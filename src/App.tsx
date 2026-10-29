@@ -1068,7 +1068,7 @@ export default function App() {
                 </div>
               )}
 
-              {error && <div className="error-msg">{error}</div>}
+              {error && <div className="error-msg"><Icon name="aviso" />{error}</div>}
             </div>
 
             {parsedSVG && (

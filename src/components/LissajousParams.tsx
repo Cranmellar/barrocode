@@ -253,6 +253,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <Sec axis="Z" title="Vertical">
         {params.lissAmpZ > params.layerHeight && (
           <div className="warn-note">
+            <Icon name="aviso" />
             Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) mayor que la altura de capa ({params.layerHeight} mm):
             los valles se recortan para no chocar con la capa anterior.
           </div>

@@ -74,7 +74,8 @@ function Resolution({ params, shortestWl, onSpacing }: {
             ? <span>sin onda: entre 1 y 2 mm basta</span>
             : <span>{fmt(Math.round(perCycle * 10) / 10)} puntos por ciclo (λ {fmt(shortestWl!)} mm)</span>}
         </div>
-        <p>
+        <p className="state-line">
+          <Icon name={verdict === 'ok' ? 'ok' : verdict === 'coarse' ? 'aviso' : 'info'} />
           {verdict === 'ok' && 'Bien: la onda sale suave sin cargar el G-code.'}
           {verdict === 'coarse' && 'Pocos puntos: la onda sale quebrada, como un polígono.'}
           {verdict === 'fine' && 'Más fino de lo necesario: más G-code y recálculo lento, sin ganar forma.'}

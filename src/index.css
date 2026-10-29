@@ -768,6 +768,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .session-banner-actions { display: flex; gap: 6px; }
 
 .error-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   background: var(--err-bg);
   border-radius: var(--radius);
@@ -920,6 +923,11 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .resolution--coarse { border-left-color: var(--err); }
 .resolution--coarse p { color: var(--err); }
 .resolution--ok { border-left-color: var(--ok); }
+/* State carried by a shape too, not only by the border colour */
+.state-line { display: flex; align-items: flex-start; gap: 6px; }
+.state-line .ico, .warn-note > .ico, .error-msg > .ico { margin-top: 2px; }
+.resolution--ok .state-line .ico { color: var(--ok); }
+.resolution--fine .state-line .ico { color: var(--muted); }
 
 /* ── Panel header ────────────────────────────────────────────────────────── */
 .ico { flex-shrink: 0; }
@@ -981,6 +989,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-size: var(--fs-sm);
   line-height: 1.45;
   color: var(--err);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 
