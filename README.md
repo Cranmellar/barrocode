@@ -198,6 +198,7 @@ docs/                     guía de uso, arquitectura, notas y planes
 - [docs/architecture.md](docs/architecture.md): pipeline interno y responsabilidades.
 - [docs/fabrication-notes.md](docs/fabrication-notes.md): criterios de fabricación con arcilla.
 - [docs/research-notes.md](docs/research-notes.md): ideas de diseño y fabricación en exploración.
+- [docs/marco-teorico.md](docs/marco-teorico.md): referentes teóricos (ornamento, simetría, forma orgánica, materia, accidente programado).
 - [docs/shaper-plan.md](docs/shaper-plan.md): plan y registro de *Forma*.
 - [pendientes.md](pendientes.md): backlog priorizado.
 - [CLAUDE.md](CLAUDE.md): manual de trabajo para sesiones de Claude Code, con el estado actual del proyecto.
