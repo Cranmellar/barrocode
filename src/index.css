@@ -783,8 +783,10 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   margin-top: 0;
 }
 .section:last-child { padding-bottom: 10px; }
+/* A rule across the panel between sections, so each reads as its own block. */
+.section + .section { border-top: 1px solid var(--border); }
 
-/* Section titles: GSCode italic with a hairline running to the edge */
+/* Section titles: GSCode italic in --ink (labels are --ink-2) with a hairline running to the edge */
 .section-title {
   display: flex;
   align-items: center;
@@ -792,14 +794,15 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-size: var(--fs-md);
   font-style: italic;
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
-  color: var(--ink-2);
+  color: var(--ink);
   padding: var(--sp-4) var(--sp-4) var(--sp-1);
 }
+.section + .section > .section-title { padding-top: 20px; }
 .section-title::after {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--border-strong);
 }
 /* After the rule (order 1), at the title's right edge. */
 .section-reset {
@@ -1074,6 +1077,7 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
 /* ── Lissajous params (right sidebar) ────────────────────────────────────── */
 .lissajous-params { flex: 1; }
 .lissajous-params .section-title { padding: 6px 16px 4px; }
+.lissajous-params .section + .section > .section-title { padding-top: 12px; }
 
 /* Slider rows — instrument-grade value display */
 .slider-row { padding: 6px var(--sp-4) var(--sp-2); }
