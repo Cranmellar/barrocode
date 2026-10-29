@@ -23,6 +23,7 @@
 ; Generate E             : true
 ; Extrusion multiplier   : 0.05
 ; ============================================================
+;LAYER_COUNT:2
 
 G21       ; mm units
 G90       ; absolute positioning
@@ -41,6 +42,10 @@ G1 Z20.000 F1500
 
 
 ; ===== Layer 1 / 2   Z = 1.000 mm =====
+;LAYER_CHANGE
+;Z:1.000
+;HEIGHT:2.5
+;LAYER:0
 ; --- Layer 1, Path 1 ---
 G1 X0.000 Y0.000 F1500  ; travel to start
 G1 Z1.000 F1500  ; descend
@@ -151,6 +156,10 @@ G1 X82.000 Y0.000 E2.900 F600
 G1 X80.000 Y0.000 E3.000 F600
 
 ; ===== Layer 2 / 2   Z = 3.500 mm =====
+;LAYER_CHANGE
+;Z:3.500
+;HEIGHT:2.5
+;LAYER:1
 ; --- Layer 2, Path 1 ---
 G1 Z5.500 F1500  ; lift
 G1 X80.000 Y0.000 F1500  ; short hop

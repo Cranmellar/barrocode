@@ -206,6 +206,21 @@ describe('generateGcode — corner origin', () => {
   });
 });
 
+describe('generateGcode — layer markers', () => {
+  it('marks each layer for slicer viewers, before its first move', () => {
+    const { gcode, toolpath } = run(loopThenLine(), { ...WAVE, ...HOP, numLayers: 3, primingMove: true });
+    expect(gcode).toContain(';LAYER_COUNT:3\n');
+    const lines = gcode.split('\n');
+    const marks = lines.flatMap((l, i) => l.startsWith(';LAYER:') ? [i] : []);
+    expect(marks.map(i => lines[i])).toEqual([';LAYER:0', ';LAYER:1', ';LAYER:2']);
+    marks.forEach((i, li) => {
+      expect(lines.slice(i - 3, i)).toEqual([';LAYER_CHANGE', `;Z:${toolpath[li].z.toFixed(3)}`, ';HEIGHT:2.5']);
+      const header = lines.slice(i - 4, i - 3)[0];
+      expect(header).toContain(`===== Layer ${li + 1} / 3`);
+    });
+  });
+});
+
 describe('generateGcode — program start and end', () => {
   it('sets absolute extrusion only when E is generated', () => {
     expect(run(facingPair()).gcode).toContain('\nM82 ');

@@ -118,6 +118,7 @@ function buildHeader(params: PrintParams): string {
     `; Generate E             : ${params.generateE}`,
     `; Extrusion multiplier   : ${params.extrusionMultiplier}`,
     '; ============================================================',
+    `;LAYER_COUNT:${layerCount(params)}`,
     '',
   ].join('\n');
 }
@@ -300,6 +301,19 @@ function pathToGcode(
   return lines;
 }
 
+// ── Layer markers ────────────────────────────────────────────────────────────
+
+/**
+ * Comments that tell slicer viewers where a layer starts: `;LAYER:` for Cura,
+ * `;LAYER_CHANGE` / `;Z:` / `;HEIGHT:` for PrusaSlicer and its forks.
+ * Without them a viewer guesses layers from Z, and every point of a z-hop,
+ * the seam ramp or the Z wave sits at a Z of its own, so the line shows cut
+ * into pieces there although the nozzle never stops extruding.
+ */
+function layerMarkers(index: number, z: number, height: number): string {
+  return `;LAYER_CHANGE\n;Z:${fmt(z)}\n;HEIGHT:${height}\n;LAYER:${index}`;
+}
+
 // ── Main entry point ─────────────────────────────────────────────────────────
 
 export interface GcodeProgram {
@@ -364,6 +378,7 @@ export function generateGcode(
     const nextLayer = toolpath[li + 1] ?? null;
 
     blocks.push(`\n; ===== Layer ${li + 1} / ${toolpath.length}   Z = ${fmt(layer.z)} mm =====`);
+    blocks.push(layerMarkers(li, layer.z, params.layerHeight));
     if (layer.crossings > 0) {
       blocks.push(`; Z-hop: ${layer.crossings} crossing(s) detected`);
     }
