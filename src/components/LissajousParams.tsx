@@ -251,8 +251,8 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <Sec title="Z · Vertical">
         {params.lissAmpZ > params.layerHeight && (
           <div className="warn-note">
-            ⚠ Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) supera la altura de capa
-            ({params.layerHeight} mm) — los valles se recortan para no chocar con la capa anterior
+            Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) mayor que la altura de capa ({params.layerHeight} mm):
+            los valles se recortan para no chocar con la capa anterior.
           </div>
         )}
         <Slider morph={morph} def={defaults.lissAmpZ} label="Amplitud Z" value={params.lissAmpZ}

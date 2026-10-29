@@ -943,9 +943,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .liss-context--live { color: var(--ink-2); }
 
 .warn-note {
-  margin-bottom: var(--sp-1);
+  margin: 2px var(--sp-4) var(--sp-2);
+  padding: var(--sp-1) var(--sp-3);
+  border-left: 2px solid var(--err);
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: var(--fs-sm);
-  line-height: 1.4;
+  line-height: 1.45;
   color: var(--err);
 }
 
