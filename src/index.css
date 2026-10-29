@@ -206,7 +206,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   border-radius: var(--radius-sm);
   background: var(--field);
   box-shadow: var(--shadow-sm);
-  transition: transform var(--dur) var(--ease);
+  transition: transform var(--dur) var(--ease), width var(--dur) var(--ease);
 }
 .panel-tab {
   position: relative;

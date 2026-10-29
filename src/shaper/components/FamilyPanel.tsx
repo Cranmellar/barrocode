@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { NumInput } from '../../components/NumInput';
 import { superformulaN3 } from '../lib/families';
 import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
@@ -93,13 +93,25 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
     );
   };
   const famIdx = FAMILIES.indexOf(doc.family);
+  // "Superfórmula" doesn't fit a third of the row, so the tabs size to their
+  // labels and the highlight follows the active tab's measured box.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [ind, setInd] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const tab = tabsRef.current?.querySelectorAll<HTMLElement>('.panel-tab')[famIdx];
+      if (tab) setInd({ x: tab.offsetLeft, w: tab.offsetWidth });
+    };
+    measure();
+    document.fonts?.ready.then(measure);
+  }, [famIdx]);
   const oddM = doc.sfM % 2 === 1;
 
   return (
     <>
-      <div className="panel-tabs" role="tablist" aria-label="Familia de formas">
+      <div ref={tabsRef} className="panel-tabs" role="tablist" aria-label="Familia de formas">
         <span className="panel-tabs-ind" aria-hidden="true"
-          style={{ transform: `translateX(calc(${famIdx} * (100% + 2px)))` }} />
+          style={ind ? { left: 0, width: ind.w, transform: `translateX(${ind.x}px)` } : { visibility: 'hidden' }} />
         {FAMILIES.map(f => (
           <button key={f} role="tab" aria-selected={doc.family === f}
             className={`panel-tab${doc.family === f ? ' panel-tab--on' : ''}`}
