@@ -304,7 +304,7 @@ src/
     CenterScaleParams.tsx   Pivot + scale sections, rendered inside PathParams' Pieza group
     CenterPad.tsx           56×56 canvas pivot picker
     GcodeOutput.tsx         G-code drawer: textarea + copy + close
-    HelpDialog.tsx          "?" quick-start modal (native <dialog>)
+    HelpDialog.tsx          "?" help modal (native <dialog>): six sections in a side list; diagrams drawn from the wave formula
     NumInput.tsx            Controlled number input: wheel, Shift fine step, label drag
     FlowSteps.tsx           Four-step icon row in the empty 3D view
     icons.tsx               Inline-SVG icon set (`Icon`, `IconName`)
