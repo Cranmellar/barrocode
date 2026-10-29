@@ -430,7 +430,7 @@ export function ShaperView(props: Props) {
             title={contours ? 'Solo con las familias: vuelve a la familia para ver variaciones'
               : 'Ver nueve variaciones de esta familia y elegir con el ojo'}>Descubrir</button>
           <span className="stage-summary">{label}</span>
-          <button className="btn-primary" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
+          <button className="btn-primary btn-send" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
             title="Cargar esta forma en Impresión, a su tamaño real">Enviar a impresión</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
             aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>

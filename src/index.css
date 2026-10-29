@@ -43,6 +43,9 @@
   --signal-ramp-start: #4C5FBE;
   --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #8558B9, #B0549F, #CD5977, #DA6947);
   --focus:         var(--signal);
+  /* Forma's send button: the accent grey with a faint tint of the ramp's ends */
+  --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 80%, var(--signal-ramp-start)), var(--accent) 50%, color-mix(in oklab, var(--accent) 80%, #DA6947));
+  --print-hint-hi: linear-gradient(90deg, color-mix(in oklab, var(--accent-hi) 72%, var(--signal-ramp-start)), var(--accent-hi) 50%, color-mix(in oklab, var(--accent-hi) 72%, #DA6947));
 
   /* Wave axes: the cool end of the layer ramp */
   --n-axis:        #404DD8;
@@ -905,6 +908,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   color: var(--on-ink);
 }
 .btn-primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+.btn-primary.btn-send { background: var(--print-hint) border-box; border-color: transparent; }
+.btn-primary.btn-send:hover { background: var(--print-hint-hi) border-box; }
 .btn-signal,
 .kf-add-btn:not(.kf-add-btn--on) {
   background: var(--signal-ramp) border-box;
