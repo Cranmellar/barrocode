@@ -897,6 +897,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   color: var(--ink-2);
   font-size: var(--fs-sm);
 }
+.param-choice label { flex: none; }
 .param-info {
   padding: 2px var(--sp-4) var(--sp-1);
   font-size: var(--fs-sm);

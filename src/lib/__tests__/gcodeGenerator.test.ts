@@ -154,6 +154,52 @@ describe('generateGcode — priming', () => {
   });
 });
 
+describe('generateGcode — corner origin', () => {
+  const ORIGIN = { gcodeOrigin: 'corner' as const, originX: 0, originY: 0 };
+
+  it('prints the centred toolpath moved so its bottom-left corner is at Posición X / Y', () => {
+    for (const geometry of Object.values(GEOMETRIES)) {
+      for (const [originX, originY] of [[0, 0], [15, 30]]) {
+        const centred = run(geometry(), { ...WAVE, ...HOP, numLayers: 3 });
+        const corner = run(geometry(), { ...WAVE, ...HOP, numLayers: 3, ...ORIGIN, originX, originY });
+        const a = interpret(centred.gcode).filter(m => m.extruding).map(m => m.to);
+        const b = interpret(corner.gcode).filter(m => m.extruding).map(m => m.to);
+        const pts = centred.toolpath.flatMap(l => l.paths.flat());
+        const dx = originX - Math.min(...pts.map(p => p.x));
+        const dy = originY - Math.min(...pts.map(p => p.y));
+
+        expect(b.length).toBe(a.length);
+        b.forEach((p, i) => {
+          expect(p.x).toBeCloseTo(a[i].x + dx, 2);
+          expect(p.y).toBeCloseTo(a[i].y + dy, 2);
+          expect(p.z).toBe(a[i].z);
+        });
+        const printed = interpret(corner.gcode).filter(m => m.extruding).flatMap(m => [m.from, m.to]);
+        expect(Math.min(...printed.map(p => p.x))).toBeCloseTo(originX, 2);
+        expect(Math.min(...printed.map(p => p.y))).toBeCloseTo(originY, 2);
+      }
+    }
+  });
+
+  it('never moves to negative X or Y, skirt arcs and priming included', () => {
+    for (const geometry of Object.values(GEOMETRIES)) {
+      for (const config of CONFIGS) {
+        const { gcode } = run(geometry(), { ...config, ...ORIGIN, skirtThreshold: 1 });
+        for (const m of interpret(gcode)) {
+          expect(m.to.x).toBeGreaterThanOrEqual(0);
+          expect(m.to.y).toBeGreaterThanOrEqual(0);
+        }
+      }
+    }
+  });
+
+  it('leaves the centred output alone', () => {
+    const { gcode } = run(loopThenLine(), { ...WAVE, ...HOP, numLayers: 3, primingMove: true });
+    expect(gcode).toContain('; Part centre at X / Y');
+    expect(run(loopThenLine(), { ...WAVE, ...ORIGIN }).gcode).toContain('; Bottom-left at X / Y');
+  });
+});
+
 describe('generateGcode — program start and end', () => {
   it('sets absolute extrusion only when E is generated', () => {
     expect(run(facingPair()).gcode).toContain('\nM82 ');

@@ -107,7 +107,7 @@ function buildHeader(params: PrintParams): string {
     `; Pivot from part centre : ${params.centerX} / ${params.centerY} mm`,
     `; Scale X / Y            : ${params.scaleX} / ${params.scaleY}`,
     `; Rotation               : ${params.rotation}°`,
-    `; Part centre at X / Y   : ${params.originX} / ${params.originY} mm`,
+    `; ${params.gcodeOrigin === 'corner' ? 'Bottom-left at X / Y' : 'Part centre at X / Y'}   : ${params.originX} / ${params.originY} mm`,
     `; Flip Y                 : ${params.flipY}`,
     `; Z-hop height / radius  : ${params.zHopHeight} / ${params.hopRadius} mm`,
     `; Skirt threshold        : ${params.skirtThreshold} mm`,
@@ -186,6 +186,31 @@ function primingStart(layer: ToolpathLayer): MM2 {
   return { x: minX, y: below >= 0 || minY < 0 ? below : maxY + PRIME_GAP };
 }
 
+// ── Corner origin ───────────────────────────────────────────────────────────
+
+/**
+ * The toolpath moved so the bottom-left corner of the part's XY box sits at
+ * (originX, originY) instead of its centre, for beds whose origin is a
+ * corner. Only the G-code moves; the preview keeps the toolpath centred.
+ */
+function toCornerOrigin(toolpath: ToolpathLayer[], params: PrintParams): ToolpathLayer[] {
+  let minX = Infinity, minY = Infinity;
+  for (const layer of toolpath) {
+    for (const path of layer.paths) {
+      for (const p of path) {
+        if (p.x < minX) minX = p.x;
+        if (p.y < minY) minY = p.y;
+      }
+    }
+  }
+  const dx = params.originX - minX, dy = params.originY - minY;
+  return toolpath.map(layer => ({
+    ...layer,
+    centroid: { x: layer.centroid.x + dx, y: layer.centroid.y + dy },
+    paths: layer.paths.map(path => path.map(p => ({ x: p.x + dx, y: p.y + dy, z: p.z }))),
+  }));
+}
+
 // ── Concentric skirt travel ──────────────────────────────────────────────────
 
 /**
@@ -195,6 +220,10 @@ function primingStart(layer: ToolpathLayer): MM2 {
  * The lift clears `topZ`, the highest bead printed so far (z-hop bumps and
  * Z oscillation can sit above the layer's base Z), and the descent lands on
  * the real Z of the next path's first point.
+ * With a `floor`, the arc keeps X and Y at or above it: an orbit can swing
+ * past the part's box (the corners of a square), which a corner-origin bed
+ * may refuse. The lift already clears everything printed, so cutting the
+ * arc along the box edge hits nothing.
  */
 function buildSkirtTravel(
   from: MM2,
@@ -203,6 +232,7 @@ function buildSkirtTravel(
   topZ: number,
   params: PrintParams,
   m: Machine,
+  floor: MM2 | null,
 ): string[] {
   const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
 
@@ -222,7 +252,9 @@ function buildSkirtTravel(
     ));
     lines.push(`; ↻ Skirt arc r=${fmt(R, 1)} mm ~${fmt(arcLen, 1)} mm`);
     for (const pt of arcPts) {
-      lines.push(move(m, { x: pt.x, y: pt.y }, params.travelSpeed));
+      const x = floor ? Math.max(pt.x, floor.x) : pt.x;
+      const y = floor ? Math.max(pt.y, floor.y) : pt.y;
+      lines.push(move(m, { x, y }, params.travelSpeed));
     }
   }
 
@@ -274,11 +306,14 @@ export interface GcodeProgram {
 }
 
 export function generateGcode(
-  toolpath: ToolpathLayer[],
+  centred: ToolpathLayer[],
   params: PrintParams,
 ): GcodeProgram {
   const m = newMachine();
-  if (toolpath.length === 0) return { text: '; No layers to generate.\n', stats: statsOf(m) };
+  if (centred.length === 0) return { text: '; No layers to generate.\n', stats: statsOf(m) };
+  const corner = params.gcodeOrigin === 'corner';
+  const toolpath = corner ? toCornerOrigin(centred, params) : centred;
+  const floor = corner ? { x: params.originX, y: params.originY } : null;
 
   const blocks: string[] = [];
   blocks.push(buildHeader(params));
@@ -343,7 +378,7 @@ export function generateGcode(
         zRef.value = start.z;
         if (params.dwellAtStart > 0) blocks.push(dwell(m, params.dwellAtStart));
       } else if (!joined) {
-        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params, m);
+        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params, m, floor);
         blocks.push(skirtLines.join('\n'));
         zRef.value = start.z;
       }
