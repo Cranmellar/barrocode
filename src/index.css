@@ -23,12 +23,15 @@
 
   --ink:           #38383E;
   --ink-2:         #55555D;
-  --muted:         #71717A;
+  --muted:         #63636B;
   --faint:         #A1A1AA;
   --on-ink:        #FFFFFF;
 
   --border:        #E4E4E7;
   --border-strong: #D4D4D8;
+  /* Edges that identify a control (fields, slider track, switch off, active tab):
+     3:1 on --surface, the WCAG minimum for component boundaries. */
+  --control-edge:  #8A8A93;
   --scrim:         rgba(24,24,27,0.36);
 
   /* Everyday interaction is dark grey; --signal is reserved for the final action,
@@ -208,7 +211,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   height: 26px;
   border-radius: var(--radius-sm);
   background: var(--field);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
   transition: transform var(--dur) var(--ease), width var(--dur) var(--ease);
 }
 .panel-tab {
@@ -223,7 +226,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--muted);
+  color: var(--ink-2);
   font: inherit;
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
@@ -843,7 +846,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   height: 26px;
   padding: 0 6px;
   background: var(--field);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-edge);
   border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
@@ -852,7 +855,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   text-align: right;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
-.param-row input[type="number"]:hover:not(:disabled) { border-color: var(--faint); }
+.param-row input[type="number"]:hover:not(:disabled) { border-color: var(--ink-2); }
 .param-row input[type="number"]:focus { outline: none; border-color: var(--ink); }
 
 .param-check { justify-content: flex-start; gap: 10px; }
@@ -1129,7 +1132,7 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
   height: 10px;
   margin-left: -1px;
   border-radius: 1px;
-  background: var(--border-strong);
+  background: var(--ink-2);
   pointer-events: none;
   transition: background var(--dur-fast), transform var(--dur) var(--ease);
 }
@@ -1161,7 +1164,7 @@ input[type="range"] {
   appearance: none;
   height: 4px;
   border-radius: 2px;
-  background: var(--surface-3);
+  background: var(--control-edge);
   outline: none;
   cursor: pointer;
 }
@@ -1258,7 +1261,7 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   color: var(--ink-2);
   background: transparent;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-edge);
   cursor: pointer;
   transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
@@ -1359,7 +1362,7 @@ input[type="range"]::-moz-range-thumb {
   height: 24px;
   border-radius: var(--radius-sm);
   background: var(--field);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
   transition: transform var(--dur) var(--ease), width var(--dur) var(--ease), opacity var(--dur-fast);
 }
 .view-preset {
@@ -1386,7 +1389,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 0;
   background: none;
   border: none;
-  color: var(--faint);
+  color: var(--muted);
   font: inherit;
   cursor: pointer;
   transition: color var(--dur-fast);
@@ -1845,7 +1848,7 @@ input[type="range"]::-moz-range-thumb {
   height: 26px;
   padding: 0 6px;
   background: var(--field);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-edge);
   border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
@@ -1956,7 +1959,7 @@ label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration:
   height: 16px;
   margin: 0;
   border-radius: 8px;
-  background: var(--border-strong);
+  background: var(--control-edge);
   transition: background var(--dur) var(--ease);
 }
 .param-check input[type="checkbox"]::after,

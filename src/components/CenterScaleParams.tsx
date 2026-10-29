@@ -73,7 +73,7 @@ function ScaleSlider({ label, value, onChange }: {
           style={{ left: at(frac(1)) }} aria-hidden="true" />
         <input type="range" min={SCALE_MIN} max={SCALE_MAX} step={0.01} value={value}
           aria-label={label}
-          style={{ background: `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)` }}
+          style={{ background: `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--control-edge) ${fill},var(--control-edge) 100%)` }}
           onPointerDown={() => setDragging(true)}
           onChange={e => {
             const v = parseFloat(e.target.value);

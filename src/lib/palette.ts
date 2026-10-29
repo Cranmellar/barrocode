@@ -5,7 +5,7 @@ export const palette = {
   surface: '#FFFFFF',
   ink:     '#38383E',
   ink2:    '#55555D',
-  muted:   '#71717A',
+  muted:   '#63636B',
   border:  '#E4E4E7',
   signal:  '#FF5A1F',
   nAxis:   '#404DD8',
