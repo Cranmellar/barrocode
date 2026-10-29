@@ -44,8 +44,8 @@
   --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #8558B9, #B0549F, #CD5977, #DA6947);
   --focus:         var(--signal);
   /* Forma's send button: the accent grey with a faint tint of the ramp's ends */
-  --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 45%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent) 85%, #B0549F) 50%, color-mix(in oklab, var(--accent) 45%, #DA6947));
-  --print-hint-hi: linear-gradient(90deg, color-mix(in oklab, var(--accent-hi) 35%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent-hi) 78%, #B0549F) 50%, color-mix(in oklab, var(--accent-hi) 35%, #DA6947));
+  --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 28%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent) 70%, #B0549F) 50%, color-mix(in oklab, var(--accent) 28%, #DA6947));
+  --print-hint-hi: linear-gradient(90deg, color-mix(in oklab, var(--accent-hi) 20%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent-hi) 62%, #B0549F) 50%, color-mix(in oklab, var(--accent-hi) 20%, #DA6947));
 
   /* Wave axes: the cool end of the layer ramp */
   --n-axis:        #404DD8;
