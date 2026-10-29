@@ -46,7 +46,8 @@
      at 4.5:1 or more */
   --signal-ramp-start: #4C5FBE;
   --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #7A4FAE, #9E4790, #B54766, #BD5232);
-  --focus:         var(--signal);
+  /* --signal's hue, darker: 3:1 on --bg too, where --signal gives 2.76:1 */
+  --focus:         #D9480F;
   /* Forma's send button: the accent grey with a faint tint of the ramp's ends */
   --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 28%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent) 70%, #B0549F) 50%, color-mix(in oklab, var(--accent) 28%, #DA6947));
   --print-hint-hi: linear-gradient(90deg, color-mix(in oklab, var(--accent-hi) 20%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent-hi) 62%, #B0549F) 50%, color-mix(in oklab, var(--accent-hi) 20%, #DA6947));
