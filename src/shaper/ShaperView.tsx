@@ -172,6 +172,19 @@ export function ShaperView(props: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [doc.family]);
   const adopt = (v: Variant) => commit({ ...doc, ...v }, false);
+  // With nodes, Descubrir leaves them for the family (undo brings them back).
+  const toggleDiscover = () => {
+    if (batch && !contours) { setBatch(null); return; }
+    if (contours) { setSel(null); commit({ ...doc, contours: null }, false); }
+    setBatch({ base: doc, spread: 1, seed: newSeed() });
+  };
+  const isDefault = !docIn || JSON.stringify(doc) === JSON.stringify(DEFAULT_SHAPE);
+  const reset = () => {
+    setBatch(null);
+    setSel(null);
+    setImportNote(null);
+    commit(DEFAULT_SHAPE, false);
+  };
 
   // ── Keyboard: undo, delete, deselect ─────────────────────────────────────
   const keysRef = useRef({ undo, redo, remove, sel, close: () => {} });
@@ -359,7 +372,13 @@ export function ShaperView(props: Props) {
 
       <aside className="float-panel panel-left shaper-panel">
         <div className="panel-scroll">
-          <div className="panel-header">{switcher}</div>
+          <div className="panel-header">
+            {switcher}
+            <span className="panel-header-actions">
+              <button className="btn-reset" onClick={reset} disabled={isDefault}
+                title="Vuelve a la forma inicial de las familias, sin nodos ni importaciones (Ctrl+Z lo deshace)">Restablecer</button>
+            </span>
+          </div>
           {contours ? (
             <PathPanel contours={contours} order={order} symmetric={doc.pathSymmetric} canSymmetric={canSym}
               diameterMM={diameter} clockwise={doc.clockwise} sel={sel} snap={snap}
@@ -425,9 +444,8 @@ export function ShaperView(props: Props) {
             title={bands.length === 0 ? 'Sin onda en Impresión'
               : `Mostrar la franja que barre la onda: ±${fmt(wave.ampNMM, 1)} mm a cada lado. Donde dos franjas se tocan, las paredes chocarán`}>Onda</button>
           <button className={`btn-toggle${batch && !contours ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch && !contours}
-            disabled={!!contours}
-            onClick={() => setBatch(batch ? null : { base: doc, spread: 1, seed: newSeed() })}
-            title={contours ? 'Solo con las familias: vuelve a la familia para ver variaciones'
+            onClick={toggleDiscover}
+            title={contours ? 'Deja los nodos y muestra nueve variaciones de la familia (Ctrl+Z vuelve a los nodos)'
               : 'Ver nueve variaciones de esta familia y elegir con el ojo'}>Descubrir</button>
           <span className="stage-summary">{label}</span>
           <button className="btn-primary btn-send" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
