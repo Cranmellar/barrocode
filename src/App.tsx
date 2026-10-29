@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
@@ -343,6 +343,7 @@ export default function App() {
     [parsedSVG, keyframes, waveKey],
   );
   const centre = useMemo(() => partCentreSVG(parsedSVG?.paths ?? []), [parsedSVG]);
+  const shortestWl = useMemo(() => shortestWavelength(params, keyframes), [params, keyframes]);
 
   // Forma warns where this wave can't follow a shape.
   const waveLimit = useMemo<WaveLimit>(() => ({
@@ -1080,7 +1081,8 @@ export default function App() {
               />
             )}
 
-            <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null} />
+            <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null}
+              shortestWl={shortestWl} />
           </div>
         </aside>
       ) : (

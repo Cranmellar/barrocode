@@ -309,6 +309,35 @@ export function waveCornerRadius(params: PrintParams, keyframes: WaveKeyframe[])
     : cornerRadius(params.lissAmpN, params.lissAmpT, params.lissWlT);
 }
 
+/** Shortest wavelength (mm) among the wave axes that move, over all keyframes; null with no wave. */
+export function shortestWavelength(params: PrintParams, keyframes: WaveKeyframe[]): number | null {
+  const waves = keyframes.length > 0
+    ? keyframes.map(k => ({
+        ampN: k.ampN, wlN: k.wlN, ampT: k.ampT, wlT: k.wlT,
+        ampZ: k.ampZ ?? params.lissAmpZ, wlZ: k.wlZ ?? params.lissWlZ,
+      }))
+    : [{
+        ampN: params.lissAmpN, wlN: params.lissWlN, ampT: params.lissAmpT, wlT: params.lissWlT,
+        ampZ: params.lissAmpZ, wlZ: params.lissWlZ,
+      }];
+  const wls = waves.flatMap(w => [
+    ...(Math.abs(w.ampN) > 1e-3 ? [w.wlN] : []),
+    ...(Math.abs(w.ampT) > 1e-3 ? [w.wlT] : []),
+    ...(Math.abs(w.ampZ) > 1e-3 ? [w.wlZ] : []),
+  ]);
+  return wls.length > 0 ? Math.min(...wls) : null;
+}
+
+// About ten samples per cycle draw a sine that reads smooth in clay; fewer
+// and the wave turns into a polygon, more only adds G-code lines.
+export const SAMPLES_PER_CYCLE = 10;
+
+/** Sample spacing (mm) that puts SAMPLES_PER_CYCLE samples in the shortest wave cycle. */
+export function suggestedSpacingMM(shortestWl: number | null): number {
+  if (shortestWl === null) return 1;
+  return Math.round(Math.min(2.5, Math.max(0.25, shortestWl / SAMPLES_PER_CYCLE)) * 20) / 20;
+}
+
 interface FramePoint { x: number; y: number; tx: number; ty: number; seg: number }
 
 function turnAngle(a: FramePoint, b: FramePoint, c: FramePoint): number {

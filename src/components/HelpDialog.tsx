@@ -228,6 +228,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
       <Defs items={[
         ['Amplitud', 'Cuánto se desvía la boquilla, en mm.'],
         ['Longitud de onda', 'Milímetros de recorrido por ciclo completo (λ).'],
+        ['Resolución', <><em>Espaciado de muestra</em> (Pieza): unos 10 puntos por ciclo de la onda más corta. El panel dice si te quedas corto o te pasas y sugiere un valor.</>],
       ]} />
       <h3>Delta: cómo se combinan N y T</h3>
       <DeltaFigures />

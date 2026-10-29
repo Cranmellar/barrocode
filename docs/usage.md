@@ -58,11 +58,11 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
-El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos, muestreo) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
+El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, resolución, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
 
 | Parámetro | Efecto |
 |---|---|
-| **Espaciado de muestras** | Densidad de muestreo del camino en unidades SVG. Menor valor produce una onda más suave y más puntos. |
+| **Espaciado de muestra** (Pieza › Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm cuando la escala es 1). Lo justo son unos 10 puntos por ciclo de la onda más corta: menos y la onda sale quebrada, más y el G-code pesa más y cada cambio tarda en recalcularse. Debajo, el panel muestra los puntos por ciclo y sugiere un valor (entre 0,25 y 2,5 mm). |
 | **Altura de capa** | Incremento Z entre capas apiladas. |
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
 | **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |

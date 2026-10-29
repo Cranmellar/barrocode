@@ -3,9 +3,14 @@ import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
 import { Icon, type IconName } from './icons';
-import { MAX_LAYERS, layerCount } from '../lib/waveGenerator';
+import { MAX_LAYERS, SAMPLES_PER_CYCLE, layerCount, suggestedSpacingMM } from '../lib/waveGenerator';
 
-interface Props { params: PrintParams; onChange: (p: PrintParams) => void; svgMmPerUnit: number | null }
+interface Props {
+  params: PrintParams;
+  onChange: (p: PrintParams) => void;
+  svgMmPerUnit: number | null;
+  shortestWl: number | null;  // mm, from shortestWavelength
+}
 
 function Num({ label, value, min, max, step, unit, hint, onChange }: {
   label: string; value: number; min?: number; max?: number;
@@ -41,6 +46,49 @@ function Sec({ title, children }: { title: string; children: React.ReactNode }) 
   );
 }
 
+const fmt = (v: number) => v.toLocaleString('es', { maximumFractionDigits: 2 });
+
+// Sample spacing with what it means for the current wave: real mm, samples
+// per cycle of the shortest wave, and a suggested value when it is off.
+function Resolution({ params, shortestWl, onSpacing }: {
+  params: PrintParams; shortestWl: number | null; onSpacing: (v: number) => void;
+}) {
+  const sf = params.scaleFactor;
+  const mm = params.sampleSpacing * sf;
+  const perCycle = shortestWl === null ? null : shortestWl / mm;
+  const suggested = suggestedSpacingMM(shortestWl);
+  const suggestedSvg = Math.round(suggested / sf * 100) / 100;
+  const verdict = perCycle === null
+    ? (mm > 2.5 ? 'coarse' : 'ok')
+    : perCycle < 0.8 * SAMPLES_PER_CYCLE ? 'coarse' : perCycle > 4 * SAMPLES_PER_CYCLE ? 'fine' : 'ok';
+  return (
+    <Sec title="Resolución">
+      <Num label="Espaciado de muestra" value={params.sampleSpacing}
+        min={0.1} step={0.1} unit={sf === 1 ? 'mm' : 'u. SVG'}
+        hint={`Distancia entre los puntos que se toman del trazo. Más fino: curvas más suaves, pero más líneas de G-code y cada cambio tarda más en recalcularse. Lo justo son unos ${SAMPLES_PER_CYCLE} puntos por ciclo de la onda más corta. Mínimo 0,1.`}
+        onChange={onSpacing} />
+      <div className={`resolution resolution--${verdict}`}>
+        <div className="resolution-facts">
+          {sf !== 1 && <span>{fmt(mm)} mm reales</span>}
+          {perCycle === null
+            ? <span>sin onda: entre 1 y 2 mm basta</span>
+            : <span>{fmt(Math.round(perCycle * 10) / 10)} puntos por ciclo (λ {fmt(shortestWl!)} mm)</span>}
+        </div>
+        <p>
+          {verdict === 'ok' && 'Bien: la onda sale suave sin cargar el G-code.'}
+          {verdict === 'coarse' && 'Pocos puntos: la onda sale quebrada, como un polígono.'}
+          {verdict === 'fine' && 'Más fino de lo necesario: más G-code y recálculo lento, sin ganar forma.'}
+        </p>
+        {verdict !== 'ok' && Math.abs(suggestedSvg - params.sampleSpacing) > 1e-9 && (
+          <button className="btn-small" onClick={() => onSpacing(suggestedSvg)}>
+            Usar {fmt(suggestedSvg)}{sf === 1 ? ' mm' : ''} (sugerido)
+          </button>
+        )}
+      </div>
+    </Sec>
+  );
+}
+
 type GroupId = 'pieza' | 'trayecto' | 'maquina';
 
 const TAB_KEY = 'barrocode.leftTab';
@@ -59,7 +107,7 @@ function loadTab(): GroupId {
   }
 }
 
-export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
+export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props) {
   const [tab, setTab] = useState(loadTab);
   // The new tab's content slides in from the side of the tab that was clicked.
   const dirRef = useRef<'next' | 'prev'>('next');
@@ -133,6 +181,8 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
               </>}
         </Sec>
 
+        <Resolution params={params} shortestWl={shortestWl} onSpacing={v => set('sampleSpacing', v)} />
+
         <Sec title="Escala y posición">
           <Num label="Factor de escala" value={params.scaleFactor}
             min={0.001} step={0.1} unit="SVG→mm"
@@ -199,12 +249,6 @@ export function PathParams({ params, onChange, svgMmPerUnit }: Props) {
             onChange={v => set('skirtThreshold', v)} />
         </Sec>
 
-        <Sec title="Muestreo">
-          <Num label="Espaciado de muestra" value={params.sampleSpacing}
-            min={0.1} step={0.5} unit="u. SVG"
-            hint="Distancia entre puntos de muestra sobre el trayecto (unidades SVG)"
-            onChange={v => set('sampleSpacing', v)} />
-        </Sec>
       </>)}
 
       {tab === 'maquina' && (<>
