@@ -321,7 +321,9 @@ export default function App() {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setTimelineProgress(target); return; }
     const t0 = performance.now();
     const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / TIMELINE_GLIDE_MS);
+      // The first rAF timestamp can predate t0; a negative p would ease past
+      // the start, off the timeline.
+      const p = Math.min(1, Math.max(0, (now - t0) / TIMELINE_GLIDE_MS));
       setTimelineProgress(from + (target - from) * (1 - (1 - p) ** 4));
       if (p < 1) glideRef.current = requestAnimationFrame(step);
     };
