@@ -83,6 +83,20 @@ function Sec({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
+// A curve between two square nodes, one handle drawn out.
+function NodesIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 12.5C4.5 6 9 3.5 12.5 3.5" />
+      <path d="M3.5 12.5 9 10" opacity="0.5" />
+      <rect x="2" y="11" width="3" height="3" />
+      <rect x="11" y="2" width="3" height="3" />
+      <circle cx="9.5" cy="9.8" r="1.1" />
+    </svg>
+  );
+}
+
 export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
   const set = <K extends keyof ShapeDoc>(k: K, v: ShapeDoc[K]) => onChange({ ...doc, [k]: v });
   const slider = (k: FamilyKey, label: string, unit?: string, hint?: string) => {
@@ -109,6 +123,15 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
 
   return (
     <>
+      <div className="shaper-edit">
+        <button className="btn-small btn-edit" onClick={onEditPoints}>
+          <NodesIcon />Editar puntos
+        </button>
+        <p className="shaper-edit-note">
+          Mueve los nodos uno a uno, con simetría si la forma se repite. Deja de ser paramétrica; Ctrl+Z lo deshace.
+        </p>
+      </div>
+
       <div ref={tabsRef} className="panel-tabs" role="tablist" aria-label="Familia de formas">
         <span className="panel-tabs-ind" aria-hidden="true"
           style={ind ? { left: 0, width: ind.w, transform: `translateX(${ind.x}px)` } : { visibility: 'hidden' }} />
@@ -166,15 +189,6 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
         </div>
       </Sec>
 
-      <Sec title="Edición">
-        <p className="shaper-note">
-          Convierte la forma en nodos que puedes mover uno a uno, con simetría si la forma se repite.
-          Deja de ser paramétrica; Ctrl+Z lo deshace.
-        </p>
-        <div className="shaper-actions">
-          <button className="btn-small" onClick={onEditPoints}>Editar puntos</button>
-        </div>
-      </Sec>
     </>
   );
 }
