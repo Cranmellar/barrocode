@@ -199,12 +199,12 @@ export function LissajousPreview({ params, morph = 0 }: Props) {
 
     // Axis labels
     ctx.save();
-    ctx.font = '10px GSCode, monospace';
-    ctx.fillStyle = palette.muted;
+    ctx.font = '11px GSCode, monospace';
+    ctx.fillStyle = palette.ink2;
     ctx.textAlign = 'right';
     ctx.fillText('T', W - 6, offsetY - 5);
-    ctx.textAlign = 'center';
-    ctx.fillText('N', offsetX, 12);
+    ctx.textAlign = 'left';
+    ctx.fillText('N', offsetX + 4, 12);
     ctx.restore();
 
     // Lissajous figure
