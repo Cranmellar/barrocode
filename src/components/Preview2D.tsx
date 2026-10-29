@@ -760,7 +760,7 @@ export function Preview2D({
               downloadGcode(gcode, gcodeFilename);
               onToast(`${gcodeFilename} descargado · ${formatSize(new Blob([gcode]).size)}`);
             }}
-            title={`Descargar ${gcodeFilename}`}>↓ Descargar</button>
+            title={`Descargar ${gcodeFilename}`}><Icon name="descargar" />Descargar</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
             aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
           {gcodeBusy && gcode && <span className="gcode-progress" role="progressbar" aria-label="Generando G-code" />}

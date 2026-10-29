@@ -157,6 +157,18 @@ const PATHS = {
     <circle cx="8" cy="8" r="6" />
     <path d="M8 7.5V11M8 5v.1" />
   </>),
+  descargar: (<>
+    <path d="M8 2v8.5M4.5 7 8 10.5 11.5 7" />
+    <path d="M2.5 13.5h11" />
+  </>),
+  global: (<>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" />
+  </>),
+  keyframe: (<>
+    <path d="M8 1.5 14.5 8 8 14.5 1.5 8z" />
+    <path d="M8 5.5v5M5.5 8h5" />
+  </>),
   desfaseCapa: (<>
     <path d="M1.5 5c1.6-2.8 3.2-2.8 4.8 0s3.2 2.8 4.8 0" />
     <path d="M4.5 11c1.6-2.8 3.2-2.8 4.8 0s3.2 2.8 4.8 0" />
