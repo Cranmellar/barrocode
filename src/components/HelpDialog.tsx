@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { rampColor } from '../lib/palette';
+import { FlowIcon } from './FlowSteps';
 
 interface Props {
   open: boolean;
@@ -8,86 +9,290 @@ interface Props {
 
 const TAU = Math.PI * 2;
 
-function polyline(n: number, f: (i: number) => [number, number]) {
+function pts(n: number, f: (i: number) => [number, number]) {
   return Array.from({ length: n + 1 }, (_, i) => f(i).map(v => v.toFixed(1)).join(',')).join(' ');
 }
 
+// The diagrams use the app's own wave: along the path s, the nozzle sits at
+// s + ampT·sin(k·s) forward and ampN·sin(k·s + δ) to the side.
+function wavePath(x0: number, len: number, y0: number, ampN: number, ampT: number, wl: number, delta: number) {
+  const k = TAU / wl;
+  return pts(len * 2, i => {
+    const s = i / 2;
+    return [x0 + s + ampT * Math.sin(k * s), y0 - ampN * Math.sin(k * s + delta)];
+  });
+}
 
-// Wave diagram: baseline y=56, amplitude 20, wavelength 100 starting at x=20.
-const AXIS_WAVE = polyline(140, i => {
-  const x = 20 + i * 2;
-  return [x, 56 - 20 * Math.sin(((x - 20) / 100) * TAU)];
-});
+const N_WAVE = wavePath(12, 176, 58, 18, 0, 64, 0);
+const T_DOTS = Array.from({ length: 23 }, (_, i) => 12 + i * 8 + 6 * Math.sin((TAU / 64) * i * 8));
+const Z_WAVE = pts(176, i => [12 + i, 46 - 9 * Math.sin((TAU / 58) * i)]);
+const KF_WAVE = pts(272, i => [24 + i, 38 - (3 + 15 * (i / 272)) * Math.sin((TAU / 30) * i)]);
 
-// Keyframe diagram: amplitude ramps linearly from KF 0% to KF 100%.
-const KF_WAVE = polyline(280, i => {
-  const x = 20 + i;
-  const amp = 2 + 16 * (i / 280);
-  return [x, 38 - amp * Math.sin((i / 28) * TAU)];
-});
-
-function AxisDiagram() {
+function Arrow({ x1, y1, x2, y2, both }: { x1: number; y1: number; x2: number; y2: number; both?: boolean }) {
+  const a = Math.atan2(y2 - y1, x2 - x1), h = 4.5;
+  const head = (x: number, y: number, dir: number) =>
+    `${x - h * Math.cos(dir - 0.5)},${y - h * Math.sin(dir - 0.5)} ${x},${y} ${x - h * Math.cos(dir + 0.5)},${y - h * Math.sin(dir + 0.5)}`;
   return (
-    <figure className="help-figure">
-      <svg
-        className="help-diagram"
-        viewBox="0 0 320 112"
-        role="img"
-        aria-label="Esquema de la onda: el trazo SVG es la línea base; N desplaza a los lados con una amplitud, T avanza a lo largo del trazo y λ es la distancia de un ciclo completo"
-      >
-        <line x1="20" y1="56" x2="300" y2="56" className="hd-base" />
-        <polyline points={AXIS_WAVE} className="hd-wave" />
+    <g>
+      <line x1={x1} y1={y1} x2={x2} y2={y2} />
+      <polyline points={head(x2, y2, a)} />
+      {both && <polyline points={head(x1, y1, a + Math.PI)} />}
+    </g>
+  );
+}
 
+function Figure({ label, caption, children, view = '0 0 200 100' }: {
+  label: string; caption: ReactNode; children: ReactNode; view?: string;
+}) {
+  return (
+    <figure className="help-fig">
+      <svg viewBox={view} role="img" aria-label={label}>{children}</svg>
+      <figcaption>{caption}</figcaption>
+    </figure>
+  );
+}
+
+function WaveFigures() {
+  return (
+    <div className="help-figs">
+      <Figure label="N: la boquilla se desvía a los lados del trazo; λ es la distancia de un ciclo"
+        caption={<><b className="hd-n-text">N</b> a los lados del trazo</>}>
+        <line x1="12" y1="58" x2="188" y2="58" className="hd-base" />
+        <polyline points={N_WAVE} className="hd-wave hd-wave--n" />
         <g className="hd-dim">
-          <line x1="45" y1="16" x2="145" y2="16" />
-          <line x1="45" y1="12" x2="45" y2="20" />
-          <line x1="145" y1="12" x2="145" y2="20" />
-          <line x1="45" y1="20" x2="45" y2="36" strokeDasharray="2 2" />
-          <line x1="145" y1="20" x2="145" y2="36" strokeDasharray="2 2" />
+          <line x1="28" y1="22" x2="92" y2="22" />
+          <line x1="28" y1="18" x2="28" y2="26" />
+          <line x1="92" y1="18" x2="92" y2="26" />
         </g>
-        <text x="95" y="11" textAnchor="middle" className="hd-label">λ longitud de onda</text>
+        <text x="60" y="15" textAnchor="middle" className="hd-label">λ</text>
+        <g className="hd-arrow hd-n"><Arrow x1={156} y1={57} x2={156} y2={41} both /></g>
+        <text x="156" y="32" textAnchor="middle" className="hd-label hd-n-text">amplitud</text>
+        <text x="12" y="92" className="hd-note">trazo</text>
+      </Figure>
 
-        <g className="hd-n">
-          <line x1="245" y1="56" x2="245" y2="38" />
-          <polyline points="241,42 245,37 249,42" />
-        </g>
-        <text x="245" y="30" textAnchor="middle" className="hd-label hd-n-text">N · amplitud</text>
+      <Figure label="T: la boquilla adelanta y retrasa a lo largo del trazo; los puntos se juntan y se separan"
+        caption={<><b className="hd-t-text">T</b> adelante y atrás</>}>
+        <line x1="12" y1="52" x2="188" y2="52" className="hd-track" />
+        {T_DOTS.map((x, i) => <circle key={i} cx={x} cy={52} r={2.6} className="hd-dot" />)}
+        {T_DOTS.map((_, i) => <line key={i} x1={12 + i * 8} y1={66} x2={12 + i * 8} y2={70} className="hd-tick" />)}
+        <g className="hd-arrow hd-t"><Arrow x1={76} y1={32} x2={108} y2={32} both /></g>
+        <text x="12" y="92" className="hd-note">paso parejo sin T</text>
+      </Figure>
 
-        <g className="hd-t">
-          <line x1="200" y1="92" x2="236" y2="92" />
-          <polyline points="231,88 237,92 231,96" />
-        </g>
-        <text x="242" y="95" className="hd-label hd-t-text">T · avance</text>
-
-        <text x="20" y="106" className="hd-label">— — trazo SVG</text>
-      </svg>
-    </figure>
+      <Figure label="Z: la capa sube y baja sobre la de abajo"
+        caption={<><b>Z</b> arriba y abajo, de perfil</>}>
+        <line x1="12" y1="80" x2="188" y2="80" className="hd-layer" />
+        <line x1="12" y1="66" x2="188" y2="66" className="hd-layer" />
+        <polyline points={Z_WAVE} className="hd-wave" />
+        <g className="hd-arrow hd-z"><Arrow x1={84.5} y1={46} x2={84.5} y2={38} /></g>
+        <text x="12" y="96" className="hd-note">capas de abajo</text>
+      </Figure>
+    </div>
   );
 }
 
-function KeyframeDiagram() {
+function DeltaFigures() {
+  const cases: [string, number, number][] = [['0°', 0, 5], ['90°', Math.PI / 2, 5], ['90°, T grande', Math.PI / 2, 15]];
   return (
-    <figure className="help-figure">
-      <svg
-        className="help-diagram"
-        viewBox="0 0 320 100"
-        role="img"
-        aria-label="Esquema de keyframes: con amplitud baja en el keyframe 0% y alta en el 100%, la onda crece gradualmente entre ambos"
-      >
-        <line x1="20" y1="38" x2="300" y2="38" className="hd-base" />
+    <div className="help-figs">
+      {cases.map(([name, delta, ampT]) => (
+        <Figure key={name} label={`Trazo con delta ${name}`} view="0 0 200 76"
+          caption={<>Delta {name}</>}>
+          <line x1="12" y1="38" x2="188" y2="38" className="hd-base" />
+          <polyline points={wavePath(12, 160, 38, 16, ampT, 54, delta)} className="hd-wave" />
+        </Figure>
+      ))}
+    </div>
+  );
+}
+
+function KeyframeFigure() {
+  const badge = (x: number, n: number, t: number) => (
+    <g>
+      <rect x={x - 7} y={76} width={14} height={14} rx={2.5} transform={`rotate(45 ${x} 83)`}
+        fill={rampColor(t)} className="hd-badge" />
+      <text x={x} y={86.5} textAnchor="middle" className="hd-badge-n">{n}</text>
+    </g>
+  );
+  return (
+    <figure className="help-fig help-fig--wide">
+      <svg viewBox="0 0 320 124" role="img"
+        aria-label="Dos keyframes: el 1 con amplitud N de 3 mm y el 2 con 18 mm; entre ellos la onda crece de a poco">
+        <line x1="24" y1="38" x2="296" y2="38" className="hd-base" />
         <polyline points={KF_WAVE} className="hd-wave" />
-        <line x1="20" y1="76" x2="300" y2="76" className="hd-track" />
-        <rect x="16" y="72" width="8" height="8" transform="rotate(45 20 76)" fill={rampColor(0)} />
-        <rect x="296" y="72" width="8" height="8" transform="rotate(45 300 76)" fill={rampColor(1)} />
-        <text x="20" y="96" className="hd-label">KF 0% · 2 mm</text>
-        <text x="300" y="96" textAnchor="end" className="hd-label">KF 100% · 18 mm</text>
+        <line x1="24" y1="83" x2="296" y2="83" className="hd-track" />
+        <line x1="160" y1="64" x2="160" y2="76" className="hd-lead" />
+        <rect x="155" y="78" width="10" height="10" rx="1.5" className="hd-extruder" />
+        {badge(24, 1, 0)}
+        {badge(296, 2, 1)}
+        <text x="24" y="114" className="hd-label">N 3 mm</text>
+        <text x="160" y="114" textAnchor="middle" className="hd-note">interpolado</text>
+        <text x="296" y="114" textAnchor="end" className="hd-label">N 18 mm</text>
       </svg>
     </figure>
   );
 }
+
+const K = ({ children }: { children: ReactNode }) => <kbd>{children}</kbd>;
+
+const STEPS: [string, ReactNode][] = [
+  ['Trazo', <>Arrastra un SVG a la ventana, usa <em>Cargar SVG</em> o elige una muestra con <span className="help-keys"><K>‹</K> <K>›</K></span>. También puedes dibujarlo en <em>Forma</em>.</>],
+  ['Capas', <>Panel izquierdo: capas, escala, velocidades y máquina, en <em>Pieza</em>, <em>Trayecto</em> y <em>Máquina</em>.</>],
+  ['Onda', <>Panel derecho: parte de un preajuste y ajusta amplitud, longitud de onda y fase.</>],
+  ['G-code', <>Revisa la trayectoria en 3D y pulsa <em>Descargar</em>. <em>G-code</em> muestra el programa.</>],
+];
+
+type Row = [ReactNode, ReactNode];
+const CONTROLS: [string, Row[]][][] = [[
+  ['Vista 3D', [
+    ['Arrastrar', 'desplazar'],
+    ['Clic derecho y arrastrar', 'girar'],
+    ['Rueda', 'acercar o alejar'],
+    ['Isométrica · Planta · Frente', 'vistas predefinidas'],
+    ['Slider de capas', <>ver hasta una capa; el icono de abajo deja solo esa</>],
+  ]],
+  ['Números', [
+    ['Rueda sobre el campo', <>subir o bajar; con <K>Shift</K>, paso fino</>],
+    ['Arrastrar la etiqueta', 'deslizar el valor'],
+  ]],
+  ['General', [
+    [<><K>?</K> · <K>Esc</K></>, 'abrir · cerrar esta ayuda'],
+    [<><K>‹</K> en un panel</>, 'plegarlo a un costado'],
+  ]],
+], [
+  ['Línea de tiempo', [
+    [<><K>←</K> <K>→</K></>, <>mover el extrusor 1 % (<K>Shift</K>: 0,1 %); con un keyframe elegido, saltar al vecino</>],
+    [<K>K</K>, 'añadir keyframe en el extrusor'],
+    [<><K>Esc</K> · <K>Supr</K></>, 'soltar · borrar el keyframe elegido'],
+    [<K>G</K>, 'mostrar u ocultar el G-code'],
+  ]],
+  ['Forma', [
+    [<><K>Ctrl</K> <K>Z</K> · <K>Ctrl</K> <K>Shift</K> <K>Z</K></>, 'deshacer · rehacer'],
+    ['Doble clic en la línea', 'añadir un nodo'],
+    [<><K>Supr</K> · <K>Esc</K></>, 'borrar · soltar el nodo elegido'],
+  ]],
+]];
+
+function Defs({ items }: { items: [string, ReactNode][] }) {
+  return (
+    <dl className="help-defs">
+      {items.map(([t, d]) => <div key={t}><dt>{t}</dt><dd>{d}</dd></div>)}
+    </dl>
+  );
+}
+
+const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
+  {
+    id: 'inicio', title: 'Empezar', body: <>
+      <p className="help-lead">
+        BarroCode convierte un trazo SVG en G-code para impresoras de arcilla: lo ondula con una onda
+        de Lissajous y lo apila en capas.
+      </p>
+      <ol className="help-steps">
+        {STEPS.map(([title, text], i) => (
+          <li key={title}>
+            <span className="help-step-icon"><FlowIcon step={i} /></span>
+            <strong>{i + 1} · {title}</strong>
+            <p>{text}</p>
+          </li>
+        ))}
+      </ol>
+      <p className="help-aside">
+        Un SVG con tamaño en mm, cm o pulgadas se carga a su tamaño real. Sin unidades, una unidad es un
+        milímetro; si viene en píxeles, usa <em>Factor de escala</em> <code>0.2645</code>.
+      </p>
+    </>,
+  },
+  {
+    id: 'forma', title: 'Forma', body: <>
+      <p className="help-lead">
+        En <em>Forma</em> dibujas la línea central de la pieza, ya en milímetros, que <em>Impresión</em> ondula
+        y apila. Cambia entre los dos con el selector de arriba del panel izquierdo.
+      </p>
+      <Defs items={[
+        ['Familias', <>Lóbulos, polígono o estrella, y superfórmula, con diámetro exterior, giro, costura (dónde empieza cada capa) y sentido.</>],
+        ['Editar puntos', <>Arriba del panel. Convierte la forma en nodos: arrastra nodos y asas; doble clic en la línea añade uno. Con simetría, cada cambio se repite en todas las repeticiones.</>],
+        ['Descubrir', <>Nueve variaciones de la familia. Clic para adoptar una; <em>Más como esta</em> afina alrededor de ella.</>],
+        ['Imprimibilidad', <>Marca en rojo los tramos más cerrados de lo que la onda actual puede seguir. <em>Onda</em> dibuja la franja que barre.</>],
+        ['Importar', <><em>Abrir SVG…</em> (aquí) o <em>Abrir en Forma</em> (en Impresión) traen los contornos cerrados de un SVG como nodos.</>],
+        ['Enviar a impresión', <>Carga la forma en Impresión a su tamaño real. <em>Editar forma</em> vuelve a ella.</>],
+      ]} />
+    </>,
+  },
+  {
+    id: 'onda', title: 'Onda', body: <>
+      <p className="help-lead">
+        La boquilla sigue el trazo y se desvía de él en tres direcciones a la vez.
+      </p>
+      <WaveFigures />
+      <Defs items={[
+        ['Amplitud', 'Cuánto se desvía la boquilla, en mm.'],
+        ['Longitud de onda', 'Milímetros de recorrido por ciclo completo (λ).'],
+      ]} />
+      <h3>Delta: cómo se combinan N y T</h3>
+      <DeltaFigures />
+      <Defs items={[
+        ['Delta', 'Desfase de N respecto de T. Con 0° la onda se inclina; con 90° se redondea y, si T es grande, forma bucles.'],
+        ['Desfase inicial', 'Dónde empieza el ciclo en la primera capa.'],
+        ['Desfase por capa', 'Corre la onda un poco en cada capa, para torcer la pared.'],
+      ]} />
+    </>,
+  },
+  {
+    id: 'keyframes', title: 'Keyframes', body: <>
+      <p className="help-lead">
+        Un keyframe fija la onda, la escala, el giro y el centro en un punto del recorrido.
+        Entre dos keyframes, los valores pasan de uno a otro.
+      </p>
+      <KeyframeFigure />
+      <ol className="help-list">
+        <li>Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>+ Keyframe</em> o <K>K</K>.</li>
+        <li>Clic en su rombo (en la línea de tiempo o en la vista 3D) para elegirlo y editarlo: la onda en el panel derecho; posición, escala, giro y centro sobre la línea de tiempo.</li>
+        <li>Arrástralo para moverlo: se ajusta al inicio de cada capa; con <K>Alt</K>, queda libre.</li>
+        <li><em>Transición suave</em> hace que los valores lleguen y salgan sin quiebre; el rombo se dibuja redondo.</li>
+      </ol>
+      <p className="help-aside">
+        Sin keyframe elegido, el panel derecho muestra la onda bajo el extrusor; cambiar un valor ahí crea un
+        keyframe en ese punto. Con keyframes, los ajustes por trayecto se ignoran.
+      </p>
+    </>,
+  },
+  {
+    id: 'controles', title: 'Controles', body: (
+      <div className="help-controls">
+        {CONTROLS.map((column, c) => (
+          <div key={c}>
+            {column.map(([group, rows]) => (
+              <section key={group}>
+                <h3>{group}</h3>
+                <dl>
+                  {rows.map(([keys, action], i) => <div key={i}><dt>{keys}</dt><dd>{action}</dd></div>)}
+                </dl>
+              </section>
+            ))}
+          </div>
+        ))}
+      </div>
+    ),
+  },
+  {
+    id: 'arcilla', title: 'Arcilla', body: <>
+      <p className="help-lead">La arcilla no se retrae: la boquilla nunca deja de empujar, así que cada unión se cuida.</p>
+      <ul className="help-tips">
+        <li><strong>Unir capas sin cortar</strong><span><em>Transición Z suave</em> sube a la capa siguiente mientras imprime.</span></li>
+        <li><strong>Primera extrusión estable</strong><span><em>Pausa al inicio</em> y <em>Cebado de boquilla</em> dejan salir la pasta antes de la pieza.</span></li>
+        <li><strong>Primera capa</strong><span>Calíbrala con <em>Desplazamiento Z</em>.</span></li>
+        <li><strong>Caudal</strong><span>Ajusta el <em>Multiplicador</em> (Máquina, Extrusión) a tu bomba o tornillo.</span></li>
+      </ul>
+    </>,
+  },
+];
 
 export function HelpDialog({ open, onClose }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  const [tab, setTab] = useState(SECTIONS[0].id);
+  const section = SECTIONS.find(s => s.id === tab) ?? SECTIONS[0];
 
   // Native modal <dialog> gives focus trapping, Esc-to-close, an inert
   // background and focus restoration to the trigger for free.
@@ -98,145 +303,56 @@ export function HelpDialog({ open, onClose }: Props) {
     if (!open && d.open) d.close();
   }, [open]);
 
+  function pick(id: string) {
+    setTab(id);
+    bodyRef.current?.scrollTo({ top: 0 });
+  }
+
+  function onTabKey(e: React.KeyboardEvent) {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    e.preventDefault();
+    const i = SECTIONS.findIndex(s => s.id === tab);
+    const next = SECTIONS[(i + (e.key === 'ArrowDown' ? 1 : SECTIONS.length - 1)) % SECTIONS.length];
+    pick(next.id);
+    document.getElementById(`help-tab-${next.id}`)?.focus();
+  }
+
   return (
     <dialog
       ref={ref}
       className="help-dialog"
       aria-labelledby="help-title"
-      aria-describedby="help-intro"
       onClose={onClose}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="help-inner">
-        <header className="help-header">
+        <nav className="help-nav">
           <h2 id="help-title">Cómo usar BarroCode</h2>
-          <button className="help-close" onClick={onClose} aria-label="Cerrar ayuda" autoFocus>
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
-              <line x1="2" y1="2" x2="10" y2="10" />
-              <line x1="10" y1="2" x2="2" y2="10" />
-            </svg>
-          </button>
-        </header>
+          <div role="tablist" aria-orientation="vertical" aria-label="Secciones de la ayuda" onKeyDown={onTabKey}>
+            {SECTIONS.map(s => (
+              <button key={s.id} id={`help-tab-${s.id}`} role="tab" aria-selected={s.id === tab}
+                aria-controls="help-panel" tabIndex={s.id === tab ? 0 : -1}
+                className={`help-tab${s.id === tab ? ' help-tab--on' : ''}`} onClick={() => pick(s.id)}>
+                {s.title}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-        <div className="help-body">
-          <p id="help-intro" className="help-lead">
-            BarroCode convierte curvas SVG en G-code para impresoras 3D de arcilla.
-            Cada trazo se muestrea, se ondula con una onda de Lissajous y se apila
-            en capas.
-          </p>
-
-          <section aria-labelledby="help-steps">
-            <h3 id="help-steps">Flujo en 4 pasos</h3>
-            <ol className="help-steps">
-              <li>
-                <strong>Carga un SVG</strong> — arrástralo a cualquier parte de la ventana o usa{' '}
-                <em>Cargar SVG</em>; también puedes elegir una muestra con <kbd>‹</kbd> <kbd>›</kbd> y hacer clic para cargarla.
-                Puedes activar o desactivar cada trayecto en la lista. O crea la forma en <em>Forma</em> (abajo).
-              </li>
-              <li>
-                <strong>Configura la impresión</strong> (panel izquierdo: Pieza, Trayecto, Máquina) — capas, altura de capa,
-                velocidades y <em>Factor de escala</em>: usa <code>1</code> si el SVG está en mm
-                o <code>0.2645</code> si está en píxeles.
-              </li>
-              <li>
-                <strong>Da forma a la onda</strong> (panel derecho) — parte de un preajuste y
-                ajusta amplitud, longitud de onda y fase. La figura pequeña de arriba muestra la
-                onda resultante.
-              </li>
-              <li>
-                <strong>Revisa y exporta</strong> — inspecciona la trayectoria en 3D y pulsa{' '}
-                <em>Descargar</em> arriba a la derecha (<em>G-code</em> muestra el programa).
-              </li>
-            </ol>
-          </section>
-
-          <section aria-labelledby="help-forma">
-            <h3 id="help-forma">Forma: crear la pieza</h3>
-            <p>
-              El selector <em>Forma · Impresión</em>, arriba del panel izquierdo, cambia de espacio de trabajo.
-              En <em>Forma</em> dibujas la línea central que <em>Impresión</em> ondula y apila, ya en milímetros.
-            </p>
-            <dl className="help-defs">
-              <dt>Familias</dt>
-              <dd>Lóbulos, Polígono y Superfórmula, con diámetro exterior, giro, costura (dónde empieza cada capa) y sentido.</dd>
-              <dt>Descubrir</dt>
-              <dd>nueve variaciones de la familia; clic para adoptar una, <em>Más como esta</em> para afinar alrededor.</dd>
-              <dt>Imprimibilidad</dt>
-              <dd>en rojo, los tramos más cerrados de lo que la onda actual puede seguir; <em>Onda</em> muestra la franja que barre.</dd>
-              <dt>Editar puntos</dt>
-              <dd>
-                convierte la forma en nodos: arrastra nodos y asas, doble clic en la línea añade uno. Con simetría,
-                cada cambio se repite en todas las repeticiones.
-              </dd>
-              <dt>Importar</dt>
-              <dd><em>Abrir en Forma</em> (en Impresión) o <em>Abrir SVG…</em> traen los contornos cerrados de un SVG como nodos.</dd>
-              <dt>Enviar a impresión</dt>
-              <dd>carga la forma en Impresión a su tamaño real; <em>Editar forma</em> vuelve a ella.</dd>
-            </dl>
-          </section>
-
-          <section aria-labelledby="help-axes">
-            <h3 id="help-axes">La onda en breve</h3>
-            <AxisDiagram />
-            <dl className="help-defs">
-              <dt>N · Normal</dt><dd>oscilación lateral, a izquierda y derecha del trazo.</dd>
-              <dt>T · Tangente</dt><dd>oscilación adelante / atrás, a lo largo del trazo.</dd>
-              <dt>Z · Vertical</dt><dd>oscilación arriba / abajo dentro de la capa.</dd>
-              <dt>Amplitud</dt><dd>cuánto se desvía la boquilla, en mm.</dd>
-              <dt>Longitud de onda</dt><dd>mm de recorrido por cada ciclo completo.</dd>
-              <dt>Delta</dt><dd>desfase entre N y T: 0° da líneas, 90° da bucles.</dd>
-              <dt>Desfase por capa</dt><dd>gira la onda en cada capa para crear torsión.</dd>
-            </dl>
-          </section>
-
-          <section aria-labelledby="help-kf">
-            <h3 id="help-kf">Keyframes</h3>
-            <KeyframeDiagram />
-            <p>
-              Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>+ Keyframe</em>{' '}
-              (o <kbd>K</kbd>) para fijar la onda en ese punto. Cada keyframe es un rombo con
-              número y color, iguales en la línea de tiempo, la vista 3D y los paneles.
-              Selecciona uno (clic en su rombo o con <kbd>‹</kbd> <kbd>›</kbd>) para editarlo: su onda en el panel
-              derecho; su posición, giro, escala y centro sobre la línea de tiempo. Arrastra su rombo
-              para moverlo: se ajusta al inicio de cada capa (con <kbd>Alt</kbd>, libre). Entre keyframes los valores se interpolan. Sin ninguno seleccionado,
-              el panel derecho muestra la onda en el extrusor; si cambias un valor ahí, se crea un
-              keyframe en ese punto. Con keyframes activos, los ajustes por trayecto se ignoran.
-            </p>
-          </section>
-
-          <section aria-labelledby="help-controls">
-            <h3 id="help-controls">Controles</h3>
-            <table className="help-table">
-              <tbody>
-                <tr><th scope="row">Arrastrar</th><td>desplazar la vista 3D</td></tr>
-                <tr><th scope="row">Clic derecho + arrastrar</th><td>rotar la vista 3D</td></tr>
-                <tr><th scope="row">Rueda sobre la vista</th><td>zoom</td></tr>
-                <tr><th scope="row">Iso · Planta · Frente</th><td>vistas predefinidas</td></tr>
-                <tr><th scope="row">Slider de capas</th><td>ver hasta una capa · <em>Aislar capa</em> (icono bajo el slider): solo esa capa</td></tr>
-                <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor (con <kbd>Shift</kbd>, en pasos finos)</td></tr>
-                <tr><th scope="row">Arrastrar la etiqueta de un número</th><td>desliza el valor a izquierda o derecha</td></tr>
-                <tr><th scope="row"><kbd>‹</kbd> <kbd>›</kbd> en un panel</th><td>ocultar o mostrar el panel</td></tr>
-                <tr><th scope="row"><kbd>?</kbd> · <kbd>Esc</kbd></th><td>abrir · cerrar esta ayuda</td></tr>
-                <tr><th scope="row"><kbd>←</kbd> <kbd>→</kbd></th><td>mover el extrusor 1 % (con <kbd>Shift</kbd>, 0,1 %); con un keyframe seleccionado, ir al anterior o al siguiente</td></tr>
-                <tr><th scope="row"><kbd>K</kbd></th><td>añadir keyframe en el extrusor (o seleccionar el que ya está ahí)</td></tr>
-                <tr><th scope="row"><kbd>Esc</kbd> · <kbd>Supr</kbd></th><td>soltar · eliminar el keyframe seleccionado</td></tr>
-                <tr><th scope="row"><kbd>G</kbd></th><td>mostrar u ocultar el G-code</td></tr>
-                <tr><th scope="row"><kbd>Ctrl</kbd>+<kbd>Z</kbd> · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd></th><td>en Forma: deshacer · rehacer</td></tr>
-                <tr><th scope="row">Doble clic en la línea</th><td>en Forma, con nodos: añadir un nodo</td></tr>
-                <tr><th scope="row"><kbd>Supr</kbd> · <kbd>Esc</kbd></th><td>en Forma: borrar · soltar el nodo elegido (o cerrar Descubrir)</td></tr>
-              </tbody>
-            </table>
-          </section>
-
-          <section aria-labelledby="help-clay">
-            <h3 id="help-clay">Consejos para arcilla</h3>
-            <ul className="help-tips">
-              <li>No hay retracción: <em>Transición Z suave</em> une capas sin cortar el flujo.</li>
-              <li><em>Pausa al inicio</em> y <em>Cebado de boquilla</em> estabilizan la primera extrusión.</li>
-              <li>Calibra la primera capa con <em>Desplazamiento Z</em>.</li>
-              <li>Ajusta el <em>Multiplicador</em> (panel izquierdo, Máquina › Extrusión) según tu bomba o tornillo.</li>
-            </ul>
-          </section>
+        <div className="help-main">
+          <header className="help-header">
+            <h2>{section.title}</h2>
+            <button className="help-close" onClick={onClose} aria-label="Cerrar ayuda" autoFocus>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
+                <line x1="2" y1="2" x2="10" y2="10" />
+                <line x1="10" y1="2" x2="2" y2="10" />
+              </svg>
+            </button>
+          </header>
+          <div ref={bodyRef} id="help-panel" role="tabpanel" aria-labelledby={`help-tab-${section.id}`}
+            className="help-body" key={section.id}>
+            {section.body}
+          </div>
         </div>
       </div>
     </dialog>

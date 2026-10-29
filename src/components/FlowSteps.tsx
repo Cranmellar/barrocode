@@ -9,7 +9,7 @@ const CIRCLE_WAVE = Array.from({ length: 161 }, (_, i) => {
   return `${(32 + r * Math.cos(a)).toFixed(1)},${(32 + r * Math.sin(a)).toFixed(1)}`;
 }).join(' ');
 
-function FlowIcon({ step }: { step: number }) {
+export function FlowIcon({ step }: { step: number }) {
   return (
     <svg viewBox="0 0 64 64" aria-hidden="true">
       {step === 0 && <circle cx="32" cy="32" r="19" className="hf-ink" />}
