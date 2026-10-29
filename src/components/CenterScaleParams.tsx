@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
+import { Icon } from './icons';
 
 interface Props {
   params: PrintParams;
@@ -30,6 +31,15 @@ const SCALE_MIN = 0.1;
 const SCALE_MAX = 3.0;
 // A drag within this fraction of the range snaps to 1×, as on the wave sliders.
 const SNAP = 0.015;
+
+// Icon button at the end of a section title; disabled while already at the default.
+function ResetBtn({ label, atDefault, onClick }: { label: string; atDefault: boolean; onClick: () => void }) {
+  return (
+    <button className="section-reset" title={label} aria-label={label} disabled={atDefault} onClick={onClick}>
+      <Icon name="reset" />
+    </button>
+  );
+}
 
 // One control per axis: the number field and the slider edit the same value.
 function ScaleSlider({ label, value, onChange }: {
@@ -108,7 +118,11 @@ export function CenterScaleParams({ params, onChange }: Props) {
     <>
       {/* ── Centro de pivote ── */}
       <div className="section">
-        <div className="section-title" title="Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.">Centro de pivote</div>
+        <div className="section-title" title="Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.">
+          Centro de pivote
+          <ResetBtn label="Centrar en la pieza" atDefault={params.centerX === 0 && params.centerY === 0}
+            onClick={() => onChange({ ...params, centerX: 0, centerY: 0 })} />
+        </div>
 
         <div className="param-row">
           <label title="Desde el centro de la pieza">X<span className="unit"> mm</span></label>
@@ -128,20 +142,15 @@ export function CenterScaleParams({ params, onChange }: Props) {
             onChange={v => setVal('centerY', v)}
           />
         </div>
-
-        <button
-          className="btn-reset"
-          style={{ margin: '4px 12px' }}
-          onClick={() => onChange({ ...params, centerX: 0, centerY: 0 })}
-          title="Vuelve al centro geométrico de la pieza"
-        >
-          Centrar en la pieza
-        </button>
       </div>
 
       {/* ── Escala ── */}
       <div className="section">
-        <div className="section-title">Escala</div>
+        <div className="section-title">
+          Escala
+          <ResetBtn label="Restablecer escala (1×)" atDefault={params.scaleX === 1 && params.scaleY === 1}
+            onClick={() => onChange({ ...params, scaleX: 1, scaleY: 1 })} />
+        </div>
 
         <div className="param-row param-check" style={{ paddingBottom: 6 }}>
           <label>
@@ -158,19 +167,15 @@ export function CenterScaleParams({ params, onChange }: Props) {
         {!params.scaleUniform && (
           <ScaleSlider label="Escala Y" value={params.scaleY} onChange={setScaleY} />
         )}
-
-        <button
-          className="btn-reset"
-          style={{ margin: '4px 12px 8px' }}
-          onClick={() => onChange({ ...params, scaleX: 1, scaleY: 1 })}
-        >
-          Resetear escala
-        </button>
       </div>
 
       {/* ── Giro ── */}
       <div className="section">
-        <div className="section-title">Giro</div>
+        <div className="section-title">
+          Giro
+          <ResetBtn label="Restablecer giro (0°)" atDefault={params.rotation === 0}
+            onClick={() => setVal('rotation', 0)} />
+        </div>
 
         <div className="param-row" title="Antihorario visto desde arriba, alrededor del centro de pivote. Se aplica después de la escala.">
           <label>Ángulo<span className="unit"> °</span></label>
@@ -180,14 +185,6 @@ export function CenterScaleParams({ params, onChange }: Props) {
             onChange={v => setVal('rotation', v)}
           />
         </div>
-
-        <button
-          className="btn-reset"
-          style={{ margin: '4px 12px 8px' }}
-          onClick={() => setVal('rotation', 0)}
-        >
-          Resetear giro
-        </button>
       </div>
     </>
   );

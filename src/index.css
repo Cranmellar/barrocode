@@ -687,6 +687,24 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   height: 1px;
   background: var(--border);
 }
+/* After the rule (order 1), at the title's right edge. */
+.section-reset {
+  order: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast);
+}
+.section-reset:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); }
+.section-reset:disabled { opacity: 0.35; cursor: default; }
 
 /* ── Param rows ──────────────────────────────────────────────────────────── */
 .param-row {
