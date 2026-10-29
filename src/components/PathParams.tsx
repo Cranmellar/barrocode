@@ -125,6 +125,10 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
     try { localStorage.setItem(TAB_KEY, id); } catch { /* storage unavailable */ }
   }
 
+  const originHint = 'Qué punto de la pieza va a Posición X / Y en el G-code: el centro (camas con origen en el centro, como las delta) o la esquina inferior izquierda (camas con origen en una esquina). La vista 3D no cambia: siempre muestra la pieza centrada';
+  const posHint = params.gcodeOrigin === 'corner'
+    ? 'Dónde queda la esquina inferior izquierda de la pieza en la cama (solo en el G-code); 0, 0 es el origen de la impresora'
+    : 'Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora';
   const effLayers = layerCount(params);
   const height = +(effLayers * params.layerHeight).toFixed(1);
 
@@ -197,10 +201,27 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
                   Usar tamaño real (×{svgMmPerUnit})
                 </button>
               </div>)}
+          <div className="param-row" title={originHint}>
+            <label>Origen del G-code</label>
+          </div>
+          <div className="param-row param-check param-choice" title={originHint}>
+            <label>
+              <input type="radio" checked={params.gcodeOrigin === 'centre'}
+                onChange={() => set('gcodeOrigin', 'centre')} />
+              Centro
+            </label>
+            <label>
+              <input type="radio" checked={params.gcodeOrigin === 'corner'}
+                onChange={() => set('gcodeOrigin', 'corner')} />
+              Esquina inf. izq.
+            </label>
+          </div>
           <Num label="Posición X" icon="mover" value={params.originX} step={1} unit="mm"
-            hint="Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora" onChange={v => set('originX', v)} />
+            hint={posHint} onChange={v => set('originX', v)} />
           <Num label="Posición Y" icon="mover" value={params.originY} step={1} unit="mm"
-            hint="Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora" onChange={v => set('originY', v)} />
+            hint={posHint} onChange={v => set('originY', v)} />
+          {params.gcodeOrigin === 'corner' &&
+            <div className="param-info">→ solo en el G-code: la esquina inferior izquierda va a X {fmt(params.originX)}, Y {fmt(params.originY)}; la vista sigue centrada</div>}
           <Check label="Invertir eje Y" icon="reflejar" checked={params.flipY}
             hint="El eje Y del SVG crece hacia abajo; actívalo si la impresora usa Y hacia arriba"
             onChange={v => set('flipY', v)} />
