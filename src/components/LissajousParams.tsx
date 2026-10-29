@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
-import { Icon } from './icons';
+import { Icon, type IconName } from './icons';
 
 interface Props {
   params: PrintParams;
@@ -24,8 +24,8 @@ interface Props {
 // Within this fraction of the range, dragging snaps to the default value.
 const SNAP = 0.015;
 
-function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange }: {
-  label: string; value: number; min: number; max: number;
+function Slider({ label, icon, value, min, max, step, unit, hint, def, morph, onChange }: {
+  label: string; icon?: IconName; value: number; min: number; max: number;
   step: number; unit?: string; hint?: string; def: number; morph: number;
   onChange: (v: number) => void;
 }) {
@@ -53,11 +53,11 @@ function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange
   }, [morph, value]);
   const decimals = String(step).split('.')[1]?.length ?? 0;
   const fill     = at((value - min) / (max - min));
-  const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)`;
+  const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--control-edge) ${fill},var(--control-edge) 100%)`;
   return (
     <div className="slider-row" title={hint}>
       <div className="slider-header">
-        <span className="slider-label">{label}</span>
+        <span className="slider-label">{icon && <Icon name={icon} />}{label}</span>
         <span className={`slider-num${flashes ? ` num-flash-${flashes % 2 ? 'a' : 'b'}` : ''}`}>
           <NumInput value={parseFloat(value.toFixed(decimals))} step={step} onChange={onChange} />
           {unit && <span className="slider-value-unit">{unit}</span>}
@@ -86,14 +86,16 @@ function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange
   );
 }
 
-function Sec({ title, children, accentColor }: {
-  title: string; children: React.ReactNode; accentColor?: string;
+function Sec({ title, icon, axis, children, accentColor }: {
+  title: string; icon?: IconName; axis?: 'N' | 'T' | 'Z'; children: React.ReactNode; accentColor?: string;
 }) {
   return (
     <div className="section" style={accentColor
       ? { borderLeft: `3px solid ${accentColor}`, paddingLeft: 2 }
       : {}}>
       <div className="section-title">
+        {icon && <Icon name={icon} />}
+        {axis && <span className={`axis-chip axis-chip--${axis.toLowerCase()}`}>{axis}</span>}
         {title}
       </div>
       {children}
@@ -189,14 +191,15 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
         </div>
       ) : autoKeyAt !== null ? (
         <div className="liss-context liss-context--live">
+          <Icon name="keyframe" />
           Onda en el extrusor ({autoKeyAt}). Al cambiar un valor se crea un keyframe aquí.
         </div>
       ) : (
-        <div className="liss-context">Onda global: se aplica a toda la pieza</div>
+        <div className="liss-context"><Icon name="global" />Onda global: se aplica a toda la pieza</div>
       )}
 
       {/* ── Preajustes ── */}
-      <Sec title="Preajustes">
+      <Sec title="Preajustes" icon="preajustes">
         <div className="preset-grid">
           {PRESETS.map(p => {
             const on = params.lissAmpN === p.ampN && params.lissAmpT === p.ampT
@@ -224,47 +227,48 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Eje N ── */}
-      <Sec title="N · Normal (lateral)">
-        <Slider morph={morph} def={defaults.lissAmpN} label="Amplitud N" value={params.lissAmpN}
+      <Sec axis="N" title="Normal (lateral)">
+        <Slider morph={morph} def={defaults.lissAmpN} icon="amplitud" label="Amplitud N" value={params.lissAmpN}
           min={0} max={30} step={0.1} unit="mm"
           hint="Desplazamiento máximo a izquierda/derecha de la línea central"
           onChange={v => set('lissAmpN', v)} />
-        <Slider morph={morph} def={defaults.lissWlN} label="Longitud de onda N" value={params.lissWlN}
+        <Slider morph={morph} def={defaults.lissWlN} icon="longitud" label="Longitud de onda N" value={params.lissWlN}
           min={1} max={200} step={1} unit="mm"
           hint="Longitud de arco por ciclo completo en dirección normal"
           onChange={v => set('lissWlN', v)} />
       </Sec>
 
       {/* ── Eje T ── */}
-      <Sec title="T · Tangente (avance)">
-        <Slider morph={morph} def={defaults.lissAmpT} label="Amplitud T" value={params.lissAmpT}
+      <Sec axis="T" title="Tangente (avance)">
+        <Slider morph={morph} def={defaults.lissAmpT} icon="amplitud" label="Amplitud T" value={params.lissAmpT}
           min={0} max={30} step={0.1} unit="mm"
           hint="Desplazamiento máximo en la dirección de avance del trayecto"
           onChange={v => set('lissAmpT', v)} />
-        <Slider morph={morph} def={defaults.lissWlT} label="Longitud de onda T" value={params.lissWlT}
+        <Slider morph={morph} def={defaults.lissWlT} icon="longitud" label="Longitud de onda T" value={params.lissWlT}
           min={1} max={200} step={1} unit="mm"
           hint="Longitud de arco por ciclo completo en dirección tangente"
           onChange={v => set('lissWlT', v)} />
       </Sec>
 
       {/* ── Eje Z ── */}
-      <Sec title="Z · Vertical">
+      <Sec axis="Z" title="Vertical">
         {params.lissAmpZ > params.layerHeight && (
           <div className="warn-note">
+            <Icon name="aviso" />
             Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) mayor que la altura de capa ({params.layerHeight} mm):
             los valles se recortan para no chocar con la capa anterior.
           </div>
         )}
-        <Slider morph={morph} def={defaults.lissAmpZ} label="Amplitud Z" value={params.lissAmpZ}
+        <Slider morph={morph} def={defaults.lissAmpZ} icon="amplitud" label="Amplitud Z" value={params.lissAmpZ}
           min={0} max={20} step={0.1} unit="mm"
           hint="Desplazamiento máximo vertical. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa anterior; con amplitudes grandes los valles se aplanan."
           onChange={v => set('lissAmpZ', v)} />
         {params.lissAmpZ > 0 && <>
-          <Slider morph={morph} def={defaults.lissWlZ} label="Longitud de onda Z" value={params.lissWlZ}
+          <Slider morph={morph} def={defaults.lissWlZ} icon="longitud" label="Longitud de onda Z" value={params.lissWlZ}
             min={1} max={200} step={1} unit="mm"
             hint="Longitud de arco por ciclo completo en dirección vertical"
             onChange={v => set('lissWlZ', v)} />
-          <Slider morph={morph} def={deg(defaults.lissPhaseZ)} label="Fase Z" value={deg(params.lissPhaseZ)}
+          <Slider morph={morph} def={deg(defaults.lissPhaseZ)} icon="fase" label="Fase Z" value={deg(params.lissPhaseZ)}
             min={-180} max={180} step={1} unit="°"
             hint="Desfase de la oscilación Z respecto a la fase base"
             onChange={v => set('lissPhaseZ', rad(v))} />
@@ -272,7 +276,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Acoplamiento N/T ── */}
-      <Sec title="Acoplamiento N / T">
+      <Sec title="Acoplamiento N / T" icon="acople">
         <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
           min={-180} max={180} step={1} unit="°"
           hint="Desfase entre N y T. 0°=línea  90°=elipse (si λN=λT)  180°=línea cruzada"
@@ -280,12 +284,12 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Fase ── */}
-      <Sec title="Fase">
-        <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} label="Desfase inicial" value={deg(params.lissPhaseOffset)}
+      <Sec title="Fase" icon="fase">
+        <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} icon="fase" label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
           hint="Fase global al inicio del arco (s=0)"
           onChange={v => set('lissPhaseOffset', rad(v))} />
-        <Slider morph={morph} def={deg(defaults.phaseShiftPerLayer)} label="Desfase por capa" value={deg(params.phaseShiftPerLayer)}
+        <Slider morph={morph} def={deg(defaults.phaseShiftPerLayer)} icon="desfaseCapa" label="Desfase por capa" value={deg(params.phaseShiftPerLayer)}
           min={-360} max={360} step={1} unit="°"
           hint="Fase extra añadida en cada capa — crea efecto de torsión/espiral"
           onChange={v => set('phaseShiftPerLayer', rad(v))} />

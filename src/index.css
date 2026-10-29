@@ -23,12 +23,15 @@
 
   --ink:           #38383E;
   --ink-2:         #55555D;
-  --muted:         #71717A;
+  --muted:         #63636B;
   --faint:         #A1A1AA;
   --on-ink:        #FFFFFF;
 
   --border:        #E4E4E7;
   --border-strong: #D4D4D8;
+  /* Edges that identify a control (fields, slider track, switch off, active tab):
+     3:1 on --surface, the WCAG minimum for component boundaries. */
+  --control-edge:  #8A8A93;
   --scrim:         rgba(24,24,27,0.36);
 
   /* Everyday interaction is dark grey; --signal is reserved for the final action,
@@ -38,11 +41,13 @@
   --signal:        #FF5A1F;
   --signal-hi:     #FF7A47;
   --signal-bg:     rgba(255,90,31,0.10);
-  /* The layer ramp's hues (rampColor in palette.ts at t = 0, ¼, ½, ¾, 1) at lower chroma,
-     for the export and add-keyframe buttons */
+  /* The layer ramp's hues (rampColor in palette.ts at t = 0, ¼, ½, ¾, 1) at lower chroma
+     and lightness, for the export and add-keyframe buttons: every stop keeps white text
+     at 4.5:1 or more */
   --signal-ramp-start: #4C5FBE;
-  --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #8558B9, #B0549F, #CD5977, #DA6947);
-  --focus:         var(--signal);
+  --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #7A4FAE, #9E4790, #B54766, #BD5232);
+  /* --signal's hue, darker: 3:1 on --bg too, where --signal gives 2.76:1 */
+  --focus:         #D9480F;
   /* Forma's send button: the accent grey with a faint tint of the ramp's ends */
   --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 28%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent) 70%, #B0549F) 50%, color-mix(in oklab, var(--accent) 28%, #DA6947));
   --print-hint-hi: linear-gradient(90deg, color-mix(in oklab, var(--accent-hi) 20%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent-hi) 62%, #B0549F) 50%, color-mix(in oklab, var(--accent-hi) 20%, #DA6947));
@@ -208,7 +213,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   height: 26px;
   border-radius: var(--radius-sm);
   background: var(--field);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
   transition: transform var(--dur) var(--ease), width var(--dur) var(--ease);
 }
 .panel-tab {
@@ -223,7 +228,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--muted);
+  color: var(--ink-2);
   font: inherit;
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
@@ -763,6 +768,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .session-banner-actions { display: flex; gap: 6px; }
 
 .error-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
   background: var(--err-bg);
   border-radius: var(--radius);
@@ -778,8 +786,10 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   margin-top: 0;
 }
 .section:last-child { padding-bottom: 10px; }
+/* A rule across the panel between sections, so each reads as its own block. */
+.section + .section { border-top: 1px solid var(--border); }
 
-/* Section titles: GSCode italic with a hairline running to the edge */
+/* Section titles: GSCode italic in --ink (labels are --ink-2) with a hairline running to the edge */
 .section-title {
   display: flex;
   align-items: center;
@@ -787,14 +797,33 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-size: var(--fs-md);
   font-style: italic;
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
-  color: var(--ink-2);
+  color: var(--ink);
   padding: var(--sp-4) var(--sp-4) var(--sp-1);
 }
+.section + .section > .section-title { padding-top: 20px; }
+.section-title > .ico { color: var(--ink-2); }
+/* Wave axis in the colour the Lissajous figure draws it in (white on it: 6.4:1, 4.6:1, 11.6:1) */
+.axis-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--on-ink);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: 700; font-variation-settings: 'wght' 700;
+  line-height: 1;
+}
+.axis-chip--n { background: var(--n-axis); }
+.axis-chip--t { background: var(--t-axis); }
+.axis-chip--z { background: var(--ink); }
 .section-title::after {
   content: '';
   flex: 1;
   height: 1px;
-  background: var(--border);
+  background: var(--border-strong);
 }
 /* After the rule (order 1), at the title's right edge. */
 .section-reset {
@@ -831,6 +860,10 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   line-height: 1.3;
   cursor: default;
 }
+/* Icons on geometric parameters: inline so a long label still wraps under them */
+.param-row label > .ico,
+.slider-label > .ico { display: inline-block; vertical-align: -2px; margin-right: 6px; color: var(--muted); }
+.param-check label > .ico { margin-right: 0; }
 .param-row .unit {
   color: var(--muted);
   font-size: var(--fs-sm);
@@ -843,7 +876,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   height: 26px;
   padding: 0 6px;
   background: var(--field);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-edge);
   border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
@@ -852,7 +885,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   text-align: right;
   transition: border-color var(--dur-fast), box-shadow var(--dur-fast);
 }
-.param-row input[type="number"]:hover:not(:disabled) { border-color: var(--faint); }
+.param-row input[type="number"]:hover:not(:disabled) { border-color: var(--ink-2); }
 .param-row input[type="number"]:focus { outline: none; border-color: var(--ink); }
 
 .param-check { justify-content: flex-start; gap: 10px; }
@@ -890,6 +923,11 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .resolution--coarse { border-left-color: var(--err); }
 .resolution--coarse p { color: var(--err); }
 .resolution--ok { border-left-color: var(--ok); }
+/* State carried by a shape too, not only by the border colour */
+.state-line { display: flex; align-items: flex-start; gap: 6px; }
+.state-line .ico, .warn-note > .ico, .error-msg > .ico { margin-top: 2px; }
+.resolution--ok .state-line .ico { color: var(--ok); }
+.resolution--fine .state-line .ico { color: var(--muted); }
 
 /* ── Panel header ────────────────────────────────────────────────────────── */
 .ico { flex-shrink: 0; }
@@ -939,6 +977,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
 }
 .liss-context-text { flex: 1; min-width: 0; }
+.liss-context > .ico { color: var(--ink-2); }
 .liss-context-done { padding: 2px 10px; font-size: var(--fs-xs); }
 .liss-context--live { color: var(--ink-2); }
 
@@ -951,6 +990,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-size: var(--fs-sm);
   line-height: 1.45;
   color: var(--err);
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
 }
 
 
@@ -1051,7 +1093,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .kf-add-btn:not(.kf-add-btn--on):hover:not(:disabled) {
   background: var(--signal-ramp) border-box;
   border-color: transparent;
-  filter: brightness(1.05);
+  filter: brightness(1.03);
   box-shadow: var(--shadow-raised-hi), inset 0 1px 0 rgba(255,255,255,0.16);
 }
 .btn-signal:active:not(:disabled),
@@ -1069,6 +1111,7 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
 /* ── Lissajous params (right sidebar) ────────────────────────────────────── */
 .lissajous-params { flex: 1; }
 .lissajous-params .section-title { padding: 6px 16px 4px; }
+.lissajous-params .section + .section > .section-title { padding-top: 12px; }
 
 /* Slider rows — instrument-grade value display */
 .slider-row { padding: 6px var(--sp-4) var(--sp-2); }
@@ -1129,7 +1172,7 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
   height: 10px;
   margin-left: -1px;
   border-radius: 1px;
-  background: var(--border-strong);
+  background: var(--ink-2);
   pointer-events: none;
   transition: background var(--dur-fast), transform var(--dur) var(--ease);
 }
@@ -1161,7 +1204,7 @@ input[type="range"] {
   appearance: none;
   height: 4px;
   border-radius: 2px;
-  background: var(--surface-3);
+  background: var(--control-edge);
   outline: none;
   cursor: pointer;
 }
@@ -1258,13 +1301,15 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   color: var(--ink-2);
   background: transparent;
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-edge);
   cursor: pointer;
   transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
 .path-tag:hover { background: var(--surface-2); color: var(--ink); }
+/* Collapsed: a dashed edge, not a fade; the tag is still a button. */
 .path-tag.path-tag-collapsed {
-  opacity: 0.35;
+  color: var(--muted);
+  border-style: dashed;
 }
 .path-len { font-size: var(--fs-md); color: var(--muted); flex-shrink: 0; }
 .path-overrides { padding-left: 22px; }
@@ -1359,7 +1404,7 @@ input[type="range"]::-moz-range-thumb {
   height: 24px;
   border-radius: var(--radius-sm);
   background: var(--field);
-  box-shadow: var(--shadow-sm);
+  box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
   transition: transform var(--dur) var(--ease), width var(--dur) var(--ease), opacity var(--dur-fast);
 }
 .view-preset {
@@ -1386,7 +1431,7 @@ input[type="range"]::-moz-range-thumb {
   padding: 0;
   background: none;
   border: none;
-  color: var(--faint);
+  color: var(--muted);
   font: inherit;
   cursor: pointer;
   transition: color var(--dur-fast);
@@ -1845,7 +1890,7 @@ input[type="range"]::-moz-range-thumb {
   height: 26px;
   padding: 0 6px;
   background: var(--field);
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--control-edge);
   border-radius: var(--radius-sm);
   color: var(--ink);
   font: inherit;
@@ -1956,7 +2001,7 @@ label.num-scrub:hover, label.num-scrub--on { color: var(--ink); text-decoration:
   height: 16px;
   margin: 0;
   border-radius: 8px;
-  background: var(--border-strong);
+  background: var(--control-edge);
   transition: background var(--dur) var(--ease);
 }
 .param-check input[type="checkbox"]::after,

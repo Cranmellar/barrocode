@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { Icon } from '../components/icons';
 import { DiscoveryGrid } from './components/DiscoveryGrid';
 import { FamilyPanel } from './components/FamilyPanel';
 import { PathPanel, type NodeRef } from './components/PathPanel';
@@ -406,7 +407,7 @@ export function ShaperView(props: Props) {
           <PrintCheck check={check} wave={wave} doc={doc} bounds={shapeBounds(outlines)} />
 
           <div className="section">
-            <div className="section-title">Importar</div>
+            <div className="section-title"><Icon name="importar" />Importar</div>
             {importNote && (
               <p className={`shaper-note${importNote.error ? ' shaper-note--error' : ''}`} role="status">{importNote.text}</p>
             )}

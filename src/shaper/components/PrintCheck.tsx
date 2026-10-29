@@ -1,3 +1,4 @@
+import { Icon } from '../../components/icons';
 import type { PrintCheck as Check, WaveLimit } from '../lib/printability';
 import type { Bounds, ShapeDoc } from '../lib/shape';
 
@@ -37,7 +38,7 @@ export function PrintCheck({ check, wave, doc, bounds }: Props) {
   const n = check.tight.length;
   return (
     <div className="section">
-      <div className="section-title">Imprimibilidad</div>
+      <div className="section-title"><Icon name="maquina" />Imprimibilidad</div>
       {wave.radiusMM <= 0 ? (
         <p className="shaper-check">Sin onda en Impresión: la forma se imprime tal cual.</p>
       ) : n === 0 ? (

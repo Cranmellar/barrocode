@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { NumInput } from '../../components/NumInput';
+import { Icon, type IconName } from '../../components/icons';
 import { superformulaN3 } from '../lib/families';
 import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
 
@@ -29,7 +30,7 @@ function Slider({ label, value, min, max, step, unit, hint, def, disabled, onCha
   const at = (f: number) => `calc(7px + (100% - 14px) * ${Math.max(0, Math.min(1, f))})`;
   const decimals = String(step).split('.')[1]?.length ?? 0;
   const fill    = at((value - min) / (max - min));
-  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)`;
+  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--control-edge) ${fill},var(--control-edge) 100%)`;
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
   return (
     <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={hint}>
@@ -74,26 +75,12 @@ function Num({ label, value, min, max, step, unit, hint, onChange }: {
   );
 }
 
-function Sec({ title, children }: { title: string; children: ReactNode }) {
+function Sec({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
   return (
     <div className="section">
-      <div className="section-title">{title}</div>
+      <div className="section-title"><Icon name={icon} />{title}</div>
       {children}
     </div>
-  );
-}
-
-// A curve between two square nodes, one handle drawn out.
-function NodesIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
-      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3.5 12.5C4.5 6 9 3.5 12.5 3.5" />
-      <path d="M3.5 12.5 9 10" opacity="0.5" />
-      <rect x="2" y="11" width="3" height="3" />
-      <rect x="11" y="2" width="3" height="3" />
-      <circle cx="9.5" cy="9.8" r="1.1" />
-    </svg>
   );
 }
 
@@ -125,7 +112,7 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
     <>
       <div className="shaper-edit">
         <button className="btn-small btn-edit" onClick={onEditPoints}>
-          <NodesIcon />Editar puntos
+          <Icon name="nodos" size={16} />Editar puntos
         </button>
         <p className="shaper-edit-note">
           Mueve los nodos uno a uno, con simetría si la forma se repite. Deja de ser paramétrica; Ctrl+Z lo deshace.
@@ -144,7 +131,7 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
 
       <div key={doc.family} className="tab-pane" role="tabpanel">
         {doc.family === 'lobes' && (
-          <Sec title="Lóbulos">
+          <Sec title="Lóbulos" icon="lobulos">
             {slider('lobeCount', 'Número')}
             {slider('lobeDepthPct', 'Profundidad', '%', 'Cuánto se hunden los valles respecto a las crestas')}
             {slider('lobeSharp', 'Agudeza', undefined,
@@ -152,14 +139,14 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
           </Sec>
         )}
         {doc.family === 'polygon' && (
-          <Sec title="Polígono">
+          <Sec title="Polígono" icon="poligono">
             {slider('polySides', 'Lados', undefined, 'Con estrella, número de puntas')}
             {slider('polyStarPct', 'Estrella', '%', '0: polígono regular. Más: las puntas se separan y los vértices interiores se hunden')}
             {slider('polyFilletMM', 'Radio de esquina', 'mm', 'Redondeo de cada esquina; se reduce donde el lado es demasiado corto')}
           </Sec>
         )}
         {doc.family === 'superformula' && (
-          <Sec title="Superfórmula">
+          <Sec title="Superfórmula" icon="superformula">
             {slider('sfM', 'Simetría (m)', undefined, 'Número de repeticiones alrededor del centro')}
             {slider('sfN1', 'n1', undefined, 'Hinchazón: bajo, puntas afiladas; alto, forma llena')}
             {slider('sfN2', 'n2', undefined, 'Forma de cada repetición')}
@@ -172,7 +159,7 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
         )}
       </div>
 
-      <Sec title="Tamaño y costura">
+      <Sec title="Tamaño y costura" icon="costura">
         <Num label="Diámetro exterior" unit="mm" value={doc.sizeMM} min={5} max={1000} step={1}
           hint="Dos veces la distancia del centro al punto más lejano"
           onChange={v => set('sizeMM', Math.max(5, v))} />

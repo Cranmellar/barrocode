@@ -32,6 +32,18 @@ export function keyframeColor(t: number): string {
 // At az = 0 the camera looks along +Y: X to the right, Y away, Z up.
 // `ry` is depth towards the viewer; its sign keeps the view right-handed,
 // so the preview is never a mirror image of the print.
+// Text over the layer strokes: a ring of the background behind each glyph
+// keeps it readable where it crosses a line.
+function haloText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number) {
+  ctx.save();
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = palette.bg;
+  ctx.strokeText(text, x, y);
+  ctx.restore();
+  ctx.fillText(text, x, y);
+}
+
 export function project(x: number, y: number, z: number, az: number, el: number): [number, number] {
   return makeProjector(az, el)(x, y, z);
 }
@@ -257,10 +269,10 @@ export function drawScene(
     ctx.moveTo(cx0, cy0 - 6); ctx.lineTo(cx0, cy0 + 6);
     ctx.stroke();
     // Label
-    ctx.font = '10px GSCode, monospace';
-    ctx.fillStyle = palette.muted;
+    ctx.font = '11px GSCode, monospace';
+    ctx.fillStyle = palette.ink2;
     ctx.textAlign = 'left';
-    ctx.fillText(`centro ${lp.centerX.toFixed(1)}, ${lp.centerY.toFixed(1)}`, cx0 + 9, cy0 - 5);
+    haloText(ctx, `centro ${lp.centerX.toFixed(1)}, ${lp.centerY.toFixed(1)}`, cx0 + 9, cy0 - 5);
     ctx.restore();
   }
 
@@ -307,7 +319,7 @@ export function drawScene(
     ctx.font = '11px GSCode, monospace';
     ctx.fillStyle = palette.ink2;
     ctx.textBaseline = 'middle';
-    ctx.fillText(`z ${pt.z.toFixed(1)}`, ex + 19, ey);
+    haloText(ctx, `z ${pt.z.toFixed(1)}`, ex + 19, ey);
     ctx.restore();
   }
 
@@ -426,7 +438,7 @@ export function drawScene(
       // Label — placed at GL * 1.45 so it stays within GR
       const [lx2, ly2] = project(wx * GL * 1.45, wy * GL * 1.45, wz * GL * 1.45, azimuth, elevation);
       ctx.globalAlpha = 0.92;
-      ctx.font = '10px GSCode, monospace';
+      ctx.font = '11px GSCode, monospace';
       ctx.fillStyle = color;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';

@@ -34,6 +34,179 @@ const PATHS = {
   centro: (<>
     <circle cx="8" cy="8" r="3.5" />
     <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" />
+  </>),  rutas: (<>
+    <path d="M2 12c2-6 4-6 6-2s4 4 6-4" />
+    <circle cx="2" cy="12" r="1.3" fill="currentColor" />
+    <circle cx="14" cy="6" r="1.3" fill="currentColor" />
+  </>),
+  // Clay beads stacked, the top one still to print.
+  capas: (<>
+    <rect x="2.5" y="10.5" width="11" height="3" rx="1.5" />
+    <rect x="2.5" y="6.5" width="11" height="3" rx="1.5" />
+    <rect x="2.5" y="2.5" width="11" height="3" rx="1.5" opacity="0.45" />
+  </>),
+  resolucion: (<>
+    <path d="M2 12a6 6 0 0 1 12 0" opacity="0.45" />
+    <circle cx="2.4" cy="10" r="1.1" fill="currentColor" />
+    <circle cx="5" cy="6.8" r="1.1" fill="currentColor" />
+    <circle cx="8" cy="6" r="1.1" fill="currentColor" />
+    <circle cx="11" cy="6.8" r="1.1" fill="currentColor" />
+    <circle cx="13.6" cy="10" r="1.1" fill="currentColor" />
+  </>),
+  escala: (<>
+    <rect x="2" y="6" width="8" height="8" rx="1" />
+    <path d="M8.5 7.5 14 2M10 2h4v4" />
+  </>),
+  direccion: (<>
+    <rect x="2" y="4" width="12" height="9" rx="4.5" />
+    <path d="M7 2 9 4 7 6" />
+  </>),
+  // The seam ramp: the bead rises to the next layer while printing.
+  union: (<>
+    <path d="M1.5 12.5h6c2.5 0 2.5-5 5-5h2" />
+    <path d="M1.5 7.5h5" strokeDasharray="1.5 2" />
+  </>),
+  zhop: (<>
+    <path d="M1.5 11h3.5c.8-4.5 5.2-4.5 6 0h3.5" />
+    <path d="M8 10v4.5M8 2.5V5" opacity="0.45" />
+  </>),
+  desplazamiento: (<>
+    <path d="M3 12a5.5 5.5 0 0 1 10 0" strokeDasharray="1.6 2" />
+    <circle cx="3" cy="12" r="1.3" fill="currentColor" />
+    <circle cx="13" cy="12" r="1.3" fill="currentColor" />
+  </>),
+  velocidad: (<>
+    <path d="M2.5 12a5.5 5.5 0 1 1 11 0" />
+    <path d="M8 12l3-3.5" />
+    <circle cx="8" cy="12" r="0.8" fill="currentColor" />
+  </>),
+  extrusion: (<>
+    <path d="M4.5 1.5h7v3h-7z" />
+    <path d="M6 4.5h4L8.8 8H7.2z" />
+    <path d="M8 10c-1.1 1.5-1.7 2.4-1.7 3.1a1.7 1.7 0 0 0 3.4 0c0-.7-.6-1.6-1.7-3.1z" />
+  </>),
+  calibracion: (<>
+    <path d="M2.5 1.5h6l-1.5 4h-3z" />
+    <path d="M1.5 13.5h13" />
+    <path d="M12.5 4v7.5M11 5.5 12.5 4 14 5.5M11 10l1.5 1.5L14 10" />
+  </>),
+  arcilla: (<>
+    <path d="M5 2.5h6" />
+    <path d="M6 2.5c0 2-3 3-3 6.5 0 3 2.2 5 5 5s5-2 5-5c0-3.5-3-4.5-3-6.5" />
+  </>),
+  preajustes: (<>
+    <rect x="2" y="2" width="5" height="5" rx="1" />
+    <rect x="9" y="2" width="5" height="5" rx="1" />
+    <rect x="2" y="9" width="5" height="5" rx="1" />
+    <rect x="9" y="9" width="5" height="5" rx="1" />
+  </>),
+  acople: <path d="M8 8c-2-3.5-6.5-3.5-6.5 0S6 11.5 8 8s6.5-3.5 6.5 0S10 11.5 8 8z" />,
+  // The same wave, shifted along the path.
+  fase: (<>
+    <path d="M1 7c1.5-4 3-4 4.5 0s3 4 4.5 0 3-4 4.5 0" opacity="0.4" />
+    <path d="M3.3 7c1.5-4 3-4 4.5 0s3 4 4.5 0" />
+    <path d="M5 13.5h5M8.5 12l1.5 1.5L8.5 15" />
+  </>),
+  // Forma: the three families, then the node editor.
+  lobulos: <path d="M5.6 5.6A2.6 2.6 0 1 1 10.4 5.6A2.6 2.6 0 1 1 10.4 10.4A2.6 2.6 0 1 1 5.6 10.4A2.6 2.6 0 1 1 5.6 5.6z" />,
+  poligono: <path d="M8 2 14 6.4 11.7 13.5H4.3L2 6.4z" />,
+  superformula: <path d="M8 1.5C8.8 6 10 7.2 14.5 8 10 8.8 8.8 10 8 14.5 7.2 10 6 8.8 1.5 8 6 7.2 7.2 6 8 1.5z" />,
+  // Outer diameter, with the seam on top.
+  costura: (<>
+    <circle cx="8" cy="8.5" r="5.5" />
+    <path d="M2.5 8.5h11" opacity="0.45" />
+    <circle cx="8" cy="3" r="1.4" fill="currentColor" />
+  </>),
+  // A curve between two square nodes, one handle drawn out.
+  nodos: (<>
+    <path d="M3.5 12.5C4.5 6 9 3.5 12.5 3.5" />
+    <path d="M3.5 12.5 9 10" opacity="0.5" />
+    <rect x="2" y="11" width="3" height="3" />
+    <rect x="11" y="2" width="3" height="3" />
+    <circle cx="9.5" cy="9.8" r="1.1" />
+  </>),
+  nodo: (<>
+    <rect x="5.5" y="5.5" width="5" height="5" />
+    <path d="M1.5 8h4M10.5 8h4" opacity="0.5" />
+    <circle cx="1.8" cy="8" r="1" />
+    <circle cx="14.2" cy="8" r="1" />
+  </>),
+  lista: (<>
+    <path d="M5.5 4h8M5.5 8h8M5.5 12h8" />
+    <circle cx="2.5" cy="4" r="0.8" fill="currentColor" />
+    <circle cx="2.5" cy="8" r="0.8" fill="currentColor" />
+    <circle cx="2.5" cy="12" r="0.8" fill="currentColor" />
+  </>),
+  importar: (<>
+    <path d="M5 4.5V1.5h5.5l3 3v10H5v-3" />
+    <path d="M10.5 1.5v3h3" />
+    <path d="M1.5 8h6.5M6 6l2 2-2 2" />
+  </>),
+  // Parameters: what the number measures, drawn on the bead or the wave.
+  alturaCapa: (<>
+    <rect x="1.5" y="9" width="8.5" height="3.5" rx="1.75" />
+    <rect x="1.5" y="4" width="8.5" height="3.5" rx="1.75" opacity="0.45" />
+    <path d="M13 3.5v9M11.5 5 13 3.5 14.5 5M11.5 11l1.5 1.5 1.5-1.5" />
+  </>),
+  espaciado: (<>
+    <circle cx="3" cy="6.5" r="1.3" fill="currentColor" />
+    <circle cx="8" cy="6.5" r="1.3" fill="currentColor" />
+    <circle cx="13" cy="6.5" r="1.3" fill="currentColor" />
+    <path d="M3 12h5M3 10.5v3M8 10.5v3" />
+  </>),
+  mover: <path d="M8 1.5v13M1.5 8h13M6 3.5 8 1.5l2 2M6 12.5l2 2 2-2M3.5 6 1.5 8l2 2M12.5 6l2 2-2 2" />,
+  reflejar: (<>
+    <path d="M1.5 8h13" strokeDasharray="1.6 1.8" />
+    <path d="M4 6h8L8 2z" />
+    <path d="M4 10h8l-4 4z" opacity="0.45" />
+  </>),
+  zSeguridad: (<>
+    <path d="M2 3h12" strokeDasharray="1.6 1.8" />
+    <path d="M8 14V6M5.5 8.5 8 6l2.5 2.5" />
+  </>),
+  reloj: (<>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 4.5V8l2.5 1.5" />
+  </>),
+  cebado: (<>
+    <path d="M2 12.5h9.5M10 10.5l2 2-2 2" />
+    <path d="M4 2.5c-1.1 1.5-1.7 2.4-1.7 3.1a1.7 1.7 0 0 0 3.4 0c0-.7-.6-1.6-1.7-3.1z" />
+  </>),
+  amplitud: (<>
+    <path d="M1 8c1.3-3.8 2.7-3.8 4 0s2.7 3.8 4 0" />
+    <path d="M12.5 3.5v9M11 5l1.5-1.5L14 5M11 11l1.5 1.5L14 11" />
+  </>),
+  longitud: (<>
+    <path d="M2 6.5c2-4.5 4-4.5 6 0s4 4.5 6 0" />
+    <path d="M2 13.5h12M2 12v3M14 12v3" />
+  </>),
+  ok: (<>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M5.3 8.2 7.1 10l3.6-4" />
+  </>),
+  aviso: (<>
+    <path d="M8 2 14.5 13.5h-13z" />
+    <path d="M8 6.5v3.2M8 11.7v.1" />
+  </>),
+  info: (<>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 7.5V11M8 5v.1" />
+  </>),
+  descargar: (<>
+    <path d="M8 2v8.5M4.5 7 8 10.5 11.5 7" />
+    <path d="M2.5 13.5h11" />
+  </>),
+  global: (<>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M2 8h12M8 2c2 2 2 10 0 12M8 2c-2 2-2 10 0 12" />
+  </>),
+  keyframe: (<>
+    <path d="M8 1.5 14.5 8 8 14.5 1.5 8z" />
+    <path d="M8 5.5v5M5.5 8h5" />
+  </>),
+  desfaseCapa: (<>
+    <path d="M1.5 5c1.6-2.8 3.2-2.8 4.8 0s3.2 2.8 4.8 0" />
+    <path d="M4.5 11c1.6-2.8 3.2-2.8 4.8 0s3.2 2.8 4.8 0" />
   </>),
 };
 
