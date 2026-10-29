@@ -15,7 +15,7 @@ export const PARAMS: PrintParams = {
   layerHeight: 2.5, numLayers: 2, useNumLayers: true, totalHeight: 15,
   nozzleHeightOffset: 1, safeZ: 20,
   softJoin: true, transitionLength: 10,
-  scaleFactor: 1, originX: 0, originY: 0, gcodeOrigin: 'centre', flipY: false,
+  scaleFactor: 1, originX: 0, originY: 0, gcodeOrigin: 'centre', marginX: 0, marginY: 0, flipY: false,
   centerX: 0, centerY: 0, scaleX: 1, scaleY: 1, scaleUniform: true, rotation: 0,
   zHopHeight: 0, hopRadius: 3,
   skirtThreshold: 15,

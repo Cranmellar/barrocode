@@ -155,18 +155,18 @@ describe('generateGcode — priming', () => {
 });
 
 describe('generateGcode — corner origin', () => {
-  const ORIGIN = { gcodeOrigin: 'corner' as const, originX: 0, originY: 0 };
+  const ORIGIN = { gcodeOrigin: 'corner' as const, marginX: 0, marginY: 0 };
 
-  it('prints the centred toolpath moved so its bottom-left corner is at Posición X / Y', () => {
+  it('prints the centred toolpath moved so its bottom-left corner is at Margen X / Y', () => {
     for (const geometry of Object.values(GEOMETRIES)) {
-      for (const [originX, originY] of [[0, 0], [15, 30]]) {
+      for (const [marginX, marginY] of [[0, 0], [15, 30]]) {
         const centred = run(geometry(), { ...WAVE, ...HOP, numLayers: 3 });
-        const corner = run(geometry(), { ...WAVE, ...HOP, numLayers: 3, ...ORIGIN, originX, originY });
+        const corner = run(geometry(), { ...WAVE, ...HOP, numLayers: 3, ...ORIGIN, marginX, marginY });
         const a = interpret(centred.gcode).filter(m => m.extruding).map(m => m.to);
         const b = interpret(corner.gcode).filter(m => m.extruding).map(m => m.to);
         const pts = centred.toolpath.flatMap(l => l.paths.flat());
-        const dx = originX - Math.min(...pts.map(p => p.x));
-        const dy = originY - Math.min(...pts.map(p => p.y));
+        const dx = marginX - Math.min(...pts.map(p => p.x));
+        const dy = marginY - Math.min(...pts.map(p => p.y));
 
         expect(b.length).toBe(a.length);
         b.forEach((p, i) => {
@@ -175,8 +175,8 @@ describe('generateGcode — corner origin', () => {
           expect(p.z).toBe(a[i].z);
         });
         const printed = interpret(corner.gcode).filter(m => m.extruding).flatMap(m => [m.from, m.to]);
-        expect(Math.min(...printed.map(p => p.x))).toBeCloseTo(originX, 2);
-        expect(Math.min(...printed.map(p => p.y))).toBeCloseTo(originY, 2);
+        expect(Math.min(...printed.map(p => p.x))).toBeCloseTo(marginX, 2);
+        expect(Math.min(...printed.map(p => p.y))).toBeCloseTo(marginY, 2);
       }
     }
   });
@@ -193,10 +193,16 @@ describe('generateGcode — corner origin', () => {
     }
   });
 
+  it('ignores Posición X / Y, which places the centre in centre mode', () => {
+    const config = { ...WAVE, ...HOP, numLayers: 3, ...ORIGIN, marginX: 12, marginY: 8 };
+    expect(run(loopThenLine(), { ...config, originX: 150, originY: -40 }).gcode)
+      .toBe(run(loopThenLine(), config).gcode);
+  });
+
   it('leaves the centred output alone', () => {
     const { gcode } = run(loopThenLine(), { ...WAVE, ...HOP, numLayers: 3, primingMove: true });
     expect(gcode).toContain('; Part centre at X / Y');
-    expect(run(loopThenLine(), { ...WAVE, ...ORIGIN }).gcode).toContain('; Bottom-left at X / Y');
+    expect(run(loopThenLine(), { ...WAVE, ...ORIGIN }).gcode).toContain('; Margin X / Y (corner)');
   });
 });
 

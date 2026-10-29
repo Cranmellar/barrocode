@@ -78,6 +78,8 @@ const DEFAULT_PARAMS: PrintParams = {
   originX: 0,
   originY: 0,
   gcodeOrigin: 'centre',
+  marginX: 10,
+  marginY: 10,
   flipY: true,
   printSpeed: 600,
   travelSpeed: 1500,

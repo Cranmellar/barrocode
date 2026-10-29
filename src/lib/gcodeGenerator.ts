@@ -107,7 +107,9 @@ function buildHeader(params: PrintParams): string {
     `; Pivot from part centre : ${params.centerX} / ${params.centerY} mm`,
     `; Scale X / Y            : ${params.scaleX} / ${params.scaleY}`,
     `; Rotation               : ${params.rotation}°`,
-    `; ${params.gcodeOrigin === 'corner' ? 'Bottom-left at X / Y' : 'Part centre at X / Y'}   : ${params.originX} / ${params.originY} mm`,
+    params.gcodeOrigin === 'corner'
+      ? `; Margin X / Y (corner)  : ${params.marginX} / ${params.marginY} mm`
+      : `; Part centre at X / Y   : ${params.originX} / ${params.originY} mm`,
     `; Flip Y                 : ${params.flipY}`,
     `; Z-hop height / radius  : ${params.zHopHeight} / ${params.hopRadius} mm`,
     `; Skirt threshold        : ${params.skirtThreshold} mm`,
@@ -190,7 +192,7 @@ function primingStart(layer: ToolpathLayer): MM2 {
 
 /**
  * The toolpath moved so the bottom-left corner of the part's XY box sits at
- * (originX, originY) instead of its centre, for beds whose origin is a
+ * (marginX, marginY) instead of its centre at (originX, originY), for beds whose origin is a
  * corner. Only the G-code moves; the preview keeps the toolpath centred.
  */
 function toCornerOrigin(toolpath: ToolpathLayer[], params: PrintParams): ToolpathLayer[] {
@@ -203,7 +205,7 @@ function toCornerOrigin(toolpath: ToolpathLayer[], params: PrintParams): Toolpat
       }
     }
   }
-  const dx = params.originX - minX, dy = params.originY - minY;
+  const dx = params.marginX - minX, dy = params.marginY - minY;
   return toolpath.map(layer => ({
     ...layer,
     centroid: { x: layer.centroid.x + dx, y: layer.centroid.y + dy },
@@ -313,7 +315,7 @@ export function generateGcode(
   if (centred.length === 0) return { text: '; No layers to generate.\n', stats: statsOf(m) };
   const corner = params.gcodeOrigin === 'corner';
   const toolpath = corner ? toCornerOrigin(centred, params) : centred;
-  const floor = corner ? { x: params.originX, y: params.originY } : null;
+  const floor = corner ? { x: params.marginX, y: params.marginY } : null;
 
   const blocks: string[] = [];
   blocks.push(buildHeader(params));
