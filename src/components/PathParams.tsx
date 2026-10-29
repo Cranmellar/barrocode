@@ -12,26 +12,26 @@ interface Props {
   shortestWl: number | null;  // mm, from shortestWavelength
 }
 
-function Num({ label, value, min, max, step, unit, hint, onChange }: {
-  label: string; value: number; min?: number; max?: number;
+function Num({ label, icon, value, min, max, step, unit, hint, onChange }: {
+  label: string; icon?: IconName; value: number; min?: number; max?: number;
   step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
 }) {
   return (
     <div className="param-row" title={hint}>
-      <label>{label}{unit && <span className="unit"> {unit}</span>}</label>
+      <label>{icon && <Icon name={icon} />}{label}{unit && <span className="unit"> {unit}</span>}</label>
       <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
     </div>
   );
 }
 
-function Check({ label, checked, hint, onChange }: {
-  label: string; checked: boolean; hint?: string; onChange: (v: boolean) => void;
+function Check({ label, icon, checked, hint, onChange }: {
+  label: string; icon?: IconName; checked: boolean; hint?: string; onChange: (v: boolean) => void;
 }) {
   return (
     <div className="param-row param-check" title={hint}>
       <label>
         <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
-        {label}
+        {icon && <Icon name={icon} />}{label}
       </label>
     </div>
   );
@@ -63,7 +63,7 @@ function Resolution({ params, shortestWl, onSpacing }: {
     : perCycle < 0.8 * SAMPLES_PER_CYCLE ? 'coarse' : perCycle > 4 * SAMPLES_PER_CYCLE ? 'fine' : 'ok';
   return (
     <Sec title="Resolución" icon="resolucion">
-      <Num label="Espaciado de muestra" value={params.sampleSpacing}
+      <Num label="Espaciado de muestra" icon="espaciado" value={params.sampleSpacing}
         min={0.1} step={0.1} unit={sf === 1 ? 'mm' : 'u. SVG'}
         hint={`Distancia entre los puntos que se toman del trazo. Más fino: curvas más suaves, pero más líneas de G-code y cada cambio tarda más en recalcularse. Lo justo son unos ${SAMPLES_PER_CYCLE} puntos por ciclo de la onda más corta. Mínimo 0,1.`}
         onChange={onSpacing} />
@@ -152,7 +152,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
       <div key={tab} className={`tab-pane tab-pane--${dirRef.current}`} role="tabpanel">
       {tab === 'pieza' && (<>
         <Sec title="Capas" icon="capas">
-          <Num label="Altura de capa" value={params.layerHeight}
+          <Num label="Altura de capa" icon="alturaCapa" value={params.layerHeight}
             min={0.1} step={0.1} unit="mm"
             onChange={v => set('layerHeight', v)} />
           <div className="param-row param-check">
@@ -168,11 +168,11 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             </label>
           </div>
           {params.useNumLayers
-            ? <Num label="Núm. de capas" value={params.numLayers} min={1} max={MAX_LAYERS} step={1}
+            ? <Num label="Núm. de capas" icon="capas" value={params.numLayers} min={1} max={MAX_LAYERS} step={1}
                 hint={`Máximo ${MAX_LAYERS} capas`}
                 onChange={v => set('numLayers', Math.max(1, Math.round(v)))} />
             : <>
-                <Num label="Altura total" value={params.totalHeight}
+                <Num label="Altura total" icon="escalaY" value={params.totalHeight}
                   min={0.1} step={1} unit="mm"
                   onChange={v => set('totalHeight', v)} />
                 <div className="param-info">
@@ -196,11 +196,11 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
                   Usar tamaño real (×{svgMmPerUnit})
                 </button>
               </div>)}
-          <Num label="Posición X" value={params.originX} step={1} unit="mm"
+          <Num label="Posición X" icon="mover" value={params.originX} step={1} unit="mm"
             hint="Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora" onChange={v => set('originX', v)} />
-          <Num label="Posición Y" value={params.originY} step={1} unit="mm"
+          <Num label="Posición Y" icon="mover" value={params.originY} step={1} unit="mm"
             hint="Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora" onChange={v => set('originY', v)} />
-          <Check label="Invertir eje Y" checked={params.flipY}
+          <Check label="Invertir eje Y" icon="reflejar" checked={params.flipY}
             hint="El eje Y del SVG crece hacia abajo; actívalo si la impresora usa Y hacia arriba"
             onChange={v => set('flipY', v)} />
         </Sec>
@@ -277,18 +277,18 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             step={0.1} unit="mm"
             hint="Se suma a la Z de cada capa — útil para calibración de primera capa"
             onChange={v => set('nozzleHeightOffset', v)} />
-          <Num label="Z de seguridad" value={params.safeZ}
+          <Num label="Z de seguridad" icon="zSeguridad" value={params.safeZ}
             min={0} step={1} unit="mm"
             hint="Altura de los desplazamientos al inicio y durante el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor"
             onChange={v => set('safeZ', v)} />
         </Sec>
 
         <Sec title="Arcilla" icon="arcilla">
-          <Num label="Pausa al inicio" value={params.dwellAtStart}
+          <Num label="Pausa al inicio" icon="reloj" value={params.dwellAtStart}
             min={0} step={100} unit="ms"
             hint="G4 al inicio del primer trayecto — deja estabilizarse el flujo"
             onChange={v => set('dwellAtStart', v)} />
-          <Check label="Cebado de boquilla" checked={params.primingMove}
+          <Check label="Cebado de boquilla" icon="cebado" checked={params.primingMove}
             hint="Extruye una línea corta para cebar la boquilla antes de imprimir"
             onChange={v => set('primingMove', v)} />
           {params.primingMove &&

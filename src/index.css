@@ -857,6 +857,10 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   line-height: 1.3;
   cursor: default;
 }
+/* Icons on geometric parameters: inline so a long label still wraps under them */
+.param-row label > .ico,
+.slider-label > .ico { display: inline-block; vertical-align: -2px; margin-right: 6px; color: var(--muted); }
+.param-check label > .ico { margin-right: 0; }
 .param-row .unit {
   color: var(--muted);
   font-size: var(--fs-sm);

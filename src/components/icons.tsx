@@ -107,6 +107,48 @@ const PATHS = {
     <path d="M3.3 7c1.5-4 3-4 4.5 0s3 4 4.5 0" />
     <path d="M5 13.5h5M8.5 12l1.5 1.5L8.5 15" />
   </>),
+  // Parameters: what the number measures, drawn on the bead or the wave.
+  alturaCapa: (<>
+    <rect x="1.5" y="9" width="8.5" height="3.5" rx="1.75" />
+    <rect x="1.5" y="4" width="8.5" height="3.5" rx="1.75" opacity="0.45" />
+    <path d="M13 3.5v9M11.5 5 13 3.5 14.5 5M11.5 11l1.5 1.5 1.5-1.5" />
+  </>),
+  espaciado: (<>
+    <circle cx="3" cy="6.5" r="1.3" fill="currentColor" />
+    <circle cx="8" cy="6.5" r="1.3" fill="currentColor" />
+    <circle cx="13" cy="6.5" r="1.3" fill="currentColor" />
+    <path d="M3 12h5M3 10.5v3M8 10.5v3" />
+  </>),
+  mover: <path d="M8 1.5v13M1.5 8h13M6 3.5 8 1.5l2 2M6 12.5l2 2 2-2M3.5 6 1.5 8l2 2M12.5 6l2 2-2 2" />,
+  reflejar: (<>
+    <path d="M1.5 8h13" strokeDasharray="1.6 1.8" />
+    <path d="M4 6h8L8 2z" />
+    <path d="M4 10h8l-4 4z" opacity="0.45" />
+  </>),
+  zSeguridad: (<>
+    <path d="M2 3h12" strokeDasharray="1.6 1.8" />
+    <path d="M8 14V6M5.5 8.5 8 6l2.5 2.5" />
+  </>),
+  reloj: (<>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 4.5V8l2.5 1.5" />
+  </>),
+  cebado: (<>
+    <path d="M2 12.5h9.5M10 10.5l2 2-2 2" />
+    <path d="M4 2.5c-1.1 1.5-1.7 2.4-1.7 3.1a1.7 1.7 0 0 0 3.4 0c0-.7-.6-1.6-1.7-3.1z" />
+  </>),
+  amplitud: (<>
+    <path d="M1 8c1.3-3.8 2.7-3.8 4 0s2.7 3.8 4 0" />
+    <path d="M12.5 3.5v9M11 5l1.5-1.5L14 5M11 11l1.5 1.5L14 11" />
+  </>),
+  longitud: (<>
+    <path d="M2 6.5c2-4.5 4-4.5 6 0s4 4.5 6 0" />
+    <path d="M2 13.5h12M2 12v3M14 12v3" />
+  </>),
+  desfaseCapa: (<>
+    <path d="M1.5 5c1.6-2.8 3.2-2.8 4.8 0s3.2 2.8 4.8 0" />
+    <path d="M4.5 11c1.6-2.8 3.2-2.8 4.8 0s3.2 2.8 4.8 0" />
+  </>),
 };
 
 export type IconName = keyof typeof PATHS;
