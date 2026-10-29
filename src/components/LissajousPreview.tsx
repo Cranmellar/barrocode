@@ -43,7 +43,7 @@ function useMorph(target: Wave, trigger: number): Wave {
     const t0 = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / MORPH_MS);
+      const p = Math.min(1, Math.max(0, (now - t0) / MORPH_MS));
       const e = 1 - (1 - p) ** 4;
       set(from.map((v, i) => v + (target[i] - v) * e) as Wave);
       if (p < 1) raf = requestAnimationFrame(step);

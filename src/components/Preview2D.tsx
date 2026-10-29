@@ -79,7 +79,7 @@ function useCountUp(value: number | null, ms = 420): number | null {
     const t0 = performance.now();
     let raf = 0;
     const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / ms);
+      const p = Math.min(1, Math.max(0, (now - t0) / ms));
       set(from + (value - from) * (1 - (1 - p) ** 3));
       if (p < 1) raf = requestAnimationFrame(step);
     };
@@ -403,7 +403,7 @@ export function Preview2D({
     const dAz = ((to.azimuth - from.azimuth) % 360 + 540) % 360 - 180;
     const t0 = performance.now();
     const step = (now: number) => {
-      const p = Math.min(1, (now - t0) / VIEW_TWEEN_MS);
+      const p = Math.min(1, Math.max(0, (now - t0) / VIEW_TWEEN_MS));
       if (p >= 1) {
         setView(to);
         setPresetTarget(null);
