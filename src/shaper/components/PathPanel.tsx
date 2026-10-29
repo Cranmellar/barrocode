@@ -26,8 +26,7 @@ interface Props {
   onSeam: (sel: NodeRef) => void;
   onDiameter: (mm: number) => void;
   onReverse: () => void;
-  /** Absent for an imported shape, which has no family to go back to. */
-  onBackToFamily?: () => void;
+  onBackToFamily: () => void;
 }
 
 function Sec({ title, children }: { title: string; children: ReactNode }) {
@@ -84,6 +83,10 @@ export function PathPanel(props: Props) {
           onChange={props.onSymmetric} />
         <Check label="Imán a la rejilla (1 mm)" checked={props.snap} onChange={props.onSnap}
           hint="Los nodos que arrastras caen en milímetros enteros" />
+        <div className="shaper-actions">
+          <button className="btn-small" onClick={props.onBackToFamily}
+            title="Deja los nodos y vuelve a la familia con sus parámetros (Ctrl+Z vuelve a los nodos)">Volver a la familia</button>
+        </div>
       </Sec>
 
       <Sec title={p ? `Nodo ${sel!.i + 1}${several ? ` · contorno ${sel!.c + 1}` : ''}${sel!.i === 0 ? ' · costura' : ''}` : 'Nodo'}>
@@ -152,12 +155,6 @@ export function PathPanel(props: Props) {
         </div>
       </Sec>
 
-      {props.onBackToFamily && (
-        <div className="shaper-actions shaper-actions--foot">
-          <button className="btn-small" onClick={props.onBackToFamily}
-            title="Deja los nodos y vuelve a la familia con sus parámetros (se puede deshacer)">Volver a la familia</button>
-        </div>
-      )}
     </>
   );
 }

@@ -36,13 +36,13 @@ Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVG
 El selector **Forma · Impresión**, arriba del panel izquierdo, cambia de espacio de trabajo. *Forma* dibuja la línea central de la pieza ya en milímetros, sin pasar por otro programa:
 
 - **Familias**: *Lóbulos* (número, profundidad, agudeza), *Polígono* (lados, estrella, radio de esquina en mm) y *Superfórmula* (m, n1, n2, n3). Debajo, **Diámetro exterior** (dos veces la distancia del centro al punto más lejano), **Giro**, **Costura** (el ángulo donde empieza y termina cada capa) y **Sentido horario**.
-- **Descubrir** (barra superior): nueve variaciones de la familia. Clic adopta una; **Más como esta** sortea cerca de la forma actual; **Otra tanda**, en todo el rango.
+- **Descubrir** (barra superior): nueve variaciones de la familia. Clic adopta una; **Más como esta** sortea cerca de la forma actual; **Otra tanda**, en todo el rango. Con nodos (editados o importados), deja los nodos y vuelve a la familia; `Ctrl+Z` los recupera.
 - **Imprimibilidad**: marca en rojo los tramos más cerrados de lo que la onda de *Impresión* puede seguir y propone cómo arreglarlo. **Onda** (barra superior) dibuja la franja que barre la onda: donde dos franjas se tocan, las paredes chocarán.
-- **Editar puntos**: convierte la forma en nodos. Arrastra un nodo o las asas del elegido; doble clic en la línea añade un nodo; `Supr` lo borra. Con **Simetría**, cada cambio se repite en todas las repeticiones. El panel muestra el nodo elegido y la lista de comandos del trazado.
+- **Editar puntos**: convierte la forma en nodos. Arrastra un nodo o las asas del elegido; doble clic en la línea añade un nodo; `Supr` lo borra. Con **Simetría**, cada cambio se repite en todas las repeticiones. El panel muestra el nodo elegido y la lista de comandos del trazado. **Volver a la familia**, arriba del panel, deja los nodos.
 - **Importar**: **Abrir en Forma** (junto al nombre del archivo, en *Impresión*) o **Abrir SVG…** traen los contornos cerrados de un SVG como nodos, al tamaño que se imprimen. Los trazados abiertos quedan fuera.
 - **Enviar a impresión** carga la forma en *Impresión* con el factor de escala en 1; **Editar forma** vuelve a ella.
 
-En *Forma*, `Ctrl+Z` deshace y `Ctrl+Shift+Z` rehace (en *Impresión* no hay deshacer). La forma se guarda en el navegador y vuelve al abrir la app.
+**Restablecer**, junto al selector *Forma · Impresión*, vuelve a la forma inicial (lóbulos, sin nodos). En *Forma*, `Ctrl+Z` deshace y `Ctrl+Shift+Z` rehace (en *Impresión* no hay deshacer). La forma se guarda en el navegador y vuelve al abrir la app.
 
 ## 2. Revisar Trayectos
 

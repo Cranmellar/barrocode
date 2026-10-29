@@ -211,10 +211,11 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
       </p>
       <Defs items={[
         ['Familias', <>Lóbulos, polígono o estrella, y superfórmula, con diámetro exterior, giro, costura (dónde empieza cada capa) y sentido.</>],
-        ['Editar puntos', <>Arriba del panel. Convierte la forma en nodos: arrastra nodos y asas; doble clic en la línea añade uno. Con simetría, cada cambio se repite en todas las repeticiones.</>],
-        ['Descubrir', <>Nueve variaciones de la familia. Clic para adoptar una; <em>Más como esta</em> afina alrededor de ella.</>],
+        ['Editar puntos', <>Arriba del panel. Convierte la forma en nodos: arrastra nodos y asas; doble clic en la línea añade uno. Con simetría, cada cambio se repite en todas las repeticiones. <em>Volver a la familia</em> deja los nodos.</>],
+        ['Descubrir', <>Nueve variaciones de la familia. Clic para adoptar una; <em>Más como esta</em> afina alrededor de ella. Con nodos, vuelve antes a la familia.</>],
         ['Imprimibilidad', <>Marca en rojo los tramos más cerrados de lo que la onda actual puede seguir. <em>Onda</em> dibuja la franja que barre.</>],
         ['Importar', <><em>Abrir SVG…</em> (aquí) o <em>Abrir en Forma</em> (en Impresión) traen los contornos cerrados de un SVG como nodos.</>],
+        ['Restablecer', <>Junto al selector de arriba: vuelve a la forma inicial, sin nodos. <em>Ctrl+Z</em> lo deshace.</>],
         ['Enviar a impresión', <>Carga la forma en Impresión a su tamaño real. <em>Editar forma</em> vuelve a ella.</>],
       ]} />
     </>,
