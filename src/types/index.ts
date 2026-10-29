@@ -134,7 +134,9 @@ export interface PrintParams {
   scaleFactor: number;           // multiply SVG units → mm
   originX: number;               // mm — bed position of the part's centre
   originY: number;               // mm
-  gcodeOrigin: 'centre' | 'corner'; // G-code only: what lands at (originX, originY) — part centre or bottom-left corner of its box
+  gcodeOrigin: 'centre' | 'corner'; // G-code only: part centre at (originX, originY), or bottom-left corner of its box at (marginX, marginY)
+  marginX: number;               // mm — 'corner' only: bed origin to the part's left edge
+  marginY: number;               // mm — 'corner' only: bed origin to the part's bottom edge
   flipY: boolean;                // negate Y (SVG Y-down → printer Y-up)
 
   // ── Scale around center (applied after svgToMM) ──

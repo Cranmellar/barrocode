@@ -23,6 +23,7 @@
 ; Generate E             : true
 ; Extrusion multiplier   : 0.05
 ; ============================================================
+;LAYER_COUNT:2
 
 G21       ; mm units
 G90       ; absolute positioning
@@ -33,6 +34,10 @@ G1 Z20.000 F1500  ; safe Z
 
 
 ; ===== Layer 1 / 2   Z = 1.000 mm =====
+;LAYER_CHANGE
+;Z:1.000
+;HEIGHT:2.5
+;LAYER:0
 ; Z-hop: 1 crossing(s) detected
 ; --- Layer 1, Path 1 ---
 G1 X122.703 Y-123.675 F1500  ; travel to start
@@ -143,6 +148,10 @@ G1 X120.714 Y-115.962 Z1.268 E27.795 F600
 G1 X122.703 Y-123.675 Z3.500 E28.193 F600
 
 ; ===== Layer 2 / 2   Z = 3.500 mm =====
+;LAYER_CHANGE
+;Z:3.500
+;HEIGHT:2.5
+;LAYER:1
 ; Z-hop: 1 crossing(s) detected
 ; --- Layer 2, Path 1 ---
 G1 X127.507 Y-128.101 Z4.279 E28.520 F600

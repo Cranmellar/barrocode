@@ -125,10 +125,9 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
     try { localStorage.setItem(TAB_KEY, id); } catch { /* storage unavailable */ }
   }
 
-  const originHint = 'Qué punto de la pieza va a Posición X / Y en el G-code: el centro (camas con origen en el centro, como las delta) o la esquina inferior izquierda (camas con origen en una esquina). La vista 3D no cambia: siempre muestra la pieza centrada';
-  const posHint = params.gcodeOrigin === 'corner'
-    ? 'Dónde queda la esquina inferior izquierda de la pieza en la cama (solo en el G-code); 0, 0 es el origen de la impresora'
-    : 'Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora';
+  const originHint = 'Cómo se ubica la pieza en el G-code: su centro en Posición X / Y (camas con origen en el centro, como las delta) o su esquina inferior izquierda a un margen del origen (camas con origen en una esquina). La vista 3D no cambia: siempre muestra la pieza centrada';
+  const posHint = 'Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora';
+  const marginHint = 'Distancia desde el origen de la cama (0, 0, la esquina) hasta el borde de la pieza; mueve la pieza dentro de la cama, solo en el G-code';
   const effLayers = layerCount(params);
   const height = +(effLayers * params.layerHeight).toFixed(1);
 
@@ -216,12 +215,20 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
               Esquina inf. izq.
             </label>
           </div>
-          <Num label="Posición X" icon="mover" value={params.originX} step={1} unit="mm"
-            hint={posHint} onChange={v => set('originX', v)} />
-          <Num label="Posición Y" icon="mover" value={params.originY} step={1} unit="mm"
-            hint={posHint} onChange={v => set('originY', v)} />
-          {params.gcodeOrigin === 'corner' &&
-            <div className="param-info">→ solo en el G-code: la esquina inferior izquierda va a X {fmt(params.originX)}, Y {fmt(params.originY)}; la vista sigue centrada</div>}
+          {params.gcodeOrigin === 'corner'
+            ? <>
+                <Num label="Margen X" icon="mover" value={params.marginX} min={0} step={1} unit="mm"
+                  hint={marginHint} onChange={v => set('marginX', Math.max(0, v))} />
+                <Num label="Margen Y" icon="mover" value={params.marginY} min={0} step={1} unit="mm"
+                  hint={marginHint} onChange={v => set('marginY', Math.max(0, v))} />
+                <div className="param-info">→ solo en el G-code: la esquina inferior izquierda va a X {fmt(params.marginX)}, Y {fmt(params.marginY)}; la vista sigue centrada</div>
+              </>
+            : <>
+                <Num label="Posición X" icon="mover" value={params.originX} step={1} unit="mm"
+                  hint={posHint} onChange={v => set('originX', v)} />
+                <Num label="Posición Y" icon="mover" value={params.originY} step={1} unit="mm"
+                  hint={posHint} onChange={v => set('originY', v)} />
+              </>}
           <Check label="Invertir eje Y" icon="reflejar" checked={params.flipY}
             hint="El eje Y del SVG crece hacia abajo; actívalo si la impresora usa Y hacia arriba"
             onChange={v => set('flipY', v)} />
