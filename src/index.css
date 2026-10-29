@@ -1272,8 +1272,10 @@ input[type="range"]::-moz-range-thumb {
   transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
 }
 .path-tag:hover { background: var(--surface-2); color: var(--ink); }
+/* Collapsed: a dashed edge, not a fade; the tag is still a button. */
 .path-tag.path-tag-collapsed {
-  opacity: 0.35;
+  color: var(--muted);
+  border-style: dashed;
 }
 .path-len { font-size: var(--fs-md); color: var(--muted); flex-shrink: 0; }
 .path-overrides { padding-left: 22px; }
