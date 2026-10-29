@@ -41,10 +41,11 @@
   --signal:        #FF5A1F;
   --signal-hi:     #FF7A47;
   --signal-bg:     rgba(255,90,31,0.10);
-  /* The layer ramp's hues (rampColor in palette.ts at t = 0, ¼, ½, ¾, 1) at lower chroma,
-     for the export and add-keyframe buttons */
+  /* The layer ramp's hues (rampColor in palette.ts at t = 0, ¼, ½, ¾, 1) at lower chroma
+     and lightness, for the export and add-keyframe buttons: every stop keeps white text
+     at 4.5:1 or more */
   --signal-ramp-start: #4C5FBE;
-  --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #8558B9, #B0549F, #CD5977, #DA6947);
+  --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #7A4FAE, #9E4790, #B54766, #BD5232);
   --focus:         var(--signal);
   /* Forma's send button: the accent grey with a faint tint of the ramp's ends */
   --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 28%, var(--signal-ramp-start)), color-mix(in oklab, var(--accent) 70%, #B0549F) 50%, color-mix(in oklab, var(--accent) 28%, #DA6947));
@@ -1054,7 +1055,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .kf-add-btn:not(.kf-add-btn--on):hover:not(:disabled) {
   background: var(--signal-ramp) border-box;
   border-color: transparent;
-  filter: brightness(1.05);
+  filter: brightness(1.03);
   box-shadow: var(--shadow-raised-hi), inset 0 1px 0 rgba(255,255,255,0.16);
 }
 .btn-signal:active:not(:disabled),
