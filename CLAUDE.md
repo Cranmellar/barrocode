@@ -487,6 +487,7 @@ When you need context, this is where to look:
 - [docs/architecture.md](docs/architecture.md) — pipeline detail (more technical than this file's diagram).
 - [docs/fabrication-notes.md](docs/fabrication-notes.md) — clay-printer criteria informing the design.
 - [docs/research-notes.md](docs/research-notes.md) — **open research notes**, unpriorized ideas. Read before suggesting any new feature.
+- [docs/marco-teorico.md](docs/marco-teorico.md) — theoretical framework (Spanish): ornament theory, frieze symmetry, growth and form, ornament machines, material and line, programmed accident; references and the explorations they suggest.
 - [pendientes.md](pendientes.md) — **actionable backlog**, prioritized in waves. Read before starting any new ticket; cross-check its checkmarks with "Current state" above.
 - [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 - [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md) — graphical overhaul: diagnosis of the current UI, layout proposal, open decisions (D-1…D-6) and phased plan. Check it before any UI/CSS work.
