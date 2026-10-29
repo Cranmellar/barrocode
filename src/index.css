@@ -799,6 +799,23 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 .section + .section > .section-title { padding-top: 20px; }
 .section-title > .ico { color: var(--ink-2); }
+/* Wave axis in the colour the Lissajous figure draws it in (white on it: 6.4:1, 4.6:1, 11.6:1) */
+.axis-chip {
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--on-ink);
+  font-style: normal;
+  font-size: var(--fs-xs);
+  font-weight: 700; font-variation-settings: 'wght' 700;
+  line-height: 1;
+}
+.axis-chip--n { background: var(--n-axis); }
+.axis-chip--t { background: var(--t-axis); }
+.axis-chip--z { background: var(--ink); }
 .section-title::after {
   content: '';
   flex: 1;

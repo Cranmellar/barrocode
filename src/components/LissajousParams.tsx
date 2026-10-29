@@ -86,15 +86,17 @@ function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange
   );
 }
 
-function Sec({ title, icon, children, accentColor }: {
-  title: string; icon?: IconName; children: React.ReactNode; accentColor?: string;
+function Sec({ title, icon, axis, children, accentColor }: {
+  title: string; icon?: IconName; axis?: 'N' | 'T' | 'Z'; children: React.ReactNode; accentColor?: string;
 }) {
   return (
     <div className="section" style={accentColor
       ? { borderLeft: `3px solid ${accentColor}`, paddingLeft: 2 }
       : {}}>
       <div className="section-title">
-        {icon && <Icon name={icon} />}{title}
+        {icon && <Icon name={icon} />}
+        {axis && <span className={`axis-chip axis-chip--${axis.toLowerCase()}`}>{axis}</span>}
+        {title}
       </div>
       {children}
     </div>
@@ -224,7 +226,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Eje N ── */}
-      <Sec title="N · Normal (lateral)">
+      <Sec axis="N" title="Normal (lateral)">
         <Slider morph={morph} def={defaults.lissAmpN} label="Amplitud N" value={params.lissAmpN}
           min={0} max={30} step={0.1} unit="mm"
           hint="Desplazamiento máximo a izquierda/derecha de la línea central"
@@ -236,7 +238,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Eje T ── */}
-      <Sec title="T · Tangente (avance)">
+      <Sec axis="T" title="Tangente (avance)">
         <Slider morph={morph} def={defaults.lissAmpT} label="Amplitud T" value={params.lissAmpT}
           min={0} max={30} step={0.1} unit="mm"
           hint="Desplazamiento máximo en la dirección de avance del trayecto"
@@ -248,7 +250,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Eje Z ── */}
-      <Sec title="Z · Vertical">
+      <Sec axis="Z" title="Vertical">
         {params.lissAmpZ > params.layerHeight && (
           <div className="warn-note">
             Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) mayor que la altura de capa ({params.layerHeight} mm):
