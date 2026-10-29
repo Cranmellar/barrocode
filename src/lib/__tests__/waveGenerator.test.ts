@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { PrintParams, SampledPath, WaveKeyframe } from '../../types';
-import { cornerRadius, createKeyframeSampler, generateWaveLayers, getParamsAtT, roundCorners, segmentAlpha } from '../waveGenerator';
+import { cornerRadius, createKeyframeSampler, generateWaveLayers, getParamsAtT, roundCorners, segmentAlpha, shortestWavelength, suggestedSpacingMM } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
 import { CENTRE, PARAMS, curve, polyline, sampledPath } from './fixtures';
 
@@ -275,5 +275,31 @@ describe('keyframed phase', () => {
       expect(y).toBeCloseTo(100 + 3 * Math.sin(phase), 9);
       phase += shift * (li * n) / tDenom;
     });
+  });
+});
+
+describe('sampling resolution', () => {
+  const kf = (over: Partial<WaveKeyframe>): WaveKeyframe =>
+    ({ id: 'k', t: 0, ampN: 0, ampT: 0, wlN: 20, wlT: 20, delta: 0, ...over });
+
+  it('takes the shortest wavelength among the axes that move', () => {
+    expect(shortestWavelength({ ...PARAMS, lissAmpN: 3, lissWlN: 20, lissAmpT: 2, lissWlT: 12 }, [])).toBe(12);
+    expect(shortestWavelength({ ...PARAMS, lissAmpN: 3, lissWlN: 20, lissAmpT: 0, lissWlT: 5 }, [])).toBe(20);
+    expect(shortestWavelength({ ...PARAMS, lissAmpZ: 1, lissWlZ: 8 }, [])).toBe(8);
+    expect(shortestWavelength(PARAMS, [])).toBeNull();
+  });
+
+  it('reads keyframes, falling back to the global Z wave', () => {
+    const p = { ...PARAMS, lissAmpN: 3, lissWlN: 4, lissAmpZ: 1, lissWlZ: 30 };
+    expect(shortestWavelength(p, [kf({ ampN: 2, wlN: 25 }), kf({ ampT: 1, wlT: 15 })])).toBe(15);
+    expect(shortestWavelength(p, [kf({ ampN: 2, wlN: 40 })])).toBe(30);
+  });
+
+  it('suggests ten samples per cycle, within 0.25–2.5 mm', () => {
+    expect(suggestedSpacingMM(20)).toBe(2);
+    expect(suggestedSpacingMM(12)).toBe(1.2);
+    expect(suggestedSpacingMM(1)).toBe(0.25);
+    expect(suggestedSpacingMM(100)).toBe(2.5);
+    expect(suggestedSpacingMM(null)).toBe(1);
   });
 });

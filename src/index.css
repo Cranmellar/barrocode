@@ -871,6 +871,26 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 .param-info .btn-small { font-style: normal; }
 
+/* Resolución: what the sample spacing means for the current wave */
+.resolution {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-1);
+  margin: 2px var(--sp-4) var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border-strong);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.resolution p { margin: 0; white-space: normal; }
+.resolution-facts { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); color: var(--ink); }
+.resolution-facts span + span::before { content: '· '; color: var(--muted); }
+.resolution--coarse { border-left-color: var(--err); }
+.resolution--coarse p { color: var(--err); }
+.resolution--ok { border-left-color: var(--ok); }
+
 /* ── Panel header ────────────────────────────────────────────────────────── */
 .ico { flex-shrink: 0; }
 .panel-title { display: inline-flex; align-items: center; gap: var(--sp-2); }
