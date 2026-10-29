@@ -43,6 +43,9 @@
   --signal-ramp-start: #4C5FBE;
   --signal-ramp:   linear-gradient(90deg, var(--signal-ramp-start), #8558B9, #B0549F, #CD5977, #DA6947);
   --focus:         var(--signal);
+  /* Forma's send button: the accent grey with a faint tint of the ramp's ends */
+  --print-hint:    linear-gradient(90deg, color-mix(in oklab, var(--accent) 80%, var(--signal-ramp-start)), var(--accent) 50%, color-mix(in oklab, var(--accent) 80%, #DA6947));
+  --print-hint-hi: linear-gradient(90deg, color-mix(in oklab, var(--accent-hi) 72%, var(--signal-ramp-start)), var(--accent-hi) 50%, color-mix(in oklab, var(--accent-hi) 72%, #DA6947));
 
   /* Wave axes: the cool end of the layer ramp */
   --n-axis:        #404DD8;
@@ -163,12 +166,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .panel-rail {
   bottom: auto;
   align-items: center;
-  gap: var(--sp-1);
   padding: var(--sp-1) 0;
 }
 .panel-rail--left  { left: var(--sp-3); }
 .panel-rail--right { right: var(--sp-3); }
-.btn-icon.rail-open { flex-direction: column; gap: 2px; height: auto; padding: 6px 0; }
+.btn-icon.rail-open { flex-direction: column; gap: 6px; height: auto; padding: 6px 0; }
+/* Pulled up so the panel icon, the chevron and "?" sit 20 px apart. */
+.rail-open + .btn-icon { margin-top: -6px; }
 
 .panel-header-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
@@ -205,7 +209,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   border-radius: var(--radius-sm);
   background: var(--field);
   box-shadow: var(--shadow-sm);
-  transition: transform var(--dur) var(--ease);
+  transition: transform var(--dur) var(--ease), width var(--dur) var(--ease);
 }
 .panel-tab {
   position: relative;
@@ -376,6 +380,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   display: block;
   min-width: 18ch;
   margin-top: 2px;
+  text-align: left;
   font-size: var(--fs-xs);
   color: var(--muted);
 }
@@ -450,6 +455,40 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   user-select: text;
 }
 .help-dialog::backdrop { background: var(--scrim); }
+
+.crash {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-5);
+  box-sizing: border-box;
+  background: var(--bg);
+}
+.crash-card {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+.crash-card h1 { margin: 0; font-size: var(--fs-lg); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
+.crash-card p { margin: 0; color: var(--ink-2); }
+.crash-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+.crash-actions { display: flex; gap: var(--sp-2); }
+.crash-report {
+  height: 120px;
+  resize: vertical;
+  font: inherit;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+}
 
 .help-inner {
   display: flex;
@@ -652,6 +691,24 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   height: 1px;
   background: var(--border);
 }
+/* After the rule (order 1), at the title's right edge. */
+.section-reset {
+  order: 1;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  margin: -4px -4px -4px 0;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), opacity var(--dur-fast);
+}
+.section-reset:hover:not(:disabled) { color: var(--ink); background: var(--surface-2); }
+.section-reset:disabled { opacity: 0.35; cursor: default; }
 
 /* ── Param rows ──────────────────────────────────────────────────────────── */
 .param-row {
@@ -851,6 +908,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   color: var(--on-ink);
 }
 .btn-primary:hover { background: var(--accent-hi); border-color: var(--accent-hi); }
+.btn-primary.btn-send { background: var(--print-hint) border-box; border-color: transparent; }
+.btn-primary.btn-send:hover { background: var(--print-hint-hi) border-box; }
 .btn-signal,
 .kf-add-btn:not(.kf-add-btn--on) {
   background: var(--signal-ramp) border-box;
@@ -933,6 +992,7 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
 /* Track wrapper: a notch marks the default value (dragging snaps to it)
    and a bubble shows the value above the thumb while dragging. */
 .slider-track { position: relative; }
+.slider-track input[type="range"] { display: block; }
 .slider-notch {
   position: absolute;
   top: -3px;
@@ -964,8 +1024,10 @@ input[type="radio"]:focus-visible { outline: 2px solid var(--focus); outline-off
 @keyframes bubble-in { from { opacity: 0; transform: translateX(-50%) translateY(3px) scale(0.92); } }
 
 /* Range slider — Swiss ruler feel */
+/* Chromium's default 2px margin pushes the thumb off the notch and the fill. */
 input[type="range"] {
   width: 100%;
+  margin: 0;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
@@ -1128,9 +1190,11 @@ input[type="range"]::-moz-range-thumb {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--ink-2);
-  font: inherit;
-  font-size: var(--fs-xs);
-  padding: 2px 5px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
   cursor: pointer;
   transition: background var(--dur-fast), color var(--dur-fast), border-color var(--dur-fast);
 }

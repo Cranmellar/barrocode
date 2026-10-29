@@ -112,7 +112,7 @@ export function layerStartTs(toolpath: ToolpathLayer[]): number[] {
 // "capa 23 · 34.5 mm": the 1-based layer and the part's height at its top,
 // which for the last layer matches the height under Cotas.
 export function layerLabel(layerIndex: number, layerHeight: number): string {
-  return `capa ${layerIndex + 1} · ${parseFloat(((layerIndex + 1) * layerHeight).toFixed(1))} mm`;
+  return `capa ${layerIndex + 1} · ${((layerIndex + 1) * layerHeight).toFixed(1)} mm`;
 }
 
 export interface Scene {

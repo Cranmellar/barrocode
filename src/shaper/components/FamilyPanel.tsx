@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { NumInput } from '../../components/NumInput';
 import { superformulaN3 } from '../lib/families';
 import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
@@ -28,8 +28,8 @@ function Slider({ label, value, min, max, step, unit, hint, def, disabled, onCha
   }, [dragging]);
   const at = (f: number) => `calc(7px + (100% - 14px) * ${Math.max(0, Math.min(1, f))})`;
   const decimals = String(step).split('.')[1]?.length ?? 0;
-  const fillPct = ((value - min) / (max - min)) * 100;
-  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fillPct}%,var(--border) ${fillPct}%,var(--border) 100%)`;
+  const fill    = at((value - min) / (max - min));
+  const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--border) ${fill},var(--border) 100%)`;
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
   return (
     <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={hint}>
@@ -93,13 +93,25 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
     );
   };
   const famIdx = FAMILIES.indexOf(doc.family);
+  // "Superfórmula" doesn't fit a third of the row, so the tabs size to their
+  // labels and the highlight follows the active tab's measured box.
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [ind, setInd] = useState<{ x: number; w: number } | null>(null);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const tab = tabsRef.current?.querySelectorAll<HTMLElement>('.panel-tab')[famIdx];
+      if (tab) setInd({ x: tab.offsetLeft, w: tab.offsetWidth });
+    };
+    measure();
+    document.fonts?.ready.then(measure);
+  }, [famIdx]);
   const oddM = doc.sfM % 2 === 1;
 
   return (
     <>
-      <div className="panel-tabs" role="tablist" aria-label="Familia de formas">
+      <div ref={tabsRef} className="panel-tabs" role="tablist" aria-label="Familia de formas">
         <span className="panel-tabs-ind" aria-hidden="true"
-          style={{ transform: `translateX(calc(${famIdx} * (100% + 2px)))` }} />
+          style={ind ? { left: 0, width: ind.w, transform: `translateX(${ind.x}px)` } : { visibility: 'hidden' }} />
         {FAMILIES.map(f => (
           <button key={f} role="tab" aria-selected={doc.family === f}
             className={`panel-tab${doc.family === f ? ' panel-tab--on' : ''}`}

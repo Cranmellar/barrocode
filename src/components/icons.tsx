@@ -21,6 +21,16 @@ const PATHS = {
   </>),
   escalaX: <path d="M2 8h12M4.5 5.5 2 8l2.5 2.5M11.5 5.5 14 8l-2.5 2.5" />,
   escalaY: <path d="M8 2v12M5.5 4.5 8 2l2.5 2.5M5.5 11.5 8 14l2.5-2.5" />,
+  // One layer lifted off the faded ones below it.
+  aislar: (<>
+    <path d="M8 2 14 5 8 8 2 5z" />
+    <path d="M2 8.5 8 11.5 14 8.5" opacity="0.4" />
+    <path d="M2 11.5 8 14.5 14 11.5" opacity="0.4" />
+  </>),
+  reset: (<>
+    <path d="M2 8a6 6 0 1 0 6-6 6.5 6.5 0 0 0-4.5 1.8L2 5.3" />
+    <path d="M2 2v3.3h3.3" />
+  </>),
   centro: (<>
     <circle cx="8" cy="8" r="3.5" />
     <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" />

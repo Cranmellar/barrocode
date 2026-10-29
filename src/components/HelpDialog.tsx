@@ -212,7 +212,7 @@ export function HelpDialog({ open, onClose }: Props) {
                 <tr><th scope="row">Clic derecho + arrastrar</th><td>rotar la vista 3D</td></tr>
                 <tr><th scope="row">Rueda sobre la vista</th><td>zoom</td></tr>
                 <tr><th scope="row">Iso · Planta · Frente</th><td>vistas predefinidas</td></tr>
-                <tr><th scope="row">Slider de capas</th><td>ver hasta una capa · <em>Sola</em>: solo esa capa</td></tr>
+                <tr><th scope="row">Slider de capas</th><td>ver hasta una capa · <em>Aislar capa</em> (icono bajo el slider): solo esa capa</td></tr>
                 <tr><th scope="row">Rueda sobre un número</th><td>sube o baja el valor (con <kbd>Shift</kbd>, en pasos finos)</td></tr>
                 <tr><th scope="row">Arrastrar la etiqueta de un número</th><td>desliza el valor a izquierda o derecha</td></tr>
                 <tr><th scope="row"><kbd>‹</kbd> <kbd>›</kbd> en un panel</th><td>ocultar o mostrar el panel</td></tr>

@@ -23,6 +23,7 @@ import {
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
+import { Icon } from './icons';
 import { downloadGcode } from '../lib/gcodeGenerator';
 
 interface Props {
@@ -801,9 +802,10 @@ export function Preview2D({
             className={`layer-solo${layerSolo ? ' layer-solo--on' : ''}`}
             aria-pressed={layerSolo}
             onClick={() => setLayerSolo(!layerSolo)}
-            title="Mostrar solo esta capa (las inferiores quedan en gris)"
+            title="Aislar la capa superior visible (las inferiores quedan en gris)"
+            aria-label="Aislar capa"
           >
-            Sola
+            <Icon name="aislar" />
           </button>
         </div>
       )}
