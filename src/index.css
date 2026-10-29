@@ -163,12 +163,13 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .panel-rail {
   bottom: auto;
   align-items: center;
-  gap: var(--sp-1);
   padding: var(--sp-1) 0;
 }
 .panel-rail--left  { left: var(--sp-3); }
 .panel-rail--right { right: var(--sp-3); }
-.btn-icon.rail-open { flex-direction: column; gap: 2px; height: auto; padding: 6px 0; }
+.btn-icon.rail-open { flex-direction: column; gap: 6px; height: auto; padding: 6px 0; }
+/* Pulled up so the panel icon, the chevron and "?" sit 20 px apart. */
+.rail-open + .btn-icon { margin-top: -6px; }
 
 .panel-header-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
