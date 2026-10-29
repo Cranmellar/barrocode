@@ -37,10 +37,10 @@ function Check({ label, checked, hint, onChange }: {
   );
 }
 
-function Sec({ title, children }: { title: string; children: React.ReactNode }) {
+function Sec({ title, icon, children }: { title: string; icon?: IconName; children: React.ReactNode }) {
   return (
     <div className="section">
-      <div className="section-title">{title}</div>
+      <div className="section-title">{icon && <Icon name={icon} />}{title}</div>
       {children}
     </div>
   );
@@ -62,7 +62,7 @@ function Resolution({ params, shortestWl, onSpacing }: {
     ? (mm > 2.5 ? 'coarse' : 'ok')
     : perCycle < 0.8 * SAMPLES_PER_CYCLE ? 'coarse' : perCycle > 4 * SAMPLES_PER_CYCLE ? 'fine' : 'ok';
   return (
-    <Sec title="Resolución">
+    <Sec title="Resolución" icon="resolucion">
       <Num label="Espaciado de muestra" value={params.sampleSpacing}
         min={0.1} step={0.1} unit={sf === 1 ? 'mm' : 'u. SVG'}
         hint={`Distancia entre los puntos que se toman del trazo. Más fino: curvas más suaves, pero más líneas de G-code y cada cambio tarda más en recalcularse. Lo justo son unos ${SAMPLES_PER_CYCLE} puntos por ciclo de la onda más corta. Mínimo 0,1.`}
@@ -151,7 +151,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
       </div>
       <div key={tab} className={`tab-pane tab-pane--${dirRef.current}`} role="tabpanel">
       {tab === 'pieza' && (<>
-        <Sec title="Capas">
+        <Sec title="Capas" icon="capas">
           <Num label="Altura de capa" value={params.layerHeight}
             min={0.1} step={0.1} unit="mm"
             onChange={v => set('layerHeight', v)} />
@@ -183,7 +183,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
 
         <Resolution params={params} shortestWl={shortestWl} onSpacing={v => set('sampleSpacing', v)} />
 
-        <Sec title="Escala y posición">
+        <Sec title="Escala y posición" icon="escala">
           <Num label="Factor de escala" value={params.scaleFactor}
             min={0.001} step={0.1} unit="SVG→mm"
             hint="Multiplica todas las coordenadas SVG para obtener milímetros."
@@ -209,7 +209,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
       </>)}
 
       {tab === 'trayecto' && (<>
-        <Sec title="Dirección">
+        <Sec title="Dirección" icon="direccion">
           <Check label="Invertir dirección" checked={params.reversePath}
             onChange={v => set('reversePath', v)} />
           <Check label="Alternar por capa" checked={params.alternateDirection}
@@ -220,7 +220,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             onChange={v => set('closePath', v)} />
         </Sec>
 
-        <Sec title="Unión de capas">
+        <Sec title="Unión de capas" icon="union">
           <Check label="Transición Z suave" checked={params.softJoin}
             hint="Extruye de forma continua entre capas sin retracción ni elevación"
             onChange={v => set('softJoin', v)} />
@@ -231,7 +231,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
               onChange={v => set('transitionLength', v)} />}
         </Sec>
 
-        <Sec title="Z-hop en cruces">
+        <Sec title="Z-hop en cruces" icon="zhop">
           <Num label="Altura de salto" value={params.zHopHeight}
             min={0} max={10} step={0.1} unit="mm"
             hint="La boquilla se eleva al pasar sobre un cruce del propio trayecto. 0 = desactivado"
@@ -242,7 +242,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             onChange={v => set('hopRadius', v)} />
         </Sec>
 
-        <Sec title="Desplazamientos">
+        <Sec title="Desplazamientos" icon="desplazamiento">
           <Num label="Umbral arco desvío" value={params.skirtThreshold}
             min={1} max={200} step={1} unit="mm"
             hint="Desplazamientos más largos que este valor siguen un arco concéntrico alrededor del centroide de la capa en lugar de ir en línea recta"
@@ -252,7 +252,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
       </>)}
 
       {tab === 'maquina' && (<>
-        <Sec title="Velocidades">
+        <Sec title="Velocidades" icon="velocidad">
           <Num label="Vel. impresión" value={params.printSpeed}
             min={1} step={50} unit="mm/min"
             onChange={v => set('printSpeed', v)} />
@@ -261,7 +261,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             onChange={v => set('travelSpeed', v)} />
         </Sec>
 
-        <Sec title="Extrusión">
+        <Sec title="Extrusión" icon="extrusion">
           <Check label="Generar valores E" checked={params.generateE}
             hint="Incluye la columna E en el G-code. Desactívalo para salida solo de movimiento."
             onChange={v => set('generateE', v)} />
@@ -272,7 +272,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
               onChange={v => set('extrusionMultiplier', v)} />}
         </Sec>
 
-        <Sec title="Calibración Z">
+        <Sec title="Calibración Z" icon="calibracion">
           <Num label="Desplazamiento Z" value={params.nozzleHeightOffset}
             step={0.1} unit="mm"
             hint="Se suma a la Z de cada capa — útil para calibración de primera capa"
@@ -283,7 +283,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             onChange={v => set('safeZ', v)} />
         </Sec>
 
-        <Sec title="Arcilla">
+        <Sec title="Arcilla" icon="arcilla">
           <Num label="Pausa al inicio" value={params.dwellAtStart}
             min={0} step={100} unit="ms"
             hint="G4 al inicio del primer trayecto — deja estabilizarse el flujo"

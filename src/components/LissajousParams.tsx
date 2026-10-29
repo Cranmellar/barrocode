@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
-import { Icon } from './icons';
+import { Icon, type IconName } from './icons';
 
 interface Props {
   params: PrintParams;
@@ -86,15 +86,15 @@ function Slider({ label, value, min, max, step, unit, hint, def, morph, onChange
   );
 }
 
-function Sec({ title, children, accentColor }: {
-  title: string; children: React.ReactNode; accentColor?: string;
+function Sec({ title, icon, children, accentColor }: {
+  title: string; icon?: IconName; children: React.ReactNode; accentColor?: string;
 }) {
   return (
     <div className="section" style={accentColor
       ? { borderLeft: `3px solid ${accentColor}`, paddingLeft: 2 }
       : {}}>
       <div className="section-title">
-        {title}
+        {icon && <Icon name={icon} />}{title}
       </div>
       {children}
     </div>
@@ -196,7 +196,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       )}
 
       {/* ── Preajustes ── */}
-      <Sec title="Preajustes">
+      <Sec title="Preajustes" icon="preajustes">
         <div className="preset-grid">
           {PRESETS.map(p => {
             const on = params.lissAmpN === p.ampN && params.lissAmpT === p.ampT
@@ -272,7 +272,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Acoplamiento N/T ── */}
-      <Sec title="Acoplamiento N / T">
+      <Sec title="Acoplamiento N / T" icon="acople">
         <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
           min={-180} max={180} step={1} unit="°"
           hint="Desfase entre N y T. 0°=línea  90°=elipse (si λN=λT)  180°=línea cruzada"
@@ -280,7 +280,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       </Sec>
 
       {/* ── Fase ── */}
-      <Sec title="Fase">
+      <Sec title="Fase" icon="fase">
         <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
           hint="Fase global al inicio del arco (s=0)"

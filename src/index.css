@@ -798,6 +798,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   padding: var(--sp-4) var(--sp-4) var(--sp-1);
 }
 .section + .section > .section-title { padding-top: 20px; }
+.section-title > .ico { color: var(--ink-2); }
 .section-title::after {
   content: '';
   flex: 1;

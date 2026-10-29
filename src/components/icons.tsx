@@ -34,6 +34,78 @@ const PATHS = {
   centro: (<>
     <circle cx="8" cy="8" r="3.5" />
     <path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3" />
+  </>),  rutas: (<>
+    <path d="M2 12c2-6 4-6 6-2s4 4 6-4" />
+    <circle cx="2" cy="12" r="1.3" fill="currentColor" />
+    <circle cx="14" cy="6" r="1.3" fill="currentColor" />
+  </>),
+  // Clay beads stacked, the top one still to print.
+  capas: (<>
+    <rect x="2.5" y="10.5" width="11" height="3" rx="1.5" />
+    <rect x="2.5" y="6.5" width="11" height="3" rx="1.5" />
+    <rect x="2.5" y="2.5" width="11" height="3" rx="1.5" opacity="0.45" />
+  </>),
+  resolucion: (<>
+    <path d="M2 12a6 6 0 0 1 12 0" opacity="0.45" />
+    <circle cx="2.4" cy="10" r="1.1" fill="currentColor" />
+    <circle cx="5" cy="6.8" r="1.1" fill="currentColor" />
+    <circle cx="8" cy="6" r="1.1" fill="currentColor" />
+    <circle cx="11" cy="6.8" r="1.1" fill="currentColor" />
+    <circle cx="13.6" cy="10" r="1.1" fill="currentColor" />
+  </>),
+  escala: (<>
+    <rect x="2" y="6" width="8" height="8" rx="1" />
+    <path d="M8.5 7.5 14 2M10 2h4v4" />
+  </>),
+  direccion: (<>
+    <rect x="2" y="4" width="12" height="9" rx="4.5" />
+    <path d="M7 2 9 4 7 6" />
+  </>),
+  // The seam ramp: the bead rises to the next layer while printing.
+  union: (<>
+    <path d="M1.5 12.5h6c2.5 0 2.5-5 5-5h2" />
+    <path d="M1.5 7.5h5" strokeDasharray="1.5 2" />
+  </>),
+  zhop: (<>
+    <path d="M1.5 11h3.5c.8-4.5 5.2-4.5 6 0h3.5" />
+    <path d="M8 10v4.5M8 2.5V5" opacity="0.45" />
+  </>),
+  desplazamiento: (<>
+    <path d="M3 12a5.5 5.5 0 0 1 10 0" strokeDasharray="1.6 2" />
+    <circle cx="3" cy="12" r="1.3" fill="currentColor" />
+    <circle cx="13" cy="12" r="1.3" fill="currentColor" />
+  </>),
+  velocidad: (<>
+    <path d="M2.5 12a5.5 5.5 0 1 1 11 0" />
+    <path d="M8 12l3-3.5" />
+    <circle cx="8" cy="12" r="0.8" fill="currentColor" />
+  </>),
+  extrusion: (<>
+    <path d="M4.5 1.5h7v3h-7z" />
+    <path d="M6 4.5h4L8.8 8H7.2z" />
+    <path d="M8 10c-1.1 1.5-1.7 2.4-1.7 3.1a1.7 1.7 0 0 0 3.4 0c0-.7-.6-1.6-1.7-3.1z" />
+  </>),
+  calibracion: (<>
+    <path d="M2.5 1.5h6l-1.5 4h-3z" />
+    <path d="M1.5 13.5h13" />
+    <path d="M12.5 4v7.5M11 5.5 12.5 4 14 5.5M11 10l1.5 1.5L14 10" />
+  </>),
+  arcilla: (<>
+    <path d="M5 2.5h6" />
+    <path d="M6 2.5c0 2-3 3-3 6.5 0 3 2.2 5 5 5s5-2 5-5c0-3.5-3-4.5-3-6.5" />
+  </>),
+  preajustes: (<>
+    <rect x="2" y="2" width="5" height="5" rx="1" />
+    <rect x="9" y="2" width="5" height="5" rx="1" />
+    <rect x="2" y="9" width="5" height="5" rx="1" />
+    <rect x="9" y="9" width="5" height="5" rx="1" />
+  </>),
+  acople: <path d="M8 8c-2-3.5-6.5-3.5-6.5 0S6 11.5 8 8s6.5-3.5 6.5 0S10 11.5 8 8z" />,
+  // The same wave, shifted along the path.
+  fase: (<>
+    <path d="M1 7c1.5-4 3-4 4.5 0s3 4 4.5 0 3-4 4.5 0" opacity="0.4" />
+    <path d="M3.3 7c1.5-4 3-4 4.5 0s3 4 4.5 0" />
+    <path d="M5 13.5h5M8.5 12l1.5 1.5L8.5 15" />
   </>),
 };
 

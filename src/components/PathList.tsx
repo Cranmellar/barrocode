@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { SampledPath, PrintParams } from '../types';
 import { NumInput } from './NumInput';
+import { Icon } from './icons';
 
 interface Props {
   paths: SampledPath[];
@@ -29,7 +30,7 @@ export function PathList({ paths, params, hasKeyframes, onToggle, onOverride }: 
 
   return (
     <div className="path-list section">
-      <div className="section-title">Rutas SVG ({paths.length})</div>
+      <div className="section-title"><Icon name="rutas" />Rutas SVG ({paths.length})</div>
       {paths.map(path => {
         const isCollapsed = collapsed.has(path.id);
         return (

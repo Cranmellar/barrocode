@@ -119,7 +119,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
       {/* ── Centro de pivote ── */}
       <div className="section">
         <div className="section-title" title="Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.">
-          Centro de pivote
+          <Icon name="centro" />Centro de pivote
           <ResetBtn label="Centrar en la pieza" atDefault={params.centerX === 0 && params.centerY === 0}
             onClick={() => onChange({ ...params, centerX: 0, centerY: 0 })} />
         </div>
@@ -147,7 +147,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
       {/* ── Escala ── */}
       <div className="section">
         <div className="section-title">
-          Escala
+          <Icon name="escalaX" />Escala
           <ResetBtn label="Restablecer escala (1×)" atDefault={params.scaleX === 1 && params.scaleY === 1}
             onClick={() => onChange({ ...params, scaleX: 1, scaleY: 1 })} />
         </div>
@@ -172,7 +172,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
       {/* ── Giro ── */}
       <div className="section">
         <div className="section-title">
-          Giro
+          <Icon name="giro" />Giro
           <ResetBtn label="Restablecer giro (0°)" atDefault={params.rotation === 0}
             onClick={() => setVal('rotation', 0)} />
         </div>
