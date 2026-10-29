@@ -107,6 +107,41 @@ const PATHS = {
     <path d="M3.3 7c1.5-4 3-4 4.5 0s3 4 4.5 0" />
     <path d="M5 13.5h5M8.5 12l1.5 1.5L8.5 15" />
   </>),
+  // Forma: the three families, then the node editor.
+  lobulos: <path d="M5.6 5.6A2.6 2.6 0 1 1 10.4 5.6A2.6 2.6 0 1 1 10.4 10.4A2.6 2.6 0 1 1 5.6 10.4A2.6 2.6 0 1 1 5.6 5.6z" />,
+  poligono: <path d="M8 2 14 6.4 11.7 13.5H4.3L2 6.4z" />,
+  superformula: <path d="M8 1.5C8.8 6 10 7.2 14.5 8 10 8.8 8.8 10 8 14.5 7.2 10 6 8.8 1.5 8 6 7.2 7.2 6 8 1.5z" />,
+  // Outer diameter, with the seam on top.
+  costura: (<>
+    <circle cx="8" cy="8.5" r="5.5" />
+    <path d="M2.5 8.5h11" opacity="0.45" />
+    <circle cx="8" cy="3" r="1.4" fill="currentColor" />
+  </>),
+  // A curve between two square nodes, one handle drawn out.
+  nodos: (<>
+    <path d="M3.5 12.5C4.5 6 9 3.5 12.5 3.5" />
+    <path d="M3.5 12.5 9 10" opacity="0.5" />
+    <rect x="2" y="11" width="3" height="3" />
+    <rect x="11" y="2" width="3" height="3" />
+    <circle cx="9.5" cy="9.8" r="1.1" />
+  </>),
+  nodo: (<>
+    <rect x="5.5" y="5.5" width="5" height="5" />
+    <path d="M1.5 8h4M10.5 8h4" opacity="0.5" />
+    <circle cx="1.8" cy="8" r="1" />
+    <circle cx="14.2" cy="8" r="1" />
+  </>),
+  lista: (<>
+    <path d="M5.5 4h8M5.5 8h8M5.5 12h8" />
+    <circle cx="2.5" cy="4" r="0.8" fill="currentColor" />
+    <circle cx="2.5" cy="8" r="0.8" fill="currentColor" />
+    <circle cx="2.5" cy="12" r="0.8" fill="currentColor" />
+  </>),
+  importar: (<>
+    <path d="M5 4.5V1.5h5.5l3 3v10H5v-3" />
+    <path d="M10.5 1.5v3h3" />
+    <path d="M1.5 8h6.5M6 6l2 2-2 2" />
+  </>),
   // Parameters: what the number measures, drawn on the bead or the wave.
   alturaCapa: (<>
     <rect x="1.5" y="9" width="8.5" height="3.5" rx="1.75" />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { NumInput } from '../../components/NumInput';
+import { Icon, type IconName } from '../../components/icons';
 import { isStraight, type PathNode } from '../lib/pathModel';
 import { fmt } from '../lib/shape';
 
@@ -29,10 +30,10 @@ interface Props {
   onBackToFamily: () => void;
 }
 
-function Sec({ title, children }: { title: string; children: ReactNode }) {
+function Sec({ title, icon, children }: { title: string; icon: IconName; children: ReactNode }) {
   return (
     <div className="section">
-      <div className="section-title">{title}</div>
+      <div className="section-title"><Icon name={icon} />{title}</div>
       {children}
     </div>
   );
@@ -70,7 +71,7 @@ export function PathPanel(props: Props) {
 
   return (
     <>
-      <Sec title="Trazado">
+      <Sec title="Trazado" icon="nodos">
         <p className="shaper-note">
           {nodeCount} nodos{several ? ` en ${contours.length} contornos` : ''}. Arrastra un nodo o sus asas; doble clic
           en la línea añade un nodo; Supr borra el elegido. Ctrl+Z deshace.
@@ -89,7 +90,7 @@ export function PathPanel(props: Props) {
         </div>
       </Sec>
 
-      <Sec title={p ? `Nodo ${sel!.i + 1}${several ? ` · contorno ${sel!.c + 1}` : ''}${sel!.i === 0 ? ' · costura' : ''}` : 'Nodo'}>
+      <Sec title={p ? `Nodo ${sel!.i + 1}${several ? ` · contorno ${sel!.c + 1}` : ''}${sel!.i === 0 ? ' · costura' : ''}` : 'Nodo'} icon="nodo">
         {p && nodes ? (
           <>
             <div className="param-row">
@@ -120,7 +121,7 @@ export function PathPanel(props: Props) {
         )}
       </Sec>
 
-      <Sec title="Tamaño y sentido">
+      <Sec title="Tamaño y sentido" icon="direccion">
         <div className="param-row" title="Dos veces la distancia del centro al punto más lejano; cambiarlo escala el trazado">
           <label>Diámetro exterior <span className="unit">mm</span></label>
           <NumInput value={+props.diameterMM.toFixed(1)} min={5} step={1} onChange={v => props.onDiameter(Math.max(5, v))} />
@@ -129,7 +130,7 @@ export function PathPanel(props: Props) {
           hint="Sentido en que la boquilla recorre los contornos, visto desde arriba" />
       </Sec>
 
-      <Sec title="Comandos">
+      <Sec title="Comandos" icon="lista">
         <p className="shaper-note">El trazado en mm, Y hacia arriba como en la cama. Clic en una fila elige su nodo.</p>
         <div ref={listRef} className="path-commands">
           {contours.map((ns, c) => (
