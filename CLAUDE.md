@@ -72,6 +72,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 - **Keyframe polish (Oct 2026)**: arrow keys jump between keyframes while one is selected, numbers stay stable mid-drag, *Borrar todos* needs a second click, the timeline shows "capa N · H mm", dragged keyframes snap to layer starts, auto-key, smooth keyframes (`smooth`), phase offset/shift held per keyframe, deleting the last keyframe adopts its values, loading another SVG keeps only the keyframes' wave. Open: KF-B2, KF-B3, KF-C2, KF-C3 in `pendientes.md`.
 - **Forma workspace (shaper), phase F0** of [docs/shaper-plan.md](docs/shaper-plan.md). The left panel's header switches between *Forma* and *Impresión* (`workspace` in `App.tsx`). *Forma* is `src/shaper/`, loaded lazily as its own chunk; it generates three families (lobes, rounded polygon or star, superformula; `shaper/lib/families.ts`) at an exact outer diameter, with rotation, seam angle and direction (`shapePoints` in `shape.ts`), drawn on a mm grid with the seam and direction marked. The `ShapeDoc` (flat) lives in `App` as `shape`. *Enviar a impresión* hands `App` an SVG whose user unit is 1 mm (`shapeToSvg`), loaded through `doParse` like a file, so `scaleFactor` becomes 1; *Editar forma* goes back while that SVG is the loaded one (`sentShapeSvg`). Boundary: `App` imports only `ShaperView` (plus the `ShapeDoc` type); the shaper imports nothing from `src/lib/` and only `NumInput` and `icons` from `src/components/`. The print shortcuts are off in *Forma*. *Imprimibilidad* (`shaper/lib/printability.ts`, `components/PrintCheck.tsx`) marks the stretches tighter than the current wave can follow, measured like `roundCorners` at `sampleSpacing`; `App` passes `waveCornerRadius(params, keyframes)` (`waveGenerator.ts`) as `waveLimit`. *Descubrir* (`components/DiscoveryGrid.tsx`, `lib/discovery.ts`) shows nine seeded variations of the active family (mulberry32), each with its printability; *Más como esta* narrows the window around the current shape. Slider ranges and discovery ranges share `FAMILY_PARAMS` (`shape.ts`). *Editar puntos* turns a family into editable nodes (`ShapeDoc.path`; `lib/pathModel.ts`, fitted by `lib/fit.ts` with exact radial symmetry), edited on the canvas and in `components/PathPanel.tsx`, with undo in Forma only. A shape can have several closed contours (`ShapeDoc.contours`), each printed as its own path. *Abrir en Forma* (Impresión) and *Importar* (Forma) bring an SVG's closed paths in: `svgOutlines` in `App.tsx` samples them with `parseSVG(raw, spacing, false)` and Forma fits them to nodes. The shape persists under `barrocode.shape`. *Restablecer* (Forma panel header) goes back to `DEFAULT_SHAPE`; *Volver a la familia* sits at the top of the node panel; *Descubrir* with nodes drops them for the family first. All three undo with Ctrl+Z. *Onda* draws the band the current wave sweeps (±N, `waveBand`), so walls that will touch show before sending. The help dialog and `docs/usage.md` cover Forma. Phases F0–F6 are done; the plan's only open decision is a licence for BarroCode (D-S4), needed before copying code from a reference project.
 - **Icons** (`components/icons.tsx`, one inline-SVG set, 16 px grid, 1.4 px line) on panel tabs, headers, rails, keyframe fields, every section title in Impresión and Forma (the local `Sec` helpers take `icon`; Forma's family and node-editor strokes live in the same set), the geometric parameters (amplitude, wavelength, phase, layer height, spacing, position, Y flip, safe Z, dwell, priming; `Num`, `Check` and `Slider` take `icon`), the state notes (`ok` / `aviso` / `info`) and the wave context note. Plain quantities (speeds, multipliers) stay text only, and an icon never replaces its label. The N / T / Z wave sections open with an axis chip (`.axis-chip`) in `--n-axis`, `--t-axis`, `--ink`. The export and add-keyframe buttons fill with `--signal-ramp`. The accessibility pass behind these (contrast measured per token, Oct 2026) also added `--control-edge` and darker `--muted` / `--focus`; see CSS.
+- **Máquina workspace** ([docs/maquina-plan.md](docs/maquina-plan.md), phases G0–G4 in one go; G-1 measurement and G5 test prints still open). Third tab of the workspace switch (`workspace === 'maquina'` in `App.tsx`), sharing the Impresión stage: `components/MachineParams.tsx` on the left (profile, material, firmware, bed and origin, nozzle and extrusion, temperature and fan, motion, Z calibration, clay, start/end templates), `components/MachineReview.tsx` on the right (`checkMachine` in `lib/machineCheck.ts`, with *Centrar en la cama* and *Adaptar a la boquilla* (`adaptToNozzle`) as one-click fixes, plus a time / material / box / size summary). `Preview2D` gets `bed` (a `BedOverlay` in toolpath coordinates: `gcodeOffset` taken back off) and `showTimeline={false}`; `drawScene` draws the bed, build volume and machine X0 Y0 instead of the ground grid, red and dashed when `checkMachine` reports the part off the bed. Impresión lost its *Máquina* tab and the origin fields. The machine fields (`MACHINE_FIELDS` in `lib/machineProfiles.ts`) persist under `barrocode.machine` and survive loading an SVG or restoring a session. 19 profiles (`MACHINE_PROFILES`: clay centre/corner, Delta WASP 2040 Clay, Creality K1/K1C, K1 Max, Ender-3 V3/KE/SE, Ender-3 S1, Bambu Lab A1 mini/A1/P1S, Prusa MK4S/CORE One/MINI+, Neptune 4 Pro, Kobra 3, SV06, Voron 2.4), catalogue figures not checked on a machine; `MACHINE_PROFILES[0]` (clay, origin at the centre) is what `DEFAULT_PARAMS` and the test `PARAMS` spread, so clay output is unchanged. Filament speeds show in mm/s in the panel; `PrintParams` keeps mm/min.
 - **Number fields (`NumInput`)**: the wheel refreshes the field even while focused; Shift steps by `fineStep` (default `step / 10`); dragging the row's `<label>` (found with `closest('.param-row, .kf-field')`) changes the value too; each wheel/drag step floats the amount added beside the field. Pivot fields use `step={5} fineStep={1}`.
 
 ---
@@ -82,9 +83,9 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ### Correctness (G-code that reaches the printer)
 
-1. **Negative coordinates on corner-origin beds.** *Origen del G-code → Esquina inf. izq.* (`gcodeOrigin: 'corner'`) now keeps every move at or above (`marginX`, `marginY`). Still open: with the default centre origin half the part sits at negative X/Y, and nothing warns a user who misses the option. Show a warning in the viewer summary when the G-code's minimum X or Y is below 0 in centre mode, and write the min/max X/Y/Z box into the G-code header. A full bed-size check (item 9) can come later.
+1. ~~**Negative coordinates on corner-origin beds.**~~ **Done** in *Máquina*: the bed has an origin (`bedOrigin`), the review flags negative X/Y on a corner-origin bed and anything off the bed, and the header carries the G-code box. Still open: the warning only shows in *Máquina*; Impresión's summary could carry a red mark too.
 2. **E ignores Z.** `pathToGcode` and `buildTransition` accumulate E from XY distance, and a Z-only move is dropped (`d < 1e-6`). Already wrong with `lissAmpZ > 0` and on the seam ramp. Use `Math.hypot(dx, dy, dz)` in both and keep Z-only moves (`pendientes.md` NP-0a). Snapshot diff expected; read it before `-u`.
-3. **G-code header misses fields.** `buildHeader` omits `lissAmpZ` / `lissWlZ` / `lissPhaseZ` (NP-0c), the number of keyframes (with keyframes the listed wave isn't what prints), `dwellAtStart`, priming, `safeZ` and `alternateDirection`. Header-only snapshot change.
+3. **G-code header misses the keyframes.** `buildHeader` now lists the machine, the Z wave, safe Z, dwell, priming, alternate direction and the box; it still omits the number of keyframes (with keyframes the listed wave isn't what prints): `generateGcode` doesn't receive them.
 4. **A bead can lose its support.** The Z floor only acts downward. With `phaseShiftPerLayer`, a crest over the trough of the layer below leaves a gap up to `layerHeight + 2·lissAmpZ`, so the bead prints in the air. Warn in the viewer, or cap the gap upward the same way the floor works (`waveGenerator.ts`, next to `MIN_LAYER_GAP`).
 5. **Arc length ignores scaling transforms.** `getPointAtLength` works in **element-local** length, so under `<g transform="scale(2)">` sample spacing and wavelengths come out 2× in root units. Accumulate arc length from the transformed points (`svgParser.ts`). No automated test possible (DOM); verify in Chromium.
 6. **Z-hop probably stacks clay at crossings** (inferred, confirm with a test print). Only the later pass hops, so a crossing gets two beads per layer and the next layer's first pass crosses at the height of that double bead with no gap. Reduce or zero E inside the hop window.
@@ -93,7 +94,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 7. **Duplicate a keyframe** at the extruder (`D`) and copy a panel section from the previous keyframe (`pendientes.md` KF-C2).
 8. **Show what changes from the previous keyframe** in the editor ("N 2 → 6 mm", KF-B3).
-9. Warn when the part leaves the bed; needs a bed-size parameter (and centre vs corner origin) first (UI-3 leftover). Item 1 covers the commonest case without it.
+9. ~~Warn when the part leaves the bed.~~ **Done** (*Máquina*, `checkMachine`).
 
 ### Hygiene (only when touching the area)
 
@@ -257,8 +258,12 @@ ToolpathLayer[] consumed by BOTH:
   │      descend to the path's real start Z
   │    • buildTransition for softJoin: smoothstep XY + linear Z, no retract;
   │      skipped when the seam ramp already reached the next start
-  │    • E accumulates: E += dist * extrusionMultiplier
-  │    • final lift to max(safeZ, highest printed Z) + 10
+  │    • E accumulates: E += dist * ePerMM (clay: extrusionMultiplier;
+  │      filament: lineWidth · layerHeight / filament section · flowRatio)
+  │    • start/end templates around the program ({nozzleTemp}… TEMPLATE_VARS);
+  │      filament: M107, then M106 at fanFromLayer, retraction on skirt travel
+  │    • per-layer feed (layerFeeds): firstLayerSpeed, minLayerTime
+  │    • final lift to max(safeZ, highest printed Z) + 10, at most bedZ
   │    • move() / dwell() write each line and keep the time / length / E
   │      summary from the rounded values written
   │  → { text, stats }    (stats feed the viewer summary)
@@ -278,18 +283,20 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ Forma · Impresión │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ Forma·Impr.·Máq.  │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
 │ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ small Lissajous    │
 │ file name         │ └──────────────────────────────────┘ │ context line       │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
-│ Trayecto │Máquina │   G-code opens as a drawer here  │a│ │                    │
+│ Trayecto          │   G-code opens as a drawer here  │a│ │                    │
 │ (incl. Center-    │                                  │y│ │                    │
 │  ScaleParams)     │ ┌ dock ────────────────────────┐ └─┘ │                    │
 │                   │ │ keyframe editor (if selected)│     │                    │
 │                   │ │ ‹ n › · timeline · % · +KF   │     │                    │
 └───────────────────┘ └──────────────────────────────┘     └────────────────────┘
 ```
+
+In *Máquina* the left panel is `MachineParams`, the right one `MachineReview`, the bed is drawn under the part and the dock (timeline) is hidden.
 
 ```
 src/
@@ -301,7 +308,9 @@ src/
     Preview2D.tsx           Full-window 3D canvas, interaction, top bar, layer slider, timeline dock, G-code drawer (≈910 lines)
     LissajousParams.tsx     Right panel: wave sliders + presets; edits the selected keyframe
     LissajousPreview.tsx    Small animated Lissajous strip under the wave panel header
-    PathParams.tsx          Left panel: Pieza / Trayecto / Máquina tabs
+    PathParams.tsx          Left panel: Pieza / Trayecto tabs
+    MachineParams.tsx       Máquina, left panel: profile, bed, nozzle, temperatures, motion, templates
+    MachineReview.tsx       Máquina, right panel: pre-export review and summary
     PathList.tsx            Per-path overrides + collapse
     CenterScaleParams.tsx   Pivot + scale sections, rendered inside PathParams' Pieza group
     CenterPad.tsx           56×56 canvas pivot picker
@@ -317,7 +326,9 @@ src/
     toolpath.ts             Final mm trajectory shared by G-code + preview
     draw3D.ts               Canvas drawing for Preview2D (projection, scene, top-down) (≈670 lines)
     palette.ts              CSS tokens copied for canvas code + OKLCH layer ramp
-    gcodeGenerator.ts       G-code assembly (≈330 lines)
+    gcodeGenerator.ts       G-code assembly, machine templates, per-layer feed (≈480 lines)
+    machineProfiles.ts      Printer profiles, MACHINE_FIELDS, bed centre
+    machineCheck.ts         checkMachine (pre-export review), adaptToNozzle
     gcodeStats.ts           GcodeStats type; summary read back from G-code (test oracle)
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
@@ -344,7 +355,7 @@ pendientes.md               Prioritised backlog (some checkmarks stale — see "
 
 ## State and types
 
-`PrintParams` is a single **flat** object with ≈50 fields covering sampling, Lissajous wave (N/T/Z), layers, soft-join, SVG→mm transform, shape transform, z-hop, travel, speeds, extrusion, path options, and clay-specific behaviour. Defaults are `DEFAULT_PARAMS` in `App.tsx`. **Do not nest it, do not split it into multiple stores.**
+`PrintParams` is a single **flat** object with ≈75 fields covering sampling, Lissajous wave (N/T/Z), layers, soft-join, SVG→mm transform, shape transform, z-hop, travel, speeds, extrusion, path options, clay-specific behaviour, and the machine (material, firmware, bed, nozzle, filament, temperatures, fan, retraction, pacing, templates; only `generateGcode` and `checkMachine` read those). Defaults are `DEFAULT_PARAMS` in `App.tsx`. **Do not nest it, do not split it into multiple stores.**
 
 Keyframes (`WaveKeyframe[]`) override Lissajous (phase included) and pivot/scale/rotation fields at given `t ∈ [0,1]` (fraction of all flattened points across all layers). Optional keyframe fields fall back to `PrintParams`; new keyframes snapshot every field from the wave shown at that `t`. Between keyframes, all fields are interpolated by `segmentAlpha`: straight, except that a keyframe with `smooth` is reached and left with zero slope (cubic Hermite; smooth at both ends is smoothstep). Smooth keyframes are drawn round instead of as diamonds (`wlN/wlT/wlZ` floor-clamped at 0.1; `rotation` is not wrapped, so 0° → 360° is a full twist). When `keyframes.length > 0`, the per-path overrides (`ampNOverride` etc. on `SampledPath`) are **silently ignored by `waveGenerator`** — the UI disables them in this case (see `PathList.tsx`).
 
@@ -365,9 +376,9 @@ Keyframes (`WaveKeyframe[]`) override Lissajous (phase included) and pivot/scale
 - `helpOpen: boolean` — help dialog visibility; opens automatically on first visit (`localStorage` key `barrocode.helpSeen`), via the `?` button in the banner, or the `?` key
 - `savedSession: SavedSession | null` — last autosaved session (`localStorage` key `barrocode.session`, written 1 s after changes), offered for restore while no SVG is loaded
 
-Other `localStorage` keys: `barrocode.shape` (Forma's shape and the last SVG it sent, written 1 s after changes and restored at start), `barrocode.leftTab` (active left-panel tab in `PathParams`), `barrocode.panels` (which side panels are open, in `App.tsx`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
+Other `localStorage` keys: `barrocode.machine` (the `MACHINE_FIELDS` of `params`, written 1 s after a change and merged over `DEFAULT_PARAMS` at start; restoring a session keeps the current machine), `barrocode.shape` (Forma's shape and the last SVG it sent, written 1 s after changes and restored at start), `barrocode.leftTab` (active left-panel tab in `PathParams`), `barrocode.panels` (which side panels are open, in `App.tsx`), `barrocode.viewOptions` (the 3D view's *Color por capa* and *Cotas* toggles, kept in `Preview2D`). Every access is wrapped in try/catch; the app must work without storage.
 
-Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. `←/→` move the extruder, or jump to the previous/next keyframe while one is selected. They are ignored while typing in text/number fields.
+Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-refs pattern): `?`, `K`, `G`, `←/→`, `Esc`, `Supr`. In *Máquina* only `?` and `G` act; in *Forma*, only `?`. `←/→` move the extruder, or jump to the previous/next keyframe while one is selected. They are ignored while typing in text/number fields.
 
 ---
 
@@ -420,8 +431,9 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - Inter-path travel logic depends on `isFirstMove` and `joined` (set when the previous path ended in a soft-join transition). Layer→layer transitions only happen on the **last** path of a layer when `softJoin` is true and the next layer's first point is within `transitionLength` in XY; otherwise the next path arrives by skirt travel (`joined` tracks which).
 - Coordinate conversion via `svgToMM()` happens in `buildToolpath`. Never pre-convert `WaveLayer.paths` to mm; downstream code expects SVG units there.
 - Path order, Z oscillation and z-hop belong in `lib/toolpath.ts`, not in the emitter: the preview draws the same toolpath, so anything computed only in `gcodeGenerator.ts` makes the two disagree.
-- E accumulates monotonically (`E += dist * extrusionMultiplier`). If you add new motion, account for E unless `params.generateE` is false.
-- Clay printers don't retract. Don't introduce retraction moves.
+- E accumulates (`E += dist * ePerMM(params)`), only going back for a filament retraction that the next move recovers. If you add new motion, account for E unless `params.generateE` is false. Stats count E from its high-water mark (`eHigh`), so a retraction and its recovery consume nothing; `summarizeGcode` does the same.
+- Clay never retracts. Filament retracts only around skirt travel (`retractLength`, `buildSkirtTravel`); don't add retraction elsewhere without a reason the review can explain.
+- With the clay profile (`MACHINE_PROFILES[0]`, the defaults) the output must stay what it was: the start template is empty, no fan codes, the feed is `printSpeed`. Machine features key on `material === 'filament'` or on a field the clay profile leaves at 0.
 
 ---
 
@@ -495,7 +507,7 @@ When you need context, this is where to look:
 - [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 - [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md) — graphical overhaul: diagnosis of the current UI, layout proposal, open decisions (D-1…D-6) and phased plan. Check it before any UI/CSS work.
 - [docs/shaper-plan.md](docs/shaper-plan.md) — plan and record of *Forma*, the in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, decisions (D-S1…D-S7, only D-S4 open), phases F0–F6 (all done, with what was measured) and possible next steps.
-- [docs/maquina-plan.md](docs/maquina-plan.md) — evaluation plan (proposal, nothing built) for a third workspace, *Máquina*: bed and origin, pre-export checks, printer profiles (clay, Creality K1, Ender-3 V3), start/end templates and a filament (FDM) mode; decisions D-G1…D-G8 and phases G-1…G5. Low-fidelity mockups of three layouts in `docs/mockups/maquina/` (static HTML; `node shoot.cjs` re-renders the PNGs), plus `prototipo.html`, a working single-file prototype with 19 printer profiles, live checks and real G-code for a test part.
+- [docs/maquina-plan.md](docs/maquina-plan.md) — plan and record of the third workspace, *Máquina* (G0–G4 built; G-1 measurement and G5 test prints open): bed and origin, pre-export checks, printer profiles (clay, Creality K1, Ender-3 V3), start/end templates and a filament (FDM) mode; decisions D-G1…D-G8 and phases G-1…G5. Low-fidelity mockups of three layouts in `docs/mockups/maquina/` (static HTML; `node shoot.cjs` re-renders the PNGs), plus `prototipo.html`, a working single-file prototype with 19 printer profiles, live checks and real G-code for a test part.
 - `docs/ui-interactive-mockup.html`, `docs/ui-image-prompt.md` — UI design references, not shipped.
 
 ---
