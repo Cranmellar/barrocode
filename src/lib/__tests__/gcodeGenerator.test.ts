@@ -41,6 +41,12 @@ for (const softJoin of [true, false]) {
     }
   }
 }
+// Filament: retraction on every travel, slower first layer, fan, min layer time.
+const FILAMENT: Partial<PrintParams> = {
+  material: 'filament', layerHeight: 0.3, lineWidth: 0.6, retractLength: 0.8, retractSpeed: 2400,
+  firstLayerSpeed: 300, minLayerTime: 20, fanFromLayer: 2, fanSpeed: 80,
+};
+for (const softJoin of [true, false]) CONFIGS.push({ ...WAVE, ...HOP, ...FILAMENT, numLayers: 3, softJoin, primingMove: !softJoin });
 
 describe('generateGcode — motion invariants', () => {
   for (const [name, geometry] of Object.entries(GEOMETRIES)) {
@@ -104,6 +110,7 @@ describe('generateGcode — summary', () => {
         for (const k of ['timeSec', 'printLength', 'travelLength', 'eTotal'] as const) {
           expect(stats[k]).toBeCloseTo(read[k], 6);
         }
+        expect(stats.box).toEqual(read.box);
       });
     });
   }

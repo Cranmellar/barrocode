@@ -137,9 +137,9 @@ const K = ({ children }: { children: ReactNode }) => <kbd>{children}</kbd>;
 
 const STEPS: [string, ReactNode][] = [
   ['Trazo', <>Arrastra un SVG a la ventana, usa <em>Cargar SVG</em> o elige una muestra con <span className="help-keys"><K>‹</K> <K>›</K></span>. También puedes dibujarlo en <em>Forma</em>.</>],
-  ['Capas', <>Panel izquierdo: capas, escala, velocidades y máquina, en <em>Pieza</em>, <em>Trayecto</em> y <em>Máquina</em>.</>],
+  ['Capas', <>Panel izquierdo: capas, escala y trayecto, en <em>Pieza</em> y <em>Trayecto</em>.</>],
   ['Onda', <>Panel derecho: parte de un preajuste y ajusta amplitud, longitud de onda y fase.</>],
-  ['G-code', <>Revisa la trayectoria en 3D y pulsa <em>Descargar</em>. <em>G-code</em> muestra el programa.</>],
+  ['G-code', <>En <em>Máquina</em> elige la impresora y revisa que todo quepa; luego pulsa <em>Descargar</em>. <em>G-code</em> muestra el programa.</>],
 ];
 
 type Row = [ReactNode, ReactNode];
@@ -221,6 +221,22 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
     </>,
   },
   {
+    id: 'maquina', title: 'Máquina', body: <>
+      <p className="help-lead">
+        En <em>Máquina</em> está lo que depende de la impresora y no de la pieza: se configura una vez
+        y se conserva al cargar otro SVG o restaurar una sesión.
+      </p>
+      <Defs items={[
+        ['Perfil', <>Arcilla (origen al centro o en esquina, Delta WASP 2040 Clay) o filamento (Creality, Bambu Lab, Prusa, Elegoo, Anycubic, Sovol, Voron). Rellena la cama, la boquilla, las velocidades y las plantillas, y centra la pieza en la cama. Son cifras de catálogo: compruébalas en tu máquina.</>],
+        ['Cama y origen', <>Tamaño y forma de la cama, y dónde está su X0 Y0. La vista 3D la dibuja bajo la pieza, con el borde en rojo si algo se sale. <em>Centrar en la cama</em> coloca la pieza en su centro.</>],
+        ['Material', <>Con arcilla, E es el <em>Multiplicador</em> de la bomba y nunca hay retracción. Con filamento, E es el volumen del cordón (ancho × altura de capa) sobre la sección del filamento, con retracción, ventilador y velocidades en mm/s.</>],
+        ['Inicio y fin', <>G-code que va antes y después del programa. Las variables entre llaves, como <code>{'{nozzleTemp}'}</code> o <code>{'{bedTemp}'}</code>, se reemplazan al generar.</>],
+        ['Revisión previa', <>Panel derecho: avisa si la pieza se sale de la cama o de la altura, si la capa no corresponde a la boquilla, si la boquilla no alcanza a fundir el caudal, si una capa es demasiado rápida y si falta algo en las plantillas.</>],
+        ['Adaptar a la boquilla', <>Ajusta altura de capa, ancho de cordón, onda N y espaciado a la boquilla: el punto de partida al pasar de arcilla a filamento o al revés.</>],
+      ]} />
+    </>,
+  },
+  {
     id: 'onda', title: 'Onda', body: <>
       <p className="help-lead">
         La boquilla sigue el trazo y se desvía de él en tres direcciones a la vez.
@@ -284,7 +300,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
         <li><strong>Unir capas sin cortar</strong><span><em>Transición Z suave</em> sube a la capa siguiente mientras imprime.</span></li>
         <li><strong>Primera extrusión estable</strong><span><em>Pausa al inicio</em> y <em>Cebado de boquilla</em> dejan salir la pasta antes de la pieza.</span></li>
         <li><strong>Primera capa</strong><span>Calíbrala con <em>Desplazamiento Z</em>.</span></li>
-        <li><strong>Caudal</strong><span>Ajusta el <em>Multiplicador</em> (Máquina, Extrusión) a tu bomba o tornillo.</span></li>
+        <li><strong>Caudal</strong><span>Ajusta el <em>Multiplicador</em> (Máquina, Boquilla y extrusión) a tu bomba o tornillo.</span></li>
       </ul>
     </>,
   },

@@ -1,0 +1,64 @@
+<!doctype html><meta charset=utf-8><link rel=stylesheet href=base.css>
+<style>.gc{position:absolute;left:324px;right:320px;top:64px;bottom:12px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);display:grid;grid-template-columns:200px 1fr}
+.toc{border-right:1px solid var(--border);padding:10px}.toc div{padding:5px 8px;border-radius:6px;color:var(--ink-2)}.toc .on{background:var(--surface-2);color:var(--ink)}
+.toc small{color:var(--muted);float:right}.txt{font:11.5px/1.55 GSCode,monospace;padding:12px 16px;color:var(--ink-2);white-space:pre;overflow:hidden}.txt .c{color:var(--muted)}.txt .h{background:#FFF3E6}
+.mini{position:absolute;right:16px;top:12px;width:180px;height:180px;border:1px solid var(--border);border-radius:8px;background:var(--surface-2)}</style>
+<canvas id=stage></canvas>
+<div class="panel left"><div class=ws><b>Forma</b><b>Impresión</b><b class=on>Máquina</b></div><div class=body>
+<div class=sec><h4>Perfil</h4><div class=sel><span>Ender-3 V3 SE · Marlin</span><span>▾</span></div><div class=row style="margin-top:8px"><span>Material</span><div class=seg style="width:170px"><span>Arcilla</span><span class=on>Filamento</span></div></div></div>
+<div class=sec><h4>Inicio</h4><div class=code>M140 S{bedTemp}
+M104 S{nozzleTemp}
+G28
+M190 S{bedTemp}
+M109 S{nozzleTemp}
+G1 Z0.3 F600
+G1 X5 Y20 F6000
+G1 Y200 E15 F1500 ; purga
+G92 E0</div><div class=row style="margin-top:6px"><span class=tag>Variables: {nozzleTemp} {bedTemp} {bedX}…</span></div></div>
+<div class=sec><h4>Fin</h4><div class=code>M104 S0
+M140 S0
+G1 Z{topZ+10} F600
+G1 Y{bedY} F3000
+M84</div></div>
+<div class=sec><h4>Cama, boquilla, temperatura…</h4><div class=tag>(secciones plegadas)</div></div>
+</div></div>
+<div class=top><div class=grp><span class=seg><span>Visor</span><span class=on>Texto</span></span></div><div class=grp style="flex:1">1 h 31 min · 92 × 92 × 110 mm · 14,2 m · 42 g</div><div class=grp><span class=dl>Descargar</span></div></div>
+<div class=gc><div class=toc><div>Encabezado <small>32</small></div><div class=on>Inicio <small>9</small></div><div>Capa 1 · 0,2 mm <small>812</small></div><div>Capa 2 · 0,4 mm <small>806</small></div><div>Capa 3 · 0,6 mm <small>806</small></div><div class=tag style="padding:5px 8px">…</div><div>Capa 550 · 110 mm <small>806</small></div><div>Fin <small>5</small></div>
+<div style="margin-top:14px;border-top:1px solid var(--border);padding-top:10px" class=tag>Buscar en el G-code</div><div class=sel style="margin-top:6px;color:var(--faint)">G4, M106…</div></div>
+<div class=txt style="position:relative"><span class=c>; ---- Inicio (plantilla Marlin) ----</span>
+<span class=h>M140 S60</span>
+<span class=h>M104 S215</span>
+<span class=h>G28</span>
+<span class=h>M190 S60</span>
+<span class=h>M109 S215</span>
+G1 Z0.3 F600
+G1 X5 Y20 F6000
+G1 Y200 E15 F1500 <span class=c>; purga</span>
+G92 E0
+G21 <span class=c>      ; mm units</span>
+G90 <span class=c>      ; absolute positioning</span>
+M82 <span class=c>      ; absolute extrusion</span>
+<span class=c>;LAYER_CHANGE</span>
+<span class=c>;Z:0.200</span>
+<span class=c>;LAYER:0</span>
+G1 X156.000 Y110.000 F9000 <span class=c>; travel to start</span>
+G1 Z0.200 F600
+G1 X155.921 Y111.204 E0.04012 F1800
+G1 X155.684 Y112.391 E0.08021 F1800
+G1 X155.290 Y113.541 E0.12030 F1800
+<span class=c>; … 806 líneas</span>
+<span class=c>;LAYER:2</span>
+M106 S255 <span class=c>; ventilador desde la capa 3</span>
+<canvas class=mini id=mini></canvas></div></div>
+<div class="panel right"><div class=ws style="justify-content:space-between"><b style="flex:none;text-align:left;color:var(--ink);font-weight:600;font-variation-settings:'wght' 600">Revisión previa</b><span class=tag>1 error</span></div><div class=body>
+<div class="chk ok"><i>✓</i><div>Dentro de la cama</div></div>
+<div class="chk er"><i>×</i><div>Segmentos muy cortos para Marlin<small>4 500 segmentos/s a 80 mm/s con muestreo 0,4: baja a 40 mm/s o muestrea cada 0,8</small></div></div>
+<div class="chk ok"><i>✓</i><div>Caudal 7,2 mm³/s</div></div>
+<div class="chk ok"><i>✓</i><div>La purga cabe en la cama<small>X 5, Y 20–200</small></div></div>
+</div></div>
+<script>
+const m=document.getElementById('mini');m.width=180;m.height=180;const g=m.getContext('2d');g.strokeStyle='#8A8A93';g.strokeRect(10,10,160,160);
+g.strokeStyle='#BD5232';g.beginPath();g.moveTo(14,155);g.lineTo(14,24);g.stroke();
+g.strokeStyle='#4C5FBE';g.beginPath();for(let i=0;i<=240;i++){const a=i/240*2*Math.PI,r=33*(1+.12*Math.sin(6*a))+1*Math.sin(a*36);const x=90+r*Math.cos(a),y=90+r*Math.sin(a);i?g.lineTo(x,y):g.moveTo(x,y)}g.stroke();
+g.fillStyle='#63636B';g.font='11px GSCode';g.fillText('planta · purga',16,166);
+</script>

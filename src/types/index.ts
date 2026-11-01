@@ -171,4 +171,32 @@ export interface PrintParams {
   dwellAtStart: number;          // ms
   primingMove: boolean;
   primingLength: number;         // mm
+
+  // ── Machine (Máquina workspace; read by generateGcode only) ──
+  material: 'clay' | 'filament';
+  machineProfile: string;        // id in MACHINE_PROFILES, or 'custom'
+  firmware: Firmware;
+  bedShape: 'rect' | 'circle';
+  bedX: number;                  // mm — width, or diameter of a round bed
+  bedY: number;                  // mm — depth (rect only)
+  bedZ: number;                  // mm — highest Z the machine reaches
+  bedOrigin: 'corner' | 'centre'; // where the machine's X0 Y0 is
+  nozzleDiameter: number;        // mm
+  lineWidth: number;             // mm — bead width, for filament E and flow checks
+  filamentDiameter: number;      // mm
+  flowRatio: number;             // % — filament E multiplier
+  maxVolumetricFlow: number;     // mm³/s the hotend melts; 0 = unknown
+  nozzleTemp: number;            // °C — {nozzleTemp} in the start G-code
+  bedTemp: number;               // °C — {bedTemp}
+  fanSpeed: number;              // % — filament only
+  fanFromLayer: number;          // 1-based layer where the fan turns on
+  retractLength: number;         // mm of filament pulled back on travel; 0 = off
+  retractSpeed: number;          // mm/min
+  firstLayerSpeed: number;       // mm/min; 0 = printSpeed
+  minLayerTime: number;          // s — slower layers below this; 0 = off
+  accel: number;                 // mm/s²; 0 = leave the firmware's
+  startGcode: string;            // template, see templateVars in gcodeGenerator
+  endGcode: string;
 }
+
+export type Firmware = 'marlin' | 'klipper' | 'prusa' | 'bambu' | 'reprap';

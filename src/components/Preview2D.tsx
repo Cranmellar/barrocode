@@ -19,7 +19,7 @@ import { findKeyframeAt, partCentreSVG } from '../lib/waveGenerator';
 import type { ToolpathLayer } from '../lib/toolpath';
 import type { GcodeStats } from '../lib/gcodeStats';
 import {
-  type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt, layerAtT, layerLabel, layerStartTs,
+  type BedOverlay, type View3D, keyframeColor, layerColor, makeProjector, boundsOf, flattenPoints, drawScene, drawGeometry, drawTopDown, keyframeAt, layerAtT, layerLabel, layerStartTs,
 } from '../lib/draw3D';
 import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
@@ -58,6 +58,9 @@ interface Props {
   timelineLead?: ReactNode;
   timelineActions?: ReactNode;
   timelineEditor?: ReactNode;
+  // Máquina: the printer bed under the part, and no keyframe timeline.
+  bed?: BedOverlay | null;
+  showTimeline?: boolean;
 }
 
 export const STAGE_GAP = 12;
@@ -161,7 +164,7 @@ export function Preview2D({
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeStats: stats, gcodeBusy, gcodeFilename, toast, onToast,
   selectedKfId, onKfSelect, onAddKeyframe, onHelp,
-  insets, timelineLead, timelineActions, timelineEditor,
+  insets, timelineLead, timelineActions, timelineEditor, bed = null, showTimeline = true,
 }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const topdownRef  = useRef<HTMLCanvasElement>(null);
@@ -452,6 +455,9 @@ export function Preview2D({
 
     const proj = makeProjector(azimuth, elevation);
     const projected = flatPoints.map(p => proj(p.x, p.y, p.z));
+    if (bed) {
+      for (const x of [bed.minX, bed.maxX]) for (const y of [bed.minY, bed.maxY]) projected.push(proj(x, y, 0));
+    }
     const { minX, maxX, minY, maxY } = boundsOf(projected, p => p[0], p => p[1]);
     const margin = 40;
     // Frame the part in the space left between the panels and the layer slider.
@@ -470,12 +476,15 @@ export function Preview2D({
     };
     if (animate) animateViewRef.current(target);
     else setView(target);
-  }, [flatPoints, toolpath.length, view.azimuth, view.elevation, insets.left, insets.right, insets.top]);
+  }, [flatPoints, toolpath.length, view.azimuth, view.elevation, insets.left, insets.right, insets.top, bed]);
 
   // Opening or closing a side panel reframes the part in the new free area.
   const fitRef = useRef(fitView);
   useEffect(() => { fitRef.current = fitView; }, [fitView]);
   useEffect(() => { fitRef.current(undefined, undefined, true); }, [insets.left, insets.right]);
+  // Showing the bed, or another bed, reframes to fit it.
+  const bedKey = bed ? [bed.shape, bed.minX, bed.maxX, bed.minY, bed.maxY].join() : '';
+  useEffect(() => { fitRef.current(undefined, undefined, true); }, [bedKey]);
 
   const prevLayerCount = useRef(0);
   const prevPartKey = useRef<string | null>(null);
@@ -499,7 +508,7 @@ export function Preview2D({
     return () => ro.disconnect();
   }, []);
 
-  const hasDock = toolpath.length > 0;
+  const hasDock = toolpath.length > 0 && showTimeline;
   useEffect(() => {
     const dock = dockRef.current;
     if (!dock) { setDockH(0); return; }
@@ -562,11 +571,11 @@ export function Preview2D({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     drawScene(ctx, W, H, {
       ...geometry, flatPoints, modelBounds, sampledPaths, centre, timelineProgress,
-      keyframes, selectedKfId, showDims: viewOpts.showDims, kfPop,
+      keyframes, selectedKfId, showDims: viewOpts.showDims, kfPop, bed,
       inset: { left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset },
     }, cache);
     ctx.restore();
-  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, centre, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop]);
+  }, [size, sampledPaths, toolpath, flatPoints, modelBounds, params, view, timelineProgress, centre, keyframes, selectedKfId, isInteracting, visibleCap, layerSolo, viewOpts, insets, bottomInset, sliderInset, kfPop, bed]);
 
   // ── Top-down mini diagram (G-code tab) ───────────────────────────────────
   useEffect(() => {

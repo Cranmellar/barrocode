@@ -1,0 +1,21 @@
+<!doctype html><meta charset=utf-8><link rel=stylesheet href=base.css>
+<style>.tabs{display:flex;margin:8px 14px 0;background:var(--surface-2);border-radius:99px;padding:2px}.tabs span{flex:1;text-align:center;padding:4px;border-radius:99px;color:var(--muted)}.tabs .on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.warnbar{position:absolute;left:50%;transform:translateX(-50%);top:62px;background:#fff;border:1px solid var(--border);border-left:3px solid var(--err);border-radius:8px;padding:6px 12px;box-shadow:0 6px 24px rgba(0,0,0,.08)}</style>
+<canvas id=stage></canvas><script src=scene.js></script>
+<script>document.fonts.ready.then(()=>drawScene({bed:[300,300],offset:[-150,-150],h:60,layers:24,amp:3,lobes:5,r:70,cx:720,cy:470,scale:1.15,out:true}))</script>
+<div class="panel left"><div class=ws><b>Forma</b><b class=on>Impresión</b></div>
+<div style="padding:8px 14px;border-bottom:1px solid var(--border)" class=row><span>flor.svg</span><span class=btn>Cargar SVG</span></div>
+<div class=tabs><span>Pieza</span><span>Trayecto</span><span class=on>Máquina</span></div><div class=body>
+<div class=sec><h4>Perfil</h4><div class=sel><span>Arcilla · genérica</span><span>▾</span></div></div>
+<div class=sec><h4>Cama</h4><div class=row><span>Cama X · Y · Z</span><span class=f>300 · 300 · 400 <small>mm</small></span></div>
+<div class=row><span>Origen</span><div class=seg style="width:170px"><span class=on>Centro</span><span>Esquina</span></div></div>
+<div class=row><span>Posición X · Y</span><span class=f>0 · 0 <small>mm</small></span></div><div class=row><span></span><span class=btn>Centrar en la cama</span></div></div>
+<div class=sec><h4>Velocidades</h4><div class=row><span>Vel. impresión</span><span class=f>600 <small>mm/min</small></span></div><div class=row><span>Vel. desplazamiento</span><span class=f>1500 <small>mm/min</small></span></div></div>
+<div class=sec><h4>Extrusión</h4><div class=row><span>Generar valores E</span><span class=sw></span></div><div class=row><span>Multiplicador</span><span class=f>0.05</span></div></div>
+<div class=sec><h4>Calibración Z</h4><div class=row><span>Desplazamiento Z</span><span class=f>1 <small>mm</small></span></div><div class=row><span>Z de seguridad</span><span class=f>20 <small>mm</small></span></div></div>
+<div class=sec><h4>Arcilla</h4><div class=row><span>Pausa al inicio</span><span class=f>0 <small>ms</small></span></div><div class=row><span>Cebado de boquilla</span><span class="sw off"></span></div></div>
+</div></div>
+<div class=top><div class=grp><span class=btn>Encuadrar</span><span class=seg><span class=on>Iso</span><span>Planta</span><span>Frente</span></span></div><div class=grp style="flex:1">38 min · 158 × 158 × 60 mm</div><div class=grp><span class="btn">G-code</span><span class=dl>Descargar</span></div></div>
+<div class=warnbar><b style="color:var(--err)">×</b> Media pieza queda en X/Y negativos y fuera de la cama · <u>Centrar en la cama</u></div>
+<div class="panel right"><div class=ws><b style="flex:none;color:var(--ink);font-weight:600;font-variation-settings:'wght' 600">Onda</b></div><div class=body>
+<div class=tag style="padding:10px 0">(panel de onda sin cambios)</div></div></div>

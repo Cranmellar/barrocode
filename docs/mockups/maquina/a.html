@@ -1,0 +1,39 @@
+<!doctype html><meta charset=utf-8><link rel=stylesheet href=base.css><canvas id=stage></canvas><script src=scene.js></script>
+<script>document.fonts.ready.then(()=>drawScene({bed:[220,220],offset:[0,0],h:110,layers:44,amp:1.2,lobes:6,cx:720,cy:470,scale:1.75}))</script>
+<div class="panel left"><div class=ws><b>Forma</b><b>Impresión</b><b class=on>Máquina</b></div><div class=body>
+<div class=sec><h4>Perfil</h4><div class=sel><span>Creality K1 · Klipper</span><span>▾</span></div>
+<div class=row style="margin-top:8px"><span>Material</span><div class=seg style="width:170px"><span>Arcilla</span><span class=on>Filamento</span></div></div></div>
+<div class=sec><h4>Cama y origen</h4><div class=row><span>Cama X · Y · Z</span><span class=f>220 · 220 · 250 <small>mm</small></span></div>
+<div class=row><span>Origen</span><div class=seg style="width:170px"><span>Centro</span><span class=on>Esquina</span></div></div>
+<div class=row><span>Pieza en X · Y</span><span class=f>110 · 110 <small>mm</small></span></div><div class=row><span></span><span class=btn>Centrar en la cama</span></div></div>
+<div class=sec><h4>Boquilla y extrusión</h4><div class=row><span>Boquilla</span><span class=f>0.4 <small>mm</small></span></div><div class=row><span>Ancho de línea</span><span class=f>0.6 <small>mm</small></span></div><div class=row><span>Filamento</span><span class=f>1.75 <small>mm</small></span></div><div class=row><span>Flujo</span><span class=f>100 <small>%</small></span></div></div>
+<div class=sec><h4>Temperatura y ventilador</h4><div class=row><span>Boquilla · cama</span><span class=f>215 · 60 <small>°C</small></span></div><div class=row><span>Ventilador desde capa</span><span class=f>3 · 100 <small>%</small></span></div></div>
+<div class=sec><h4>Movimiento</h4><div class=row><span>Impresión</span><span class=f>80 <small>mm/s</small></span></div><div class=row><span>Primera capa</span><span class=f>30 <small>mm/s</small></span></div><div class=row><span>Retracción</span><span class=f>0.6 <small>mm</small></span></div><div class=row><span>Tiempo mín. por capa</span><span class=f>8 <small>s</small></span></div></div>
+<div class=sec><h4>Inicio y fin</h4><div class=code>START_PRINT EXTRUDER_TEMP={nozzleTemp}
+  BED_TEMP={bedTemp}</div></div>
+</div></div>
+<div class=top><div class=grp><span class=btn>Encuadrar</span><span class=seg><span class=on>Iso</span><span>Planta</span><span>Frente</span></span></div><div class=grp style="flex:1">1 h 12 min · 92 × 92 × 110 mm · 14,2 m · 42 g</div><div class=grp><span class="btn">G-code</span><span class=dl>Descargar</span></div></div>
+<div class=drawer><div class=hd><b style="font-weight:600;font-variation-settings:'wght' 600">G-code</b><span class=badge>Inicio</span><span class=badge>Capa 1 / 550</span><span class=badge>Fin</span><span style="flex:1"></span><span class=btn>Copiar</span></div>
+<pre>; BarroCode — Creality K1 · PLA · caja X 64.0–156.0  Y 64.0–156.0  Z 0.2–110.0
+M140 S0
+M104 S0
+START_PRINT EXTRUDER_TEMP=215 BED_TEMP=60
+G21       ; mm units
+G90       ; absolute positioning
+M82       ; absolute extrusion
+G92 E0
+;LAYER_CHANGE
+;Z:0.200
+;LAYER:0
+G1 X156.000 Y110.000 F9000  ; travel to start
+G1 X155.921 Y111.204 E0.04012 F1800
+G1 X155.684 Y112.391 E0.08021 F1800</pre></div>
+<div class="panel right"><div class=ws style="justify-content:space-between"><b style="flex:none;text-align:left;color:var(--ink);font-weight:600;font-variation-settings:'wght' 600">Revisión previa</b><span class=tag>3 · 1 aviso</span></div><div class=body>
+<div class="chk ok"><i>✓</i><div>Dentro de la cama<small>X 64–156 · Y 64–156 · Z ≤ 110 de 250 mm</small></div></div>
+<div class="chk ok"><i>✓</i><div>Caudal 7,2 mm³/s<small>límite del perfil 20 mm³/s</small></div></div>
+<div class="chk av"><i>!</i><div>Capas de 6 s en la parte alta<small>se ralentizan a 8 s (tiempo mín. por capa)</small></div></div>
+<div class="chk ok"><i>✓</i><div>Plantillas sin variables sueltas</div></div>
+<div class=sec style="margin-top:8px"><h4>Resumen</h4>
+<div class=stat><span>Tiempo</span><span>1 h 12 min</span></div><div class=stat><span>Filamento</span><span>14,2 m · 42 g</span></div><div class=stat><span>Capas</span><span>550 × 0,2 mm</span></div><div class=stat><span>Caja</span><span>92 × 92 × 110 mm</span></div><div class=stat><span>Archivo</span><span>≈ 11 MB</span></div></div>
+<div class=sec><h4>Onda (de Impresión)</h4><div class=stat><span>N · λ</span><span>1,2 · 6 mm</span></div><div class=stat><span>Muestreo</span><span>0,4 mm</span></div><div class=row style="margin-top:6px"><span></span><span class=btn>Adaptar onda a la boquilla</span></div></div>
+</div></div>

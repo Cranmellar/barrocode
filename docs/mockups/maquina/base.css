@@ -1,0 +1,38 @@
+@font-face{font-family:GSCode;src:url(../../../public/fonts/GSCode.ttf);font-weight:100 900}
+@font-face{font-family:GSCode;src:url(../../../public/fonts/GSCode-Italic.ttf);font-style:italic;font-weight:100 900}
+:root{--bg:#F1F1F3;--surface:#fff;--surface-2:#F5F5F6;--ink:#38383E;--ink-2:#55555D;--muted:#63636B;--faint:#A1A1AA;--border:#E4E4E7;--edge:#8A8A93;--accent:#4A4A51;--ok:#15803D;--err:#DC2626;--warn:#B45309;
+--ramp:linear-gradient(90deg,#4C5FBE,#7A4FAE,#9E4790,#B54766,#BD5232);font-variation-settings:'wght' 450}
+*{box-sizing:border-box;margin:0}
+body{font:13px/1.35 GSCode,monospace;color:var(--ink);background:var(--bg);width:1440px;height:900px;overflow:hidden;position:relative}
+canvas#stage{position:absolute;inset:0}
+.panel{position:absolute;top:12px;bottom:12px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);overflow:hidden;display:flex;flex-direction:column}
+.left{left:12px;width:300px}.right{right:12px;width:296px}
+.ws{display:flex;gap:2px;padding:8px;border-bottom:1px solid var(--border)}
+.ws b{flex:1;text-align:center;padding:6px 0;border-radius:8px;font-weight:450;color:var(--muted)}
+.ws b.on{background:var(--accent);color:#fff}
+.body{padding:4px 14px;overflow:hidden;flex:1}
+.sec{padding:10px 0;border-top:1px solid var(--border)}.sec:first-child{border-top:0}
+.sec h4{font-style:italic;font-weight:600;font-variation-settings:'wght' 600;font-size:13px;margin-bottom:6px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:3px 0;color:var(--ink-2)}
+.f{border:1px solid var(--edge);border-radius:6px;padding:1px 6px;min-width:74px;text-align:right;color:var(--ink)}
+.f small{color:var(--muted)}
+.sel{border:1px solid var(--edge);border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between}
+.seg{display:flex;background:var(--surface-2);border-radius:99px;padding:2px}.seg span{flex:1;text-align:center;padding:3px 8px;border-radius:99px;color:var(--muted)}.seg span.on{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.sw{width:26px;height:14px;border-radius:99px;background:var(--accent);position:relative}.sw:after{content:'';position:absolute;right:2px;top:2px;width:10px;height:10px;border-radius:50%;background:#fff}
+.sw.off{background:#fff;border:1px solid var(--edge)}.sw.off:after{left:2px;right:auto;background:var(--edge);top:1px}
+.code{font-size:11px;background:var(--surface-2);border-radius:6px;padding:6px 8px;color:var(--ink-2);white-space:pre;line-height:1.4}
+.top{position:absolute;top:12px;left:324px;right:320px;height:40px;display:flex;gap:8px}
+.grp{background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);display:flex;align-items:center;gap:10px;padding:0 12px;color:var(--ink-2)}
+.btn{border-radius:8px;padding:5px 10px;border:1px solid var(--border)}
+.dl{background:var(--ramp);color:#fff;border:0;border-radius:8px;padding:6px 12px}
+.drawer{position:absolute;left:324px;right:320px;bottom:12px;height:250px;background:#fff;border:1px solid var(--border);border-radius:12px;box-shadow:0 6px 24px rgba(0,0,0,.08);display:flex;flex-direction:column}
+.drawer .hd{display:flex;gap:10px;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border)}
+.drawer pre{flex:1;font:11px/1.45 GSCode,monospace;padding:8px 12px;color:var(--ink-2);overflow:hidden}
+.chk{display:flex;gap:8px;padding:7px 0;border-top:1px solid var(--border)}.chk:first-child{border-top:0}
+.chk i{font-style:normal;width:16px;text-align:center;font-weight:600}
+.ok i{color:var(--ok)}.av i{color:var(--warn)}.er i{color:var(--err)}
+.chk div small{display:block;color:var(--muted);font-size:11px}
+.stat{display:flex;justify-content:space-between;padding:3px 0}.stat span:first-child{color:var(--muted)}
+.tag{font-size:11px;color:var(--muted)}
+.note{position:absolute;left:50%;transform:translateX(-50%);bottom:274px;background:#38383E;color:#fff;padding:4px 10px;border-radius:99px;font-size:11px}
+.badge{display:inline-block;font-size:11px;padding:1px 6px;border-radius:99px;background:var(--surface-2);color:var(--muted)}

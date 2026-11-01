@@ -3,7 +3,12 @@ import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types'
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
-import { generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
+import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
+import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
+import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
+import type { BedOverlay } from './lib/draw3D';
+import { MachineParams } from './components/MachineParams';
+import { MachineReview } from './components/MachineReview';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
@@ -21,7 +26,7 @@ import type { WaveLimit } from './shaper/lib/printability';
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
 
-type Workspace = 'forma' | 'impresion';
+type Workspace = 'forma' | 'impresion' | 'maquina';
 
 const _S1 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="M480 160 320 0H160v160H0v160l160 160h160V320h160V160z" fill="#55555D"/></svg>`;
 const _S2 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m337 320 63-160h-80a160 160 0 1 0-320 0h160L80 320h80a160 160 0 1 0 320 0H337Z" fill="#55555D"/></svg>`;
@@ -70,8 +75,6 @@ const DEFAULT_PARAMS: PrintParams = {
   numLayers: 6,
   useNumLayers: true,
   totalHeight: 15,
-  nozzleHeightOffset: 1,
-  safeZ: 20,
   softJoin: true,
   transitionLength: 10,
   scaleFactor: 1,
@@ -81,16 +84,9 @@ const DEFAULT_PARAMS: PrintParams = {
   marginX: 10,
   marginY: 10,
   flipY: true,
-  printSpeed: 600,
-  travelSpeed: 1500,
-  generateE: true,
-  extrusionMultiplier: 0.05,
   reversePath: false,
   alternateDirection: false,
   closePath: false,
-  dwellAtStart: 0,
-  primingMove: false,
-  primingLength: 20,
   // Center + scale around pivot
   centerX: 0,
   centerY: 0,
@@ -103,6 +99,9 @@ const DEFAULT_PARAMS: PrintParams = {
   hopRadius: 1.0,
   // Concentric skirt travel
   skirtThreshold: 15,
+  // The clay profile repeats the values above and adds the machine's.
+  ...MACHINE_PROFILES[0].values,
+  machineProfile: MACHINE_PROFILES[0].id,
 };
 
 // ── Floating panels ─────────────────────────────────────────────────────────
@@ -189,6 +188,22 @@ function useScrollMore<T extends HTMLElement>(active: boolean) {
 }
 
 const HELP_SEEN_KEY = 'barrocode.helpSeen';
+// The printer is set up once, not per part: it outlives sessions and SVGs.
+const MACHINE_KEY = 'barrocode.machine';
+
+function pickMachine(p: PrintParams): MachineFields {
+  return Object.fromEntries(MACHINE_FIELDS.map(k => [k, p[k]])) as MachineFields;
+}
+
+function loadMachine(): Partial<MachineFields> {
+  try {
+    const m = JSON.parse(localStorage.getItem(MACHINE_KEY) ?? 'null');
+    if (!m || typeof m !== 'object') return {};
+    return Object.fromEntries(MACHINE_FIELDS.filter(k => typeof m[k] === typeof DEFAULT_PARAMS[k]).map(k => [k, m[k]]));
+  } catch {
+    return {};
+  }
+}
 const SESSION_KEY = 'barrocode.session';
 // Forma's shape and the last SVG it sent, kept apart from the print session.
 const SHAPE_KEY = 'barrocode.shape';
@@ -281,7 +296,7 @@ const KF_TRANSFORM_FIELDS = ['centerX', 'centerY', 'scaleX', 'scaleY', 'rotation
 const LISS_PANEL_FIELDS: LissKey[] = KF_LISS_FIELDS.map(([pk]) => pk);
 
 export default function App() {
-  const [params, setParams] = useState<PrintParams>(DEFAULT_PARAMS);
+  const [params, setParams] = useState<PrintParams>(() => ({ ...DEFAULT_PARAMS, ...loadMachine() }));
   const [parsedSVG, setParsedSVG] = useState<ParsedSVG | null>(null);
   const [program, setProgram] = useState<GcodeProgram | null>(null);
   // True from an edit until its debounced G-code is ready.
@@ -539,13 +554,18 @@ export default function App() {
         setHelpOpen(true);
         return;
       }
-      if (helpOpenRef.current || workspaceRef.current !== 'impresion') return;
-      const id = selectedKfIdRef.current;
+      if (helpOpenRef.current || workspaceRef.current === 'forma') return;
       const key = e.key.toLowerCase();
+      if (key === 'g') {
+        e.preventDefault();
+        setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
+        return;
+      }
+      // The rest drive the keyframe timeline, which only Impresión shows.
+      if (workspaceRef.current !== 'impresion') return;
+      const id = selectedKfIdRef.current;
       if (key === 'k') {
         addKeyframeRef.current();
-      } else if (key === 'g') {
-        setCenterTab(t => t === 'preview' ? 'gcode' : 'preview');
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]') && id) {
         // With a keyframe open the arrows walk between keyframes, so the
         // extruder never drifts away from the one being edited.
@@ -721,9 +741,50 @@ export default function App() {
     return () => clearTimeout(t);
   }, [parsedSVG, params, keyframes, gcodeFilename]);
 
+  // Saved on its own key, so loading another part or session keeps the printer.
+  const machineKey = MACHINE_FIELDS.map(k => params[k]).join('|');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { localStorage.setItem(MACHINE_KEY, JSON.stringify(pickMachine(params))); } catch { /* full or unavailable */ }
+    }, 1000);
+    return () => clearTimeout(t);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [machineKey]);
+
+  const checks = useMemo(
+    () => workspace === 'maquina' ? checkMachine(params, toolpath, program?.stats ?? null) : [],
+    [workspace, params, toolpath, program],
+  );
+  const bedOut = checks.some(c => c.level === 'err' && c.action === 'centre');
+  // The bed in toolpath coordinates, which the preview draws in: the G-code's
+  // corner-origin offset is taken back off it.
+  const bed = useMemo<BedOverlay | null>(() => {
+    if (workspace !== 'maquina' || toolpath.length === 0) return null;
+    const off = gcodeOffset(toolpath, params);
+    const b = bedLimits(params);
+    return {
+      shape: params.bedShape,
+      minX: b.minX - off.x, maxX: b.maxX - off.x, minY: b.minY - off.y, maxY: b.maxY - off.y,
+      originX: -off.x, originY: -off.y, height: params.bedZ, out: bedOut,
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspace, toolpath, params.bedShape, params.bedX, params.bedY, params.bedZ, params.bedOrigin, params.gcodeOrigin, params.marginX, params.marginY, bedOut]);
+
+  function centreOnBed() {
+    const c = bedCentre(params);
+    setParams({ ...params, gcodeOrigin: 'centre', originX: c.x, originY: c.y });
+  }
+
+  function adaptWave() {
+    setParams(adaptToNozzle(params, keyframes.length > 0));
+    showToast(keyframes.length > 0
+      ? 'Capa, cordón y espaciado adaptados; la onda la fijan los keyframes'
+      : 'Capa, cordón, onda N y espaciado adaptados a la boquilla');
+  }
+
   function restoreSession() {
     if (!savedSession) return;
-    const p = { ...DEFAULT_PARAMS, ...savedSession.params };
+    const p = { ...DEFAULT_PARAMS, ...savedSession.params, ...pickMachine(params) };
     setParams(p);
     setKeyframes([...savedSession.keyframes].sort((a, b) => a.t - b.t));
     setSelectedKfId(null);
@@ -934,7 +995,11 @@ export default function App() {
 
   const switcher = (
     <div className="workspace-switch" role="tablist" aria-label="Espacio de trabajo">
-      {([['forma', 'Forma', 'Crear la forma de la pieza'], ['impresion', 'Impresión', 'Onda, capas y G-code']] as const)
+      {([
+        ['forma', 'Forma', 'Crear la forma de la pieza'],
+        ['impresion', 'Impresión', 'Onda, capas y keyframes'],
+        ['maquina', 'Máquina', 'Impresora, cama, material y revisión del G-code'],
+      ] as const)
         .map(([w, label, title]) => (
           <button key={w} role="tab" aria-selected={workspace === w} title={title}
             className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
@@ -993,6 +1058,8 @@ export default function App() {
         timelineLead={kfNav}
         timelineActions={kfActions}
         timelineEditor={kfEditor}
+        bed={bed}
+        showTimeline={workspace === 'impresion'}
       />
 
       {/* ── Panel izquierdo ── */}
@@ -1006,6 +1073,7 @@ export default function App() {
                   title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
               </span>
             </div>
+            {workspace === 'maquina' ? <MachineParams params={params} onChange={setParams} /> : <>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
                 <span className="session-banner-text">
@@ -1086,6 +1154,7 @@ export default function App() {
 
             <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null}
               shortestWl={shortestWl} />
+            </>}
           </div>
         </aside>
       ) : (
@@ -1100,6 +1169,14 @@ export default function App() {
       {shown.right ? (
         <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
+            {workspace === 'maquina' ? (
+              <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
+                gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
+                headerExtra={
+                  <button className="btn-icon" onClick={() => togglePanel('right')}
+                    title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
+                } />
+            ) : (
             <LissajousParams
               params={lissParams}
               onChange={setLissParams}
@@ -1120,12 +1197,15 @@ export default function App() {
                   title="Ocultar panel" aria-label="Ocultar panel de onda"><Chevron dir="right" /></button>
               }
             />
+            )}
           </div>
         </aside>
       ) : (
         <aside className="float-panel panel-rail panel-rail--right" style={{ width: RAIL_W }}>
           <button className="btn-icon rail-open" onClick={() => togglePanel('right')}
-            title="Mostrar panel de onda" aria-label="Mostrar panel de onda"><Icon name="onda" size={16} /><Chevron dir="left" /></button>
+            title={workspace === 'maquina' ? 'Mostrar la revisión previa' : 'Mostrar panel de onda'}
+            aria-label={workspace === 'maquina' ? 'Mostrar la revisión previa' : 'Mostrar panel de onda'}>
+            <Icon name={workspace === 'maquina' ? 'ok' : 'onda'} size={16} /><Chevron dir="left" /></button>
         </aside>
       )}
 
