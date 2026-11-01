@@ -82,6 +82,15 @@ export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], sta
   if (params.safeZ > params.bedZ) out.push({ level: 'warn', title: `Z de seguridad (${n(params.safeZ)} mm) por encima de la máquina` });
 
   const h = params.layerHeight, noz = params.nozzleDiameter;
+  let first = Infinity;
+  for (const path of toolpath[0].paths) for (const p of path) first = Math.min(first, p.z);
+  if (first <= 0.01) {
+    out.push({ level: 'err', title: `La primera capa va a Z ${n(first, 2)}`,
+      detail: 'La boquilla rasparía la cama. Sube el desplazamiento Z (Calibración Z) a la altura de la primera capa.' });
+  } else if (filament && (first < 0.5 * h || first > 0.8 * noz)) {
+    out.push({ level: 'warn', title: `Primera capa a Z ${n(first, 2)} mm con capas de ${n(h, 2)}`,
+      detail: 'En filamento la primera capa suele ir a una altura de capa: ajusta el desplazamiento Z.' });
+  }
   if (h > 0.8 * noz) {
     out.push({ level: filament ? 'err' : 'warn', title: `Capa de ${n(h, 2)} mm con boquilla de ${n(noz, 2)}`,
       detail: filament ? 'Más del 80 % de la boquilla: las capas no se pegan.' : 'En arcilla suele ir entre el 40 y el 70 % de la boquilla.', action: 'adapt' });
@@ -165,6 +174,8 @@ export function adaptToNozzle(params: PrintParams, hasKeyframes: boolean): Print
     layerHeight: Math.max(0.05, round(noz * k.h, 0.05)),
     lineWidth: Math.max(0.05, round(noz * k.w, 0.05)),
   };
+  // A filament first layer sits one layer height above the bed.
+  if (params.material === 'filament') next.nozzleHeightOffset = next.layerHeight;
   if (!hasKeyframes) {
     next.lissAmpN = round(noz * k.amp, 0.1);
     next.lissWlN = wl;

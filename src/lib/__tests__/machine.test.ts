@@ -172,9 +172,14 @@ describe('checkMachine', () => {
     expect(c.some(x => x.title === 'Variables desconocidas en las plantillas')).toBe(true);
   });
 
+  it('flags a first layer on or into the bed', () => {
+    expect(levels({ ...k1, layerHeight: 0.2, nozzleHeightOffset: 0 })[0].title).toBe('La primera capa va a Z 0');
+    expect(levels({ ...k1, layerHeight: 0.2 }).some(c => c.title.startsWith('Primera capa'))).toBe(false);
+  });
+
   it('adapts the layer, bead and wave to the nozzle', () => {
     const a = adaptToNozzle(k1, false);
-    expect([a.layerHeight, a.lineWidth, a.lissAmpN, a.lissWlN]).toEqual([0.2, 0.6, 1, 6]);
+    expect([a.layerHeight, a.lineWidth, a.lissAmpN, a.lissWlN, a.nozzleHeightOffset]).toEqual([0.2, 0.6, 1, 6, 0.2]);
     expect(levels(a).filter(c => c.action === 'adapt')).toEqual([]);
     expect(adaptToNozzle(k1, true).lissAmpN).toBe(k1.lissAmpN);
   });

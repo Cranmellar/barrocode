@@ -61,7 +61,7 @@ const BASE: MachineProfile['values'] = {
   nozzleDiameter: 0.4, lineWidth: 0.6, filamentDiameter: 1.75, flowRatio: 100, maxVolumetricFlow: 15,
   nozzleTemp: 215, bedTemp: 60, fanSpeed: 100, fanFromLayer: 3, retractLength: 0.8, retractSpeed: 2400,
   printSpeed: 3600, travelSpeed: 9000, firstLayerSpeed: 1800, minLayerTime: 8, accel: 0,
-  generateE: true, extrusionMultiplier: 0.05, nozzleHeightOffset: 0, safeZ: 5,
+  generateE: true, extrusionMultiplier: 0.05, nozzleHeightOffset: 0.2, safeZ: 5,
   dwellAtStart: 0, primingMove: false, primingLength: 20, startGcode: T.marlin, endGcode: T.marlinEnd,
 };
 const CLAY: Partial<MachineProfile['values']> = {

@@ -209,7 +209,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   position: absolute;
   top: 2px;
   left: 2px;
-  width: calc((100% - 8px) / 3);
+  width: calc((100% - 6px) / 2);
   height: 26px;
   border-radius: var(--radius-sm);
   background: var(--field);
@@ -1426,7 +1426,7 @@ input[type="range"]::-moz-range-thumb {
 .view-preset:hover { color: var(--ink); }
 .view-preset--on { color: var(--ink); }
 
-/* Forma · Impresión: the header of the left panel in either workspace */
+/* Forma · Impresión · Máquina: the header of the left panel in every workspace */
 .workspace-switch { display: flex; gap: var(--sp-3); }
 .workspace-tab {
   padding: 0;
@@ -1439,6 +1439,88 @@ input[type="range"]::-moz-range-thumb {
 }
 .workspace-tab:hover { color: var(--ink-2); }
 .workspace-tab--on, .workspace-tab--on:hover { color: var(--ink); }
+
+/* ── Máquina ─────────────────────────────────────────────────────────────── */
+.machine-select {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 var(--sp-2);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-sm);
+  background: var(--field);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-md);
+}
+.machine-select:hover { border-color: var(--ink-2); }
+.machine-select--short { flex: none; width: 140px; }
+.machine-note {
+  margin: 2px var(--sp-4) var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1.45;
+  color: var(--muted);
+}
+.machine-note--pad { margin-top: var(--sp-1); }
+.machine-template {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-4) 0;
+}
+.machine-template label { font-size: var(--fs-sm); color: var(--ink-2); margin-top: var(--sp-1); }
+.machine-template textarea {
+  width: 100%;
+  resize: vertical;
+  padding: 6px var(--sp-2);
+  border: 1px solid var(--control-edge);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-xs);
+  line-height: 1.5;
+}
+.machine-template textarea:focus { outline: none; border-color: var(--ink); background: var(--field); }
+.machine-template .machine-note { margin: 0 0 var(--sp-2); }
+.machine-count { font-size: var(--fs-sm); font-weight: var(--fw-regular); font-variation-settings: 'wght' 450; color: var(--muted); }
+.machine-empty { margin: 0 var(--sp-4) var(--sp-4); font-size: var(--fs-sm); color: var(--muted); }
+
+/* Pre-export review: severity in a stripe and an icon, not in colour alone */
+.check-list { list-style: none; margin: 0; padding: 0 var(--sp-3) var(--sp-2); display: flex; flex-direction: column; gap: var(--sp-1); transition: opacity var(--dur-fast); }
+.check-list--stale { opacity: 0.6; }
+.check-item {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2) var(--sp-2) 10px;
+  border-left: 2px solid var(--border-strong);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  font-size: var(--fs-sm);
+  line-height: 1.4;
+  color: var(--ink);
+}
+.check-item > .ico { margin-top: 2px; }
+.check-item > div { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.check-item .btn-small { margin-top: var(--sp-1); height: 24px; font-size: var(--fs-sm); }
+.check-item--err { border-left-color: var(--err); background: var(--err-bg); }
+.check-item--err > .ico { color: var(--err); }
+.check-item--warn { border-left-color: var(--ink-2); background: var(--surface-2); }
+.check-item--warn > .ico { color: var(--ink-2); }
+.check-item--ok { border-left-color: var(--ok); }
+.check-item--ok > .ico { color: var(--ok); }
+.check-detail { color: var(--ink-2); font-size: var(--fs-xs); }
+.machine-stats {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 3px var(--sp-3);
+  margin: 0;
+  padding: 2px var(--sp-4) var(--sp-1);
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+}
+.machine-stats dt { color: var(--muted); }
+.machine-stats dd { margin: 0; color: var(--ink); text-align: right; }
 
 /* ── Forma (shaper) ──────────────────────────────────────────────────────── */
 /* Same width as the print workspace's left panel (LEFT_W in App.tsx) */

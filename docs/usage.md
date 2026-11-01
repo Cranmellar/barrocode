@@ -58,29 +58,45 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
-El panel izquierdo agrupa los parámetros en tres pestañas: **Pieza** (capas, resolución, escala y posición, centro, escala y giro), **Trayecto** (dirección, unión de capas, z-hop, desplazamientos) y **Máquina** (velocidades, extrusión, calibración Z, arcilla). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
+El panel izquierdo agrupa los parámetros de la pieza en dos pestañas: **Pieza** (capas, resolución, escala, centro, escala y giro) y **Trayecto** (dirección, unión de capas, z-hop, desplazamientos). Lo que depende de la impresora está en el espacio **Máquina** (ver *3b*). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
 
 | Parámetro | Efecto |
 |---|---|
 | **Espaciado de muestra** (Pieza › Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm cuando la escala es 1). Lo justo son unos 10 puntos por ciclo de la onda más corta: menos y la onda sale quebrada, más y el G-code pesa más y cada cambio tarda en recalcularse. Debajo, el panel muestra los puntos por ciclo y sugiere un valor (entre 0,25 y 2,5 mm). |
 | **Altura de capa** | Incremento Z entre capas apiladas. |
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
-| **Offset Z de boquilla** | Se suma al Z de cada capa para calibrar la primera capa. |
-| **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor. |
-| **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. La pieza se ubica desde la esquina superior izquierda del `viewBox`. |
-| **Origen del G-code** | Cómo se ubica la pieza en el G-code. *Centro* (por defecto) pone el centro de la pieza en *Posición X / Y*; sirve para camas con el origen en el centro, como la mayoría de las delta. *Esquina inf. izq.* pone la esquina inferior izquierda del rectángulo que ocupa la pieza (todas las capas, con la onda) a *Margen X / Y* del origen, así que todo el G-code queda en coordenadas positivas, como piden las impresoras con el origen en una esquina; los desplazamientos en arco entre trayectos tampoco bajan de esa esquina. Solo cambia el G-code: la vista 3D sigue mostrando la pieza centrada. |
-| **Posición X / Y** | Con *Centro*: dónde queda en la cama el centro de la pieza. Con 0, 0 el centro geométrico de la pieza va al origen de la impresora, esté donde esté en la mesa de trabajo del SVG (Illustrator, Inkscape…). |
-| **Margen X / Y** | Con *Esquina inf. izq.* (en lugar de *Posición X / Y*): distancia desde el origen de la cama hasta el borde izquierdo y el inferior de la pieza, para moverla dentro de la cama. Por defecto 10, 10 mm. Con un margen Y menor de 10 mm la línea de cebado va encima de la pieza en vez de debajo. |
+| **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
-| **Velocidad de impresión / desplazamiento** | Define avances en mm/min. |
-| **Generar valores E** | Incluye la columna de extrusión `E`. Desactívalo para salida solo de movimiento. |
-| **Multiplicador de extrusión** | Unidades `E` por mm de desplazamiento. Ajustar según bomba, presión o tornillo sin fin. |
 | **Transición Z suave** | Conecta una capa con la siguiente con movimiento continuo, sin retracción ni levantamiento. En rutas cerradas la boquilla sube a la capa siguiente mientras recorre el final de la vuelta, en vez de subir en vertical en la costura. |
 | **Arco de transición** | Largo en mm del tramo final de cada ruta cerrada en el que se sube a la capa siguiente. Si es mayor que el perímetro, la subida ocupa toda la vuelta. No se aplica con *Dirección alternada*. |
 | **Dirección alternada** | Invierte capas impares para reducir deriva direccional. |
 | **Cerrar trayecto** | Agrega retorno al inicio de cada trayecto. |
-| **Pausa al inicio** | Inserta `G4` en la primera posición para estabilizar el flujo de arcilla. |
-| **Movimiento de cebado** | Extruye una línea corta antes de la impresión principal, paralela a X y a 10 mm de la primera capa: por debajo de la pieza, o por encima si por debajo quedaría en Y negativa. |
+
+## 3b. Máquina
+
+El tercer espacio, **Máquina** (selector de arriba del panel izquierdo), reúne lo que depende de la impresora. Se guarda aparte (`barrocode.machine`) y se conserva al cargar otro SVG o restaurar una sesión. La vista 3D dibuja la cama bajo la pieza, con su origen X0 Y0; el borde se pone en rojo y discontinuo si algo se sale. El panel derecho es la **Revisión previa**: errores, avisos y lo que está bien, con un resumen de tiempo, material, caja y tamaño del archivo.
+
+| Parámetro | Efecto |
+|---|---|
+| **Perfil** | Rellena la máquina de una vez y centra la pieza en la cama. Arcilla: origen al centro, origen en esquina, Delta WASP 2040 Clay. Filamento: Creality K1 / K1C, K1 Max, Ender-3 V3, V3 KE, V3 SE, Ender-3 S1; Bambu Lab A1 mini, A1, P1S / X1C; Prusa MK4S, CORE One, MINI+; Elegoo Neptune 4 Pro; Anycubic Kobra 3; Sovol SV06; Voron 2.4 (350). Son cifras de catálogo y perfiles de la comunidad, sin verificar en máquina. Cambiar un valor pasa a *Personalizado*. |
+| **Material** | *Arcilla*: E es el multiplicador de la bomba y nunca hay retracción. *Filamento*: E es el volumen del cordón sobre la sección del filamento, con retracción, ventilador y temperaturas; las velocidades se muestran en mm/s. |
+| **Firmware** | Marlin, Klipper, Prusa, Bambu Lab o RepRap. Decide cómo se escribe la aceleración (`M204` o `SET_VELOCITY_LIMIT`) y qué avisos da la revisión. |
+| **Cama** | Rectangular (ancho X, fondo Y) o redonda (diámetro), y altura Z. La subida final no pasa de esa altura. |
+| **Origen de la máquina** | Dónde está X0 Y0: en la esquina delantera izquierda (casi todas las cartesianas) o en el centro (deltas). |
+| **Colocar la pieza por** | *Su centro* pone el centro de la pieza en *Posición X / Y*. *Su esquina inf. izq.* pone la esquina inferior izquierda del rectángulo que ocupa la pieza a *Margen X / Y* del origen. *Centrar en la cama* usa *Su centro* con el centro de la cama. |
+| **Boquilla / Ancho de cordón** | Con la altura de capa dan el volumen extruido (filamento) y la revisión de la capa: en filamento, más del 80 % de la boquilla es un error; en arcilla, un aviso. Menos del 25 % avisa en los dos. |
+| **Diámetro de filamento / Flujo / Caudal máximo** | Filamento. El caudal máximo es lo que el fusor alcanza a fundir (mm³/s); la revisión avisa si ancho × capa × velocidad lo supera. |
+| **Generar valores E / Multiplicador** | Incluye la columna `E`. El multiplicador (arcilla) son unidades `E` por mm; ajústalo a la bomba, la presión o el tornillo. |
+| **Temperaturas / Ventilador** | Filamento. Las temperaturas entran en la plantilla de inicio (`{nozzleTemp}`, `{bedTemp}`); el ventilador se apaga al empezar (`M107`) y se enciende en la capa indicada (`M106`). |
+| **Velocidades** | Impresión, primera capa (0 = la de impresión) y desplazamiento. |
+| **Tiempo mín. por capa** | Las capas que tardarían menos se imprimen más despacio, para enfriar (filamento) o asentarse (arcilla). 0 = desactivado. |
+| **Aceleración** | 0 deja la de la máquina. |
+| **Retracción** | Filamento: mm que se recogen antes de cada desplazamiento entre trayectos y se devuelven al llegar. |
+| **Desplazamiento Z** | Altura de la primera capa: se suma al Z de cada capa. En filamento suele ser una altura de capa; la revisión da error si queda en Z 0. |
+| **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, sin pasar la altura de la máquina. |
+| **Pausa al inicio / Cebado** | Arcilla. `G4` en la primera posición, y una línea corta paralela a X a 10 mm de la primera capa (debajo, o encima si debajo quedaría en Y negativa). |
+| **Inicio y fin** | G-code antes y después del programa. Variables: `{nozzleTemp}`, `{bedTemp}`, `{bedX}`, `{bedY}`, `{bedZ}`, `{firstLayerZ}`, `{topZ}`, `{parkZ}`, `{minX}`, `{maxX}`, `{minY}`, `{maxY}`. Una variable desconocida queda tal cual y la revisión lo marca como error. Sin plantilla de fin, el programa acaba con `M84`. |
+| **Adaptar a la boquilla** | En la revisión: ajusta altura de capa, ancho de cordón, onda N (si no hay keyframes), espaciado de muestra y, con filamento, el desplazamiento Z a la boquilla. |
 
 ## 4. Parámetros De Lissajous
 

@@ -70,9 +70,10 @@ Algunos detalles que hacen la onda imprimible:
 
 ## Antes De Imprimir
 
-- **Origen de la cama.** Por defecto el centro de la pieza va a X 0, Y 0, lo correcto en impresoras delta y otras con origen al centro. En una impresora con origen en una esquina, pon el centro de la cama en *Pieza → Escala y posición → Posición X / Y*; si no, media pieza queda en coordenadas negativas.
+- **Máquina.** En el espacio *Máquina* elige el perfil de tu impresora (arcilla o filamento: Creality, Bambu Lab, Prusa y otras) o ajusta cama, origen, boquilla y plantillas de inicio y fin. La vista dibuja la cama bajo la pieza y la *Revisión previa* avisa si algo se sale de la cama, si la capa no corresponde a la boquilla o si falta algo en las plantillas. Los perfiles son cifras de catálogo: compruébalos en tu máquina.
+- **Origen de la cama.** Con el perfil de arcilla por defecto el centro de la pieza va a X 0, Y 0, lo correcto en impresoras delta y otras con origen al centro. En una impresora con origen en una esquina, *Centrar en la cama* (Máquina) la coloca en el centro; si no, media pieza queda en coordenadas negativas y la revisión lo marca.
 - **Escala.** Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `in`, `pt`…), se imprime a ese tamaño. Si no, 1 unidad SVG = 1 mm; para píxeles a 96 dpi usa un factor de escala de `0.2645`. Las formas de *Forma* llegan siempre en mm.
-- **Extrusión.** `E` es absoluta (`M82`) y crece con la distancia recorrida: `E += distancia · multiplicador`. Calibra el multiplicador para tu bomba, pistón o tornillo, o desactiva *Generar valores E* si tu máquina controla el flujo aparte.
+- **Extrusión.** `E` es absoluta (`M82`) y crece con la distancia recorrida. En arcilla, `E += distancia · multiplicador`: calibra el multiplicador para tu bomba, pistón o tornillo, o desactiva *Generar valores E* si tu máquina controla el flujo aparte. En filamento, `E` es el volumen del cordón (ancho × altura de capa) sobre la sección del filamento.
 - **Revisa el encabezado.** El G-code empieza con un bloque de comentarios con los parámetros usados.
 
 ## G-code Generado

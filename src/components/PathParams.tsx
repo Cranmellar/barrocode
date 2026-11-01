@@ -90,13 +90,12 @@ function Resolution({ params, shortestWl, onSpacing }: {
   );
 }
 
-type GroupId = 'pieza' | 'trayecto' | 'maquina';
+type GroupId = 'pieza' | 'trayecto';
 
 const TAB_KEY = 'barrocode.leftTab';
 const TABS: { id: GroupId; title: string; icon: IconName }[] = [
   { id: 'pieza', title: 'Pieza', icon: 'pieza' },
   { id: 'trayecto', title: 'Trayecto', icon: 'trayecto' },
-  { id: 'maquina', title: 'Máquina', icon: 'maquina' },
 ];
 
 function loadTab(): GroupId {
@@ -125,9 +124,6 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
     try { localStorage.setItem(TAB_KEY, id); } catch { /* storage unavailable */ }
   }
 
-  const originHint = 'Cómo se ubica la pieza en el G-code: su centro en Posición X / Y (camas con origen en el centro, como las delta) o su esquina inferior izquierda a un margen del origen (camas con origen en una esquina). La vista 3D no cambia: siempre muestra la pieza centrada';
-  const posHint = 'Dónde queda el centro de la pieza en la cama; 0, 0 es el origen de la impresora';
-  const marginHint = 'Distancia desde el origen de la cama (0, 0, la esquina) hasta el borde de la pieza; mueve la pieza dentro de la cama, solo en el G-code';
   const effLayers = layerCount(params);
   const height = +(effLayers * params.layerHeight).toFixed(1);
 
@@ -137,7 +133,6 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
       params.softJoin ? 'unión suave' : 'sin unión',
       params.zHopHeight > 0 ? `z-hop ${params.zHopHeight} mm` : 'sin z-hop',
     ].join(' · '),
-    maquina: `${params.printSpeed} mm/min${params.generateE ? ` · E ×${params.extrusionMultiplier}` : ' · sin E'}`,
   };
 
   return (
@@ -187,7 +182,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
 
         <Resolution params={params} shortestWl={shortestWl} onSpacing={v => set('sampleSpacing', v)} />
 
-        <Sec title="Escala y posición" icon="escala">
+        <Sec title="Escala" icon="escala">
           <Num label="Factor de escala" value={params.scaleFactor}
             min={0.001} step={0.1} unit="SVG→mm"
             hint="Multiplica todas las coordenadas SVG para obtener milímetros."
@@ -200,35 +195,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
                   Usar tamaño real (×{svgMmPerUnit})
                 </button>
               </div>)}
-          <div className="param-row" title={originHint}>
-            <label>Origen del G-code</label>
-          </div>
-          <div className="param-row param-check param-choice" title={originHint}>
-            <label>
-              <input type="radio" checked={params.gcodeOrigin === 'centre'}
-                onChange={() => set('gcodeOrigin', 'centre')} />
-              Centro
-            </label>
-            <label>
-              <input type="radio" checked={params.gcodeOrigin === 'corner'}
-                onChange={() => set('gcodeOrigin', 'corner')} />
-              Esquina inf. izq.
-            </label>
-          </div>
-          {params.gcodeOrigin === 'corner'
-            ? <>
-                <Num label="Margen X" icon="mover" value={params.marginX} min={0} step={1} unit="mm"
-                  hint={marginHint} onChange={v => set('marginX', Math.max(0, v))} />
-                <Num label="Margen Y" icon="mover" value={params.marginY} min={0} step={1} unit="mm"
-                  hint={marginHint} onChange={v => set('marginY', Math.max(0, v))} />
-                <div className="param-info">→ solo en el G-code: la esquina inferior izquierda va a X {fmt(params.marginX)}, Y {fmt(params.marginY)}; la vista sigue centrada</div>
-              </>
-            : <>
-                <Num label="Posición X" icon="mover" value={params.originX} step={1} unit="mm"
-                  hint={posHint} onChange={v => set('originX', v)} />
-                <Num label="Posición Y" icon="mover" value={params.originY} step={1} unit="mm"
-                  hint={posHint} onChange={v => set('originY', v)} />
-              </>}
+          <div className="param-info">→ la posición en la cama se elige en <i>Máquina</i></div>
           <Check label="Invertir eje Y" icon="reflejar" checked={params.flipY}
             hint="El eje Y del SVG crece hacia abajo; actívalo si la impresora usa Y hacia arriba"
             onChange={v => set('flipY', v)} />
@@ -280,52 +247,6 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
 
       </>)}
 
-      {tab === 'maquina' && (<>
-        <Sec title="Velocidades" icon="velocidad">
-          <Num label="Vel. impresión" value={params.printSpeed}
-            min={1} step={50} unit="mm/min"
-            onChange={v => set('printSpeed', v)} />
-          <Num label="Vel. desplazamiento" value={params.travelSpeed}
-            min={1} step={100} unit="mm/min"
-            onChange={v => set('travelSpeed', v)} />
-        </Sec>
-
-        <Sec title="Extrusión" icon="extrusion">
-          <Check label="Generar valores E" checked={params.generateE}
-            hint="Incluye la columna E en el G-code. Desactívalo para salida solo de movimiento."
-            onChange={v => set('generateE', v)} />
-          {params.generateE &&
-            <Num label="Multiplicador" value={params.extrusionMultiplier}
-              min={0} step={0.005} unit="E/mm"
-              hint="Unidades E por mm de desplazamiento — ajústalo a tu sistema de bomba/tornillo"
-              onChange={v => set('extrusionMultiplier', v)} />}
-        </Sec>
-
-        <Sec title="Calibración Z" icon="calibracion">
-          <Num label="Desplazamiento Z" value={params.nozzleHeightOffset}
-            step={0.1} unit="mm"
-            hint="Se suma a la Z de cada capa — útil para calibración de primera capa"
-            onChange={v => set('nozzleHeightOffset', v)} />
-          <Num label="Z de seguridad" icon="zSeguridad" value={params.safeZ}
-            min={0} step={1} unit="mm"
-            hint="Altura de los desplazamientos al inicio y durante el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, la que sea mayor"
-            onChange={v => set('safeZ', v)} />
-        </Sec>
-
-        <Sec title="Arcilla" icon="arcilla">
-          <Num label="Pausa al inicio" icon="reloj" value={params.dwellAtStart}
-            min={0} step={100} unit="ms"
-            hint="G4 al inicio del primer trayecto — deja estabilizarse el flujo"
-            onChange={v => set('dwellAtStart', v)} />
-          <Check label="Cebado de boquilla" icon="cebado" checked={params.primingMove}
-            hint="Extruye una línea corta para cebar la boquilla antes de imprimir"
-            onChange={v => set('primingMove', v)} />
-          {params.primingMove &&
-            <Num label="Longitud de cebado" value={params.primingLength}
-              min={1} step={5} unit="mm"
-              onChange={v => set('primingLength', v)} />}
-        </Sec>
-      </>)}
       </div>
     </div>
   );
