@@ -3,6 +3,7 @@ import { NumInput } from '../../components/NumInput';
 import { Icon, type IconName } from '../../components/icons';
 import { isStraight, type PathNode } from '../lib/pathModel';
 import { fmt } from '../lib/shape';
+import { wrapHint } from '../../lib/wrapHint';
 
 /** A node of one contour. */
 export interface NodeRef { c: number; i: number }
@@ -43,7 +44,7 @@ function Check({ label, checked, hint, disabled, onChange }: {
   label: string; checked: boolean; hint?: string; disabled?: boolean; onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="param-row param-check" title={hint}>
+    <div className="param-row param-check" title={wrapHint(hint)}>
       <label>
         <input type="checkbox" checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} />
         {label}
@@ -86,7 +87,7 @@ export function PathPanel(props: Props) {
           hint="Los nodos que arrastras caen en milímetros enteros" />
         <div className="shaper-actions">
           <button className="btn-small" onClick={props.onBackToFamily}
-            title="Deja los nodos y vuelve a la familia con sus parámetros (Ctrl+Z vuelve a los nodos)">Volver a la familia</button>
+            title={wrapHint('Deja los nodos y vuelve a la familia con sus parámetros (Ctrl+Z vuelve a los nodos)')}>Volver a la familia</button>
         </div>
       </Sec>
 
@@ -122,7 +123,7 @@ export function PathPanel(props: Props) {
       </Sec>
 
       <Sec title="Tamaño y sentido" icon="direccion">
-        <div className="param-row" title="Dos veces la distancia del centro al punto más lejano; cambiarlo escala el trazado">
+        <div className="param-row" title={wrapHint('Dos veces la distancia del centro al punto más lejano; cambiarlo escala el trazado')}>
           <label>Diámetro exterior <span className="unit">mm</span></label>
           <NumInput value={+props.diameterMM.toFixed(1)} min={5} step={1} onChange={v => props.onDiameter(Math.max(5, v))} />
         </div>

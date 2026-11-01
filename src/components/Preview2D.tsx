@@ -25,6 +25,7 @@ import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
 import { Icon } from './icons';
 import { downloadGcode } from '../lib/gcodeGenerator';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   sampledPaths: SampledPath[];
@@ -712,7 +713,7 @@ export function Preview2D({
       <div className="stage-bar" style={{ left: insets.left, right: insets.right, top: STAGE_GAP }}>
         <div className="bar-group">
           <button className="btn-icon" onClick={() => fitView(undefined, undefined, true)} aria-label="Encuadrar la pieza"
-            title="Encuadrar la pieza. En la vista: arrastrar = desplazar · clic derecho = rotar · rueda = zoom">
+            title={wrapHint('Encuadrar la pieza. En la vista: arrastrar = desplazar · clic derecho = rotar · rueda = zoom')}>
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
               strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
               <path d="M1.5 5V1.5H5M11 1.5h3.5V5M14.5 11v3.5H11M5 14.5H1.5V11" />
@@ -811,7 +812,7 @@ export function Preview2D({
             className={`layer-solo${layerSolo ? ' layer-solo--on' : ''}`}
             aria-pressed={layerSolo}
             onClick={() => setLayerSolo(!layerSolo)}
-            title="Aislar la capa superior visible (las inferiores quedan en gris)"
+            title={wrapHint('Aislar la capa superior visible (las inferiores quedan en gris)')}
             aria-label="Aislar capa"
           >
             <Icon name="aislar" />
@@ -878,7 +879,7 @@ export function Preview2D({
                         e.stopPropagation();
                         kfDragRef.current = { id: kf.id, startX: e.clientX, moved: false };
                       }}
-                      title={dragging ? undefined : `Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% · ${layerLabelAt(kf.t)} — clic para editar, arrastrar para mover (se ajusta al inicio de capa; Alt para mover libre)`}
+                      title={dragging ? undefined : wrapHint(`Keyframe ${i + 1} · ${(kf.t * 100).toFixed(1)}% · ${layerLabelAt(kf.t)}\nClic para editar, arrastrar para mover (se ajusta al inicio de capa; Alt para mover libre)`)}
                     >{i + 1}</div>
                   );
                 })}
@@ -905,7 +906,7 @@ export function Preview2D({
                 onChange={e => onScrub(parseFloat(e.target.value))}
               />
             </div>
-            <span className="timeline-pct" title="Posición del extrusor en el recorrido, su capa y la altura de la pieza al terminarla">
+            <span className="timeline-pct" title={wrapHint('Posición del extrusor en el recorrido, su capa y la altura de la pieza al terminarla')}>
               {Math.round(timelineProgress * 100)}%
               <span className="timeline-layer">{layerLabelAt(timelineProgress)}</span>
             </span>

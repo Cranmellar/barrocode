@@ -4,6 +4,7 @@ import { NumInput } from './NumInput';
 import { Icon, type IconName } from './icons';
 import { FIRMWARE_LABEL, MACHINE_PROFILES, applyProfile, bedCentre, findProfile } from '../lib/machineProfiles';
 import { TEMPLATE_VARS } from '../lib/gcodeGenerator';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   params: PrintParams;
@@ -15,7 +16,7 @@ function Num({ label, icon, value, min, max, step, unit, hint, onChange }: {
   step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
 }) {
   return (
-    <div className="param-row" title={hint}>
+    <div className="param-row" title={wrapHint(hint)}>
       <label>{icon && <Icon name={icon} />}{label}{unit && <span className="unit"> {unit}</span>}</label>
       <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
     </div>
@@ -26,7 +27,7 @@ function Check({ label, icon, checked, hint, onChange }: {
   label: string; icon?: IconName; checked: boolean; hint?: string; onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="param-row param-check" title={hint}>
+    <div className="param-row param-check" title={wrapHint(hint)}>
       <label>
         <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
         {icon && <Icon name={icon} />}{label}
@@ -40,8 +41,8 @@ function Choice<T extends string>({ label, value, options, hint, onChange }: {
 }) {
   return (
     <>
-      <div className="param-row" title={hint}><label>{label}</label></div>
-      <div className="param-row param-check param-choice" title={hint}>
+      <div className="param-row" title={wrapHint(hint)}><label>{label}</label></div>
+      <div className="param-row param-check param-choice" title={wrapHint(hint)}>
         {options.map(([v, text]) => (
           <label key={v}>
             <input type="radio" checked={value === v} onChange={() => onChange(v)} />
@@ -113,7 +114,7 @@ export function MachineParams({ params, onChange }: Props) {
         <Choice label="Material" value={params.material} options={[['clay', 'Arcilla'], ['filament', 'Filamento']]}
           hint="Arcilla: E es un multiplicador de la bomba y nunca hay retracción. Filamento: E es el volumen del cordón, con retracción, ventilador y temperaturas"
           onChange={v => set('material', v)} />
-        <div className="param-row" title="Decide cómo se llama a la aceleración y qué avisos da la revisión">
+        <div className="param-row" title={wrapHint('Decide cómo se llama a la aceleración y qué avisos da la revisión')}>
           <label>Firmware</label>
           <select className="machine-select machine-select--short" value={params.firmware}
             onChange={e => set('firmware', e.target.value as Firmware)}>

@@ -18,6 +18,7 @@ import {
   type ShapeDoc, type ShapeImport,
 } from './lib/shape';
 import { shapeToSvg } from './lib/toSvg';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   // Null until the first edit; App keeps it so switching workspaces keeps the shape.
@@ -377,7 +378,7 @@ export function ShaperView(props: Props) {
             {switcher}
             <span className="panel-header-actions">
               <button className="btn-reset" onClick={reset} disabled={isDefault}
-                title="Vuelve a la forma inicial de las familias, sin nodos ni importaciones (Ctrl+Z lo deshace)">Restablecer</button>
+                title={wrapHint('Vuelve a la forma inicial de las familias, sin nodos ni importaciones (Ctrl+Z lo deshace)')}>Restablecer</button>
             </span>
           </div>
           {contours ? (
@@ -420,7 +421,7 @@ export function ShaperView(props: Props) {
                 onChange={e => { const f = e.target.files?.[0]; if (f) props.onImportFile(f); e.target.value = ''; }} />
               {props.printName && (
                 <button className="btn-small" onClick={props.onImportPrint}
-                  title="El SVG cargado en Impresión, con sus rutas activas y su escala">Traer «{props.printName}»</button>
+                  title={wrapHint('El SVG cargado en Impresión, con sus rutas activas y su escala')}>Traer «{props.printName}»</button>
               )}
             </div>
           </div>
@@ -446,8 +447,8 @@ export function ShaperView(props: Props) {
               : `Mostrar la franja que barre la onda: ±${fmt(wave.ampNMM, 1)} mm a cada lado. Donde dos franjas se tocan, las paredes chocarán`}>Onda</button>
           <button className={`btn-toggle${batch && !contours ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch && !contours}
             onClick={toggleDiscover}
-            title={contours ? 'Deja los nodos y muestra nueve variaciones de la familia (Ctrl+Z vuelve a los nodos)'
-              : 'Ver nueve variaciones de esta familia y elegir con el ojo'}>Descubrir</button>
+            title={wrapHint(contours ? 'Deja los nodos y muestra nueve variaciones de la familia (Ctrl+Z vuelve a los nodos)'
+              : 'Ver nueve variaciones de esta familia y elegir con el ojo')}>Descubrir</button>
           <span className="stage-summary">{label}</span>
           <button className="btn-primary btn-send" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
             title="Cargar esta forma en Impresión, a su tamaño real">Enviar a impresión</button>

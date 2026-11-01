@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { Icon, type IconName } from './icons';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   params: PrintParams;
@@ -55,7 +56,7 @@ function Slider({ label, icon, value, min, max, step, unit, hint, def, morph, on
   const fill     = at((value - min) / (max - min));
   const trackBg  = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--control-edge) ${fill},var(--control-edge) 100%)`;
   return (
-    <div className="slider-row" title={hint}>
+    <div className="slider-row" title={wrapHint(hint)}>
       <div className="slider-header">
         <span className="slider-label">{icon && <Icon name={icon} />}{label}</span>
         <span className={`slider-num${flashes ? ` num-flash-${flashes % 2 ? 'a' : 'b'}` : ''}`}>
@@ -230,11 +231,11 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <Sec axis="N" title="Normal (lateral)">
         <Slider morph={morph} def={defaults.lissAmpN} icon="amplitud" label="Amplitud N" value={params.lissAmpN}
           min={0} max={30} step={0.1} unit="mm"
-          hint="Desplazamiento máximo a izquierda/derecha de la línea central"
+          hint={'Cuánto se aparta la boquilla hacia cada lado del trazo. El ancho total de la onda es el doble. Con más amplitud, las esquinas del trazo se redondean más para que la onda no se pliegue sobre sí misma.\n0\u00a0=\u00a0sin onda lateral.'}
           onChange={v => set('lissAmpN', v)} />
         <Slider morph={morph} def={defaults.lissWlN} icon="longitud" label="Longitud de onda N" value={params.lissWlN}
           min={1} max={200} step={1} unit="mm"
-          hint="Longitud de arco por ciclo completo en dirección normal"
+          hint={'Distancia, medida a lo largo del trazo, en que la onda lateral va de un lado al otro y vuelve. Más corta, ondas más apretadas. En un contorno cerrado se ajusta un poco para que quepa un número entero de ondas y la costura cierre.'}
           onChange={v => set('lissWlN', v)} />
       </Sec>
 
@@ -242,11 +243,11 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <Sec axis="T" title="Tangente (avance)">
         <Slider morph={morph} def={defaults.lissAmpT} icon="amplitud" label="Amplitud T" value={params.lissAmpT}
           min={0} max={30} step={0.1} unit="mm"
-          hint="Desplazamiento máximo en la dirección de avance del trayecto"
+          hint={'Cuánto se adelanta y se atrasa la boquilla a lo largo del trazo. Sola no cambia la línea, sino su ritmo: el cordón se junta y se estira. Junto con N dibuja elipses, ochos y bucles. Por encima de λT\u00a0÷\u00a06,3 la boquilla llega a retroceder sobre su propio cordón.'}
           onChange={v => set('lissAmpT', v)} />
         <Slider morph={morph} def={defaults.lissWlT} icon="longitud" label="Longitud de onda T" value={params.lissWlT}
           min={1} max={200} step={1} unit="mm"
-          hint="Longitud de arco por ciclo completo en dirección tangente"
+          hint={'Distancia a lo largo del trazo en que la boquilla se adelanta, se atrasa y vuelve. Igual a λN: líneas o elipses, según Delta. La mitad de λN: ochos.'}
           onChange={v => set('lissWlT', v)} />
       </Sec>
 
@@ -261,16 +262,16 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
         )}
         <Slider morph={morph} def={defaults.lissAmpZ} icon="amplitud" label="Amplitud Z" value={params.lissAmpZ}
           min={0} max={20} step={0.1} unit="mm"
-          hint="Desplazamiento máximo vertical. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa anterior; con amplitudes grandes los valles se aplanan."
+          hint={'Cuánto sube y baja la boquilla sobre la altura de su capa. La primera capa nunca baja de su altura, y cada punto queda al menos media capa por encima de la capa de abajo: con amplitudes grandes los valles se aplanan.'}
           onChange={v => set('lissAmpZ', v)} />
         {params.lissAmpZ > 0 && <>
           <Slider morph={morph} def={defaults.lissWlZ} icon="longitud" label="Longitud de onda Z" value={params.lissWlZ}
             min={1} max={200} step={1} unit="mm"
-            hint="Longitud de arco por ciclo completo en dirección vertical"
+            hint={'Distancia a lo largo del trazo en que la boquilla sube, baja y vuelve. Igual a λN: sube y baja al mismo ritmo con que oscila a los lados.'}
             onChange={v => set('lissWlZ', v)} />
           <Slider morph={morph} def={deg(defaults.lissPhaseZ)} icon="fase" label="Fase Z" value={deg(params.lissPhaseZ)}
             min={-180} max={180} step={1} unit="°"
-            hint="Desfase de la oscilación Z respecto a la fase base"
+            hint={'Corre la onda vertical a lo largo del trazo, en grados de una onda. Con Delta\u00a00° y λZ igual a λN: con 0° el punto más alto cae en el extremo de un lado; con 90°, donde la onda cruza el trazo.'}
             onChange={v => set('lissPhaseZ', rad(v))} />
         </>}
       </Sec>
@@ -279,7 +280,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <Sec title="Acoplamiento N / T" icon="acople">
         <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
           min={-180} max={180} step={1} unit="°"
-          hint="Desfase entre N y T. 0°=línea  90°=elipse (si λN=λT)  180°=línea cruzada"
+          hint={'Desfase entre la onda lateral (N) y la de avance (T): decide la figura que dibuja la boquilla. Con λN igual a λT: 0° y 180° dan un vaivén en línea, inclinado hacia un lado o el otro; 90° da una elipse, que es un círculo si las dos amplitudes son iguales.'}
           onChange={v => set('lissDelta', rad(v))} />
       </Sec>
 
@@ -287,11 +288,11 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
       <Sec title="Fase" icon="fase">
         <Slider morph={morph} def={deg(defaults.lissPhaseOffset)} icon="fase" label="Desfase inicial" value={deg(params.lissPhaseOffset)}
           min={-180} max={180} step={1} unit="°"
-          hint="Fase global al inicio del arco (s=0)"
+          hint={'Corre toda la onda (N, T y Z juntas) a lo largo del trazo, en grados de una onda: elige en qué punto de la onda empieza cada trayecto, donde está la costura. 180° la invierte: lo que iba hacia un lado va hacia el otro.'}
           onChange={v => set('lissPhaseOffset', rad(v))} />
         <Slider morph={morph} def={deg(defaults.phaseShiftPerLayer)} icon="desfaseCapa" label="Desfase por capa" value={deg(params.phaseShiftPerLayer)}
           min={-360} max={360} step={1} unit="°"
-          hint="Fase extra añadida en cada capa — crea efecto de torsión/espiral"
+          hint={'Cuánto se corre la onda de una capa a la siguiente, en grados de una onda. Las crestas suben en diagonal y la pared se ve torcida, en espiral. 180° alterna crestas sobre valles, como un tejido. 360° es una onda entera: igual que 0°. Cuanto más cerca de 180°, más corrido queda cada cordón respecto del de abajo y menos se apoya en él.'}
           onChange={v => set('phaseShiftPerLayer', rad(v))} />
       </Sec>
     </div>

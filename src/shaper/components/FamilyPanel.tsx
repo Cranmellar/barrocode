@@ -3,6 +3,7 @@ import { NumInput } from '../../components/NumInput';
 import { Icon, type IconName } from '../../components/icons';
 import { superformulaN3 } from '../lib/families';
 import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
+import { wrapHint } from '../../lib/wrapHint';
 
 interface Props { doc: ShapeDoc; onChange: (doc: ShapeDoc) => void; onEditPoints: () => void }
 
@@ -33,7 +34,7 @@ function Slider({ label, value, min, max, step, unit, hint, def, disabled, onCha
   const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--control-edge) ${fill},var(--control-edge) 100%)`;
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
   return (
-    <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={hint}>
+    <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={wrapHint(hint)}>
       <div className="slider-header">
         <span className="slider-label">{label}</span>
         <span className="slider-num">
@@ -68,7 +69,7 @@ function Num({ label, value, min, max, step, unit, hint, onChange }: {
   step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
 }) {
   return (
-    <div className="param-row" title={hint}>
+    <div className="param-row" title={wrapHint(hint)}>
       <label>{label}{unit && <span className="unit"> {unit}</span>}</label>
       <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
     </div>
@@ -168,7 +169,7 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
         <Num label="Costura" unit="°" value={doc.seamAngle} step={5}
           hint="Dónde empieza y termina cada capa: ángulo desde +X, antihorario visto desde arriba"
           onChange={v => set('seamAngle', v)} />
-        <div className="param-row param-check" title="Sentido en que la boquilla recorre el contorno, visto desde arriba">
+        <div className="param-row param-check" title={wrapHint('Sentido en que la boquilla recorre el contorno, visto desde arriba')}>
           <label>
             <input type="checkbox" checked={doc.clockwise} onChange={e => set('clockwise', e.target.checked)} />
             Sentido horario

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { isVariantOf, variations, type Batch, type Variant } from '../lib/discovery';
 import { checkShape, type WaveLimit } from '../lib/printability';
 import { FAMILY_PARAMS, fmt, shapeBounds, shapePath, shapePoints, type ShapeDoc } from '../lib/shape';
+import { wrapHint } from '../../lib/wrapHint';
 
 interface Props {
   doc: ShapeDoc;
@@ -33,7 +34,7 @@ export function DiscoveryGrid({ doc, batch, wave, onAdopt, onMore, onAnother }: 
           {batch.spread >= 1 ? 'Variaciones al azar' : `Variaciones cerca de la elegida (±${Math.round(batch.spread * 50)} %)`}
         </span>
         <button className="btn-small" onClick={onMore}
-          title="Otra tanda que varía poco alrededor de la forma actual">Más como esta</button>
+          title={wrapHint('Otra tanda que varía poco alrededor de la forma actual')}>Más como esta</button>
         <button className="btn-small" onClick={onAnother}
           title="Otra tanda con todos los valores al azar">Otra tanda</button>
       </div>
@@ -44,7 +45,7 @@ export function DiscoveryGrid({ doc, batch, wave, onAdopt, onMore, onAnother }: 
             <button key={i} aria-pressed={on}
               className={`discover-card${on ? ' discover-card--on' : ''}${tight ? ' discover-card--warn' : ''}`}
               onClick={() => onAdopt(v)}
-              title={tight ? 'Adoptar esta forma. La onda actual no puede seguir parte de ella.' : 'Adoptar esta forma'}>
+              title={tight ? wrapHint('Adoptar esta forma. La onda actual no puede seguir parte de ella.') : 'Adoptar esta forma'}>
               <svg viewBox={`${cx - r} ${cy - r} ${2 * r} ${2 * r}`} aria-hidden="true">
                 <path className="shaper-shape" d={d} />
               </svg>

@@ -4,6 +4,7 @@ import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
 import { Icon, type IconName } from './icons';
 import { MAX_LAYERS, SAMPLES_PER_CYCLE, layerCount, suggestedSpacingMM } from '../lib/waveGenerator';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   params: PrintParams;
@@ -17,7 +18,7 @@ function Num({ label, icon, value, min, max, step, unit, hint, onChange }: {
   step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
 }) {
   return (
-    <div className="param-row" title={hint}>
+    <div className="param-row" title={wrapHint(hint)}>
       <label>{icon && <Icon name={icon} />}{label}{unit && <span className="unit"> {unit}</span>}</label>
       <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
     </div>
@@ -28,7 +29,7 @@ function Check({ label, icon, checked, hint, onChange }: {
   label: string; icon?: IconName; checked: boolean; hint?: string; onChange: (v: boolean) => void;
 }) {
   return (
-    <div className="param-row param-check" title={hint}>
+    <div className="param-row param-check" title={wrapHint(hint)}>
       <label>
         <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
         {icon && <Icon name={icon} />}{label}

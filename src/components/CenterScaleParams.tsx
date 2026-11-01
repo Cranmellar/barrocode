@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import type { PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { Icon } from './icons';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   params: PrintParams;
@@ -118,7 +119,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
     <>
       {/* ── Centro de pivote ── */}
       <div className="section">
-        <div className="section-title" title="Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.">
+        <div className="section-title" title={wrapHint('Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.')}>
           <Icon name="centro" />Centro de pivote
           <ResetBtn label="Centrar en la pieza" atDefault={params.centerX === 0 && params.centerY === 0}
             onClick={() => onChange({ ...params, centerX: 0, centerY: 0 })} />
@@ -177,7 +178,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
             onClick={() => setVal('rotation', 0)} />
         </div>
 
-        <div className="param-row" title="Antihorario visto desde arriba, alrededor del centro de pivote. Se aplica después de la escala.">
+        <div className="param-row" title={wrapHint('Antihorario visto desde arriba, alrededor del centro de pivote. Se aplica después de la escala.')}>
           <label>Ángulo<span className="unit"> °</span></label>
           <NumInput
             value={params.rotation}
