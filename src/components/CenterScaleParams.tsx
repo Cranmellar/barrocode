@@ -119,7 +119,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
     <>
       {/* ── Centro de pivote ── */}
       <div className="section">
-        <div className="section-title" title={wrapHint('Desplazamiento desde el centro geométrico de la pieza. 0, 0 = centro de la pieza.')}>
+        <div className="section-title" title={wrapHint('Punto alrededor del cual se aplican la escala y el giro, medido desde el centro de la pieza. 0,\u00a00\u00a0=\u00a0el centro. Con keyframes puede moverse a lo largo de la pieza.')}>
           <Icon name="centro" />Centro de pivote
           <ResetBtn label="Centrar en la pieza" atDefault={params.centerX === 0 && params.centerY === 0}
             onClick={() => onChange({ ...params, centerX: 0, centerY: 0 })} />
@@ -147,7 +147,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
 
       {/* ── Escala ── */}
       <div className="section">
-        <div className="section-title">
+        <div className="section-title" title={wrapHint('Agranda o achica la forma alrededor del centro de pivote, sin cambiar la altura de capa. Con keyframes cambia al subir: la pieza se abre o se cierra.')}>
           <Icon name="escalaX" />Escala
           <ResetBtn label="Restablecer escala (1×)" atDefault={params.scaleX === 1 && params.scaleY === 1}
             onClick={() => onChange({ ...params, scaleX: 1, scaleY: 1 })} />
@@ -178,7 +178,7 @@ export function CenterScaleParams({ params, onChange }: Props) {
             onClick={() => setVal('rotation', 0)} />
         </div>
 
-        <div className="param-row" title={wrapHint('Antihorario visto desde arriba, alrededor del centro de pivote. Se aplica después de la escala.')}>
+        <div className="param-row" title={wrapHint('Gira la forma alrededor del centro de pivote, antihorario visto desde arriba; se aplica después de la escala. Con keyframes la pieza se tuerce al subir: de 0° a 360° es una vuelta completa.')}>
           <label>Ángulo<span className="unit"> °</span></label>
           <NumInput
             value={params.rotation}

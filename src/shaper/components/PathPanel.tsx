@@ -80,11 +80,11 @@ export function PathPanel(props: Props) {
         <Check label={order > 1 ? `Simetría ×${order}` : 'Simetría'} checked={symOn}
           disabled={!canSymmetric}
           hint={canSymmetric
-            ? 'Editar un nodo mueve sus copias en cada sector'
-            : 'Solo para un contorno que viene de una familia con repeticiones y conserva sus sectores'}
+            ? 'Mover un nodo mueve también sus copias en cada repetición, así la forma sigue simétrica.'
+            : 'Solo para un contorno que viene de una familia con repeticiones y que conserva sus sectores.'}
           onChange={props.onSymmetric} />
         <Check label="Imán a la rejilla (1 mm)" checked={props.snap} onChange={props.onSnap}
-          hint="Los nodos que arrastras caen en milímetros enteros" />
+          hint="Al arrastrar, los nodos caen en milímetros enteros." />
         <div className="shaper-actions">
           <button className="btn-small" onClick={props.onBackToFamily}
             title={wrapHint('Deja los nodos y vuelve a la familia con sus parámetros (Ctrl+Z vuelve a los nodos)')}>Volver a la familia</button>
@@ -103,9 +103,9 @@ export function PathPanel(props: Props) {
               <NumInput value={+p.y.toFixed(2)} step={1} fineStep={0.1} onChange={v => props.onMove(sel!, p.x, v)} />
             </div>
             <Check label="Suave" checked={p.smooth} onChange={v => props.onSmooth(sel!, v)}
-              hint="Las dos asas quedan alineadas; sin esto el nodo es una esquina" />
+              hint="Las dos asas del nodo quedan alineadas y la curva pasa sin quiebre. Desactivado, el nodo puede ser una esquina." />
             <Check label="Tramo siguiente recto" checked={isStraight(nodes, sel!.i)}
-              onChange={v => props.onStraight(sel!, v)} hint="Línea recta hasta el nodo siguiente" />
+              onChange={v => props.onStraight(sel!, v)} hint="Línea recta hasta el nodo siguiente, sin asas." />
             <div className="shaper-actions">
               <button className="btn-small" disabled={sel!.i === 0} onClick={() => props.onSeam(sel!)}
                 title="La capa empieza y termina en este nodo">Costura aquí</button>
@@ -123,12 +123,12 @@ export function PathPanel(props: Props) {
       </Sec>
 
       <Sec title="Tamaño y sentido" icon="direccion">
-        <div className="param-row" title={wrapHint('Dos veces la distancia del centro al punto más lejano; cambiarlo escala el trazado')}>
+        <div className="param-row" title={wrapHint('Dos veces la distancia del centro al punto más lejano: el círculo que encierra la forma. Cambiarlo escala todo el trazado.')}>
           <label>Diámetro exterior <span className="unit">mm</span></label>
           <NumInput value={+props.diameterMM.toFixed(1)} min={5} step={1} onChange={v => props.onDiameter(Math.max(5, v))} />
         </div>
         <Check label="Sentido horario" checked={props.clockwise} onChange={props.onReverse}
-          hint="Sentido en que la boquilla recorre los contornos, visto desde arriba" />
+          hint="Sentido en que la boquilla recorre los contornos, visto desde arriba. Desactivado, antihorario." />
       </Sec>
 
       <Sec title="Comandos" icon="lista">

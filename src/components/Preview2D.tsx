@@ -756,7 +756,7 @@ export function Preview2D({
               `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
               crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
               `Tiempo estimado a ${params.printSpeed} mm/min, sin aceleraciones`,
-            ].filter(Boolean).join('\n')}>
+            ].filter(Boolean).map(l => wrapHint(l as string)).join('\n')}>
               {shownTime !== null && <>{formatDuration(shownTime)}<span className="stage-summary-sep"> · </span></>}
               {fmtMM(modelBounds.maxX - modelBounds.minX)}×{fmtMM(modelBounds.maxY - modelBounds.minY)}×{fmtMM(numLayers * params.layerHeight)} mm
             </span>

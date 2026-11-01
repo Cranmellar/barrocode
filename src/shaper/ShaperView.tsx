@@ -444,14 +444,14 @@ export function ShaperView(props: Props) {
             aria-pressed={showBand && bands.length > 0} disabled={bands.length === 0}
             onClick={() => setShowBand(!showBand)}
             title={bands.length === 0 ? 'Sin onda en Impresión'
-              : `Mostrar la franja que barre la onda: ±${fmt(wave.ampNMM, 1)} mm a cada lado. Donde dos franjas se tocan, las paredes chocarán`}>Onda</button>
+              : wrapHint(`Muestra la franja que barre la onda de Impresión: ±${fmt(wave.ampNMM, 1)}\u00a0mm a cada lado del trazo. Donde dos franjas se tocan, las paredes chocarán.`)}>Onda</button>
           <button className={`btn-toggle${batch && !contours ? ' btn-toggle--on' : ''}`} aria-pressed={!!batch && !contours}
             onClick={toggleDiscover}
             title={wrapHint(contours ? 'Deja los nodos y muestra nueve variaciones de la familia (Ctrl+Z vuelve a los nodos)'
               : 'Ver nueve variaciones de esta familia y elegir con el ojo')}>Descubrir</button>
           <span className="stage-summary">{label}</span>
           <button className="btn-primary btn-send" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
-            title="Cargar esta forma en Impresión, a su tamaño real">Enviar a impresión</button>
+            title={wrapHint('Cargar esta forma en Impresión, a su tamaño real')}>Enviar a impresión</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
             aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
         </div>
