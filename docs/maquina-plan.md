@@ -1,6 +1,6 @@
 # Espacio *Máquina* (G-code) — plan de evaluación
 
-Fecha: 2026-10-31 · base: `main` @ `4fc99b8` · estado: propuesta, nada implementado. Decisiones abiertas en la sección 7.
+Fecha: 2026-10-31 · base: `main` @ `4fc99b8` · estado: G0–G4 implementadas el 2026-11-01 (sección 10); quedan G-1 (medición) y G5 (impresiones de prueba). Decisiones en la sección 7.
 
 Este documento evalúa si conviene añadir un tercer espacio de trabajo, después de *Forma* e *Impresión*, dedicado al G-code y a la máquina. Ese espacio reuniría los parámetros de máquina que hoy están repartidos y añadiría los que faltan para imprimir en arcilla y también con filamento (FDM), con la Creality K1 y la Ender-3 V3 como casos de referencia.
 
@@ -132,6 +132,8 @@ Tercer botón del selector de espacio (`Workspace = 'forma' | 'impresion' | 'maq
 - El panel derecho de *Máquina* no tiene onda: muestra la **revisión previa** y el resumen.
 
 Maquetas de baja fidelidad de tres variantes en [`docs/mockups/maquina/`](mockups/maquina/): **A** espacio *Máquina* con el visor y el cajón de G-code (esta propuesta), **B** espacio *Máquina* centrado en el texto del G-code, navegable por secciones, **C** la alternativa mínima de D-G2, solo la pestaña *Máquina* de *Impresión* con perfil y cama.
+
+Prototipo interactivo en [`docs/mockups/maquina/prototipo.html`](mockups/maquina/prototipo.html) (un solo archivo, se abre en el navegador sin servidor). Junta las variantes A y B (*Visor* / *Texto*), genera G-code real para una pieza de prueba (anillo lobulado con onda N y rampa de costura) y trae perfiles de 19 máquinas: arcilla genérica (origen al centro y en esquina), Delta WASP 2040 Clay, Creality K1 / K1C, K1 Max, Ender-3 V3, V3 KE, V3 SE, Ender-3 S1, Bambu Lab A1 mini, A1, P1S / X1C, Prusa MK4S, CORE One, MINI+, Elegoo Neptune 4 Pro, Anycubic Kobra 3, Sovol SV06 y Voron 2.4. Las cifras son de catálogo o perfiles de la comunidad, sin verificar en máquina.
 
 ### 6.2 Estado
 
@@ -313,3 +315,23 @@ Fuentes de las cifras de impresoras (a verificar en máquina):
 - [Cura y Creality K1: perfiles (All3DP)](https://all3dp.com/es/2/cura-creality-k1-perfil-ajustes-configuracion/)
 - [Cura, issue sobre la temperatura de la K1 Max sin `START_PRINT`](https://github.com/Ultimaker/Cura/issues/16573)
 - [Slicer y `PRINT_START` (documentación de Voron)](https://docs.vorondesign.com/community/howto/EricZimmerman/SlicerAndPrintStart.html)
+
+## 10. Registro de implementación (2026-11-01)
+
+Hecho en la app, en la rama `claude/maquina-prototipo`:
+
+- **G0.** *Máquina* es el tercer botón del selector. Comparte el escenario de *Impresión*: `MachineParams` a la izquierda, `MachineReview` a la derecha, la cama bajo la pieza y sin línea de tiempo. *Impresión* perdió su pestaña *Máquina* y los campos de origen. `G` abre el G-code también aquí.
+- **G1.** Cama rectangular o redonda, con su origen (`bedOrigin`) y su altura; *Centrar en la cama*; `checkMachine` (fuera de cama, X/Y negativos, altura, Z de seguridad); caja del G-code en el encabezado y en `GcodeStats.box`.
+- **G2.** `material`, `firmware`, 19 perfiles (`machineProfiles.ts`) y plantillas de inicio y fin con variables (`TEMPLATE_VARS`); las desconocidas quedan tal cual y la revisión las marca.
+- **G3.** E volumétrica para filamento (`ePerMM`). **No** se hizo E con Z (NP-0a): cambia la salida de arcilla y merece su propio commit.
+- **G4.** Ventilador por capa, aceleración (`M204` o `SET_VELOCITY_LIMIT`), retracción en los desplazamientos, velocidad de primera capa, tiempo mínimo por capa (`layerFeeds`), caudal y segmentos por segundo en la revisión, *Adaptar a la boquilla* (`adaptToNozzle`, D-G8).
+
+Decisiones tomadas al implementar:
+
+- **D-G1:** *Máquina*. **D-G2:** tercer espacio. **D-G3:** retracción solo con filamento. **D-G4:** E absoluta. **D-G5:** mm/s en el panel con filamento, mm/min guardado. **D-G7:** sin perfiles propios guardados aún; la máquina actual se guarda sola (`barrocode.machine`). **D-G8:** *Adaptar* es explícito.
+- **D-G6 sigue abierta:** `MAX_LAYERS` sigue en 500, a la espera de G-1.
+- La primera capa va a `nozzleHeightOffset` (como siempre); los perfiles de filamento lo ponen en 0,2 mm y *Adaptar* lo iguala a la altura de capa. La revisión da error si la primera capa queda en Z 0.
+- La subida final no pasa de `bedZ` (Klipper rechaza movimientos fuera de rango).
+- Los perfiles de arcilla no fijan amplitud ni capas: la máquina no toca la pieza salvo *Adaptar*.
+
+Verificado: 474 tests (los nuevos en `machine.test.ts`, más una configuración de filamento en la matriz de invariantes y la caja en el oráculo de `summarizeGcode`); las tres snapshots cambian solo en el encabezado. En Chromium, sin errores de consola: la muestra 1 a escala 1 (486 mm) sale de la cama de 300 del perfil de arcilla y de la K1 (X/Y negativos); a escala 0,15 queda dentro de la K1 y de la WASP 2040 (cama redonda, origen al centro). *Adaptar* en la K1 deja capa 0,2, cordón 0,6, N 1 mm, λ 6 mm y espaciado 0,4; con arcilla en esquina y la pieza en X 0, la revisión marca los X negativos y *Centrar en la cama* lo resuelve.

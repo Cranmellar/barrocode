@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BarroCode · Máquina</title>
+<style>
+/* Layout: three columns like the app (left panel 300 · stage · right panel 296); the stage is a canvas, the G-code drawer floats over it. One light world, as BarroCode. */
+@font-face{font-family:GSCode;src:url(fonts/GSCode.ttf) format('truetype'),url(../../../public/fonts/GSCode.ttf) format('truetype');font-weight:100 900;font-style:normal}
+@font-face{font-family:GSCode;src:url(fonts/GSCode-Italic.ttf) format('truetype'),url(../../../public/fonts/GSCode-Italic.ttf) format('truetype');font-weight:100 900;font-style:italic}
+:root{
+  --bg:#F1F1F3;--surface:#FFFFFF;--surface-2:#F5F5F6;--ink:#38383E;--ink-2:#55555D;--muted:#63636B;--faint:#A1A1AA;
+  --border:#E4E4E7;--control-edge:#8A8A93;--accent:#4A4A51;--focus:#D9480F;
+  --ok:#15803D;--warn:#B45309;--err:#DC2626;--err-bg:rgba(220,38,38,.07);--warn-bg:rgba(180,83,9,.08);
+  --signal-ramp:linear-gradient(90deg,#4C5FBE,#7A4FAE,#9E4790,#B54766,#BD5232);
+  --font-ui:'GSCode','Cascadia Code',ui-monospace,monospace;
+  --fs-xs:11px;--fs-sm:12px;--fs-md:13px;--fs-lg:15px;
+  --radius:8px;--radius-lg:12px;--shadow-float:0 6px 24px rgba(24,24,27,.08),0 1px 2px rgba(24,24,27,.06);
+  color-scheme:light;font-variation-settings:'wght' 450;
+}
+*{box-sizing:border-box;margin:0}
+html,body{height:100%}
+body{font:var(--fs-md)/1.4 var(--font-ui);color:var(--ink);background:var(--bg);overflow:hidden}
+button,input,select,textarea{font:inherit;color:inherit;font-variation-settings:'wght' 450}
+:focus-visible{outline:2px solid var(--focus);outline-offset:1px}
+.app{display:grid;grid-template-columns:300px 1fr 296px;gap:12px;padding:12px;height:100%}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-float);display:flex;flex-direction:column;min-height:0}
+.panel-head{padding:8px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center}
+.panel-body{padding:2px 14px 14px;overflow:auto;flex:1}
+.ws{display:flex;gap:2px;flex:1}
+.ws button{flex:1;border:0;background:none;padding:6px 0;border-radius:var(--radius);color:var(--muted);cursor:pointer}
+.ws button[aria-selected=true]{background:var(--accent);color:#fff}
+.ws button:disabled{cursor:not-allowed}
+.sec{padding:12px 0 8px;border-top:1px solid var(--border)}
+.sec:first-child{border-top:0}
+.sec h2{font-size:var(--fs-md);font-style:italic;font-weight:600;font-variation-settings:'wght' 600;margin-bottom:6px;display:flex;justify-content:space-between;align-items:baseline}
+.sec h2 small{font-style:normal;font-weight:450;font-variation-settings:'wght' 450;color:var(--muted);font-size:var(--fs-xs)}
+.row{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:3px 0;color:var(--ink-2)}
+.row label{flex:1;min-width:0}
+.num{display:flex;align-items:center;border:1px solid var(--control-edge);border-radius:6px;background:#fff;width:112px}
+.num input{border:0;width:100%;text-align:right;padding:2px 4px 2px 6px;background:none;font-variant-numeric:tabular-nums}
+.num input:focus{outline:none}.num:focus-within{outline:2px solid var(--focus);outline-offset:1px}
+.num span{color:var(--muted);font-size:var(--fs-xs);padding-right:6px;white-space:nowrap}
+select{border:1px solid var(--control-edge);border-radius:var(--radius);padding:5px 6px;background:#fff;width:100%}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:99px;padding:2px;gap:2px}
+.seg button{border:0;background:none;padding:3px 10px;border-radius:99px;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:#fff;color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.sw{appearance:none;width:28px;height:16px;border-radius:99px;border:1px solid var(--control-edge);background:#fff;position:relative;cursor:pointer;flex:none}
+.sw::after{content:'';position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--control-edge);transition:left .15s}
+.sw:checked{background:var(--accent);border-color:var(--accent)}.sw:checked::after{left:14px;background:#fff}
+.btn{border:1px solid var(--border);background:#fff;border-radius:var(--radius);padding:4px 10px;cursor:pointer;color:var(--ink-2)}
+.btn:hover{border-color:var(--control-edge)}
+.btn-export{background:var(--signal-ramp);color:#fff;border:0;border-radius:var(--radius);padding:6px 12px;cursor:pointer;box-shadow:0 2px 6px rgba(76,95,190,.3)}
+textarea{width:100%;border:1px solid var(--control-edge);border-radius:6px;padding:6px 8px;font-size:var(--fs-xs);line-height:1.45;resize:vertical;background:var(--surface-2)}
+.hint{font-size:var(--fs-xs);color:var(--muted);margin-top:4px}
+.profile-note{font-size:var(--fs-xs);color:var(--muted);background:var(--surface-2);border-radius:6px;padding:6px 8px;margin-top:6px}
+.stage{position:relative;min-width:0;min-height:0}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;cursor:grab;border-radius:var(--radius-lg)}
+.topbar{position:absolute;top:0;left:0;right:0;display:flex;gap:8px;z-index:3;pointer-events:none}
+.topbar>*{pointer-events:auto}
+.grp{flex:none;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-float);display:flex;gap:8px;align-items:center;padding:5px 8px}
+.summary{flex:1 1 0;min-width:0;display:block;line-height:24px;color:var(--ink-2);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drawer{position:absolute;left:0;right:0;bottom:0;height:42%;min-height:180px;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-float);display:flex;flex-direction:column;z-index:2}
+.drawer-head{display:flex;gap:8px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--border)}
+.drawer-head b{font-weight:600;font-variation-settings:'wght' 600}
+pre.gcode{flex:1;overflow:auto;padding:8px 12px;font:var(--fs-xs)/1.5 var(--font-ui);color:var(--ink-2)}
+pre.gcode .c{color:var(--muted)}pre.gcode .t{background:#FFF1E6}pre.gcode .m{color:#7A4FAE}
+.textview{position:absolute;inset:50px 0 0 0;background:#fff;border:1px solid var(--border);border-radius:var(--radius-lg);box-shadow:var(--shadow-float);display:grid;grid-template-columns:190px 1fr;z-index:1;min-height:0}
+.toc{border-right:1px solid var(--border);overflow:auto;padding:8px}
+.toc button{display:flex;justify-content:space-between;width:100%;border:0;background:none;text-align:left;padding:4px 8px;border-radius:6px;color:var(--ink-2);cursor:pointer;font-variant-numeric:tabular-nums}
+.toc button[aria-current=true]{background:var(--surface-2);color:var(--ink)}
+.toc button small{color:var(--muted)}
+.textview pre.gcode{min-height:0}
+.legend{position:absolute;left:10px;top:58px;font-size:var(--fs-xs);color:var(--muted);z-index:1}
+.chk{display:grid;grid-template-columns:18px 1fr;gap:6px;padding:8px 8px;border-radius:6px;margin-bottom:4px}
+.chk i{font-style:normal;font-weight:600;font-variation-settings:'wght' 600;text-align:center}
+.chk.ok i{color:var(--ok)}.chk.warn{background:var(--warn-bg)}.chk.warn i{color:var(--warn)}.chk.err{background:var(--err-bg)}.chk.err i{color:var(--err)}
+.chk small{display:block;color:var(--muted);font-size:var(--fs-xs)}
+.chk .btn{margin-top:4px;font-size:var(--fs-xs);padding:2px 8px}
+.counts{font-size:var(--fs-xs);color:var(--muted)}
+.stat{display:flex;justify-content:space-between;padding:2px 0;font-variant-numeric:tabular-nums}
+.stat span:first-child{color:var(--muted)}
+.mat-clay .fil-only,.mat-fil .clay-only{display:none}
+.bed-circle .rect-only{display:none}
+.hidden{display:none!important}
+@media (max-width:1100px){
+  body{overflow:auto}
+  .app{grid-template-columns:1fr;height:auto}
+  .stage{height:640px}
+  .panel{max-height:none}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="mat-fil">
+<div class="app">
+  <aside class="panel" aria-label="Máquina">
+    <div class="panel-head">
+      <div class="ws" role="tablist" aria-label="Espacio de trabajo">
+        <button role="tab" aria-selected="false" disabled title="En la app: crear la forma">Forma</button>
+        <button role="tab" aria-selected="false" disabled title="En la app: onda, capas y keyframes">Impresión</button>
+        <button role="tab" aria-selected="true">Máquina</button>
+      </div>
+    </div>
+    <div class="panel-body" id="left"></div>
+  </aside>
+
+  <main class="stage" id="stage">
+    <canvas id="view" aria-label="Vista 3D de la cama y la pieza"></canvas>
+    <div class="topbar">
+      <div class="grp">
+        <button class="btn" id="fit">Encuadrar</button>
+        <div class="seg" id="presets"><button data-v="iso" aria-pressed="true">Iso</button><button data-v="top" aria-pressed="false">Planta</button><button data-v="front" aria-pressed="false">Frente</button></div>
+      </div>
+      <div class="grp summary" id="summary"></div>
+      <div class="grp">
+        <div class="seg" id="mode"><button data-m="visor" aria-pressed="true">Visor</button><button data-m="texto" aria-pressed="false">Texto</button></div>
+        <button class="btn-export" id="copyAll">Copiar G-code</button>
+      </div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <section class="drawer" id="drawer" aria-label="G-code">
+      <div class="drawer-head"><b>G-code</b><span class="counts" id="drawerInfo"></span><span style="flex:1"></span><button class="btn" id="toText">Ver por secciones</button></div>
+      <pre class="gcode" id="preview"></pre>
+    </section>
+    <section class="textview hidden" id="textview" aria-label="G-code por secciones">
+      <nav class="toc" id="toc"></nav>
+      <pre class="gcode" id="section"></pre>
+    </section>
+  </main>
+
+  <aside class="panel" aria-label="Revisión previa">
+    <div class="panel-head" style="justify-content:space-between;padding:10px 14px">
+      <b style="font-weight:600;font-variation-settings:'wght' 600">Revisión previa</b><span class="counts" id="checkCount"></span>
+    </div>
+    <div class="panel-body">
+      <div id="checks" style="padding-top:10px"></div>
+      <div class="sec"><h2>Resumen</h2><div id="stats"></div></div>
+      <div class="sec" id="partSec"><h2>Pieza de prueba</h2><p class="hint" style="margin:-4px 0 6px">En la app llega de <i>Impresión</i>; aquí, para probar perfiles.</p><div id="part"></div>
+        <div class="row" style="margin-top:6px"><span></span><button class="btn" id="adapt">Adaptar onda a la boquilla</button></div>
+        <p class="hint" id="adaptHint"></p>
+      </div>
+    </div>
+  </aside>
+</div>
+
+<script>
+'use strict';
+// ── Templates ───────────────────────────────────────────────────────────────
+const T = {
+  creality: ['M140 S0', 'M104 S0', 'START_PRINT EXTRUDER_TEMP={nozzleTemp} BED_TEMP={bedTemp}'].join('\n'),
+  crealityEnd: 'END_PRINT',
+  voron: 'PRINT_START BED={bedTemp} EXTRUDER={nozzleTemp}',
+  voronEnd: 'PRINT_END',
+  marlin: ['M140 S{bedTemp}', 'M104 S{nozzleTemp}', 'G28', 'M190 S{bedTemp}', 'M109 S{nozzleTemp}', 'G92 E0',
+    'G1 Z2 F600', 'G1 X3 Y20 F6000', 'G1 Z0.3 F600', 'G1 X3 Y150 E12 F1500 ; purga', 'G1 Z2 F600', 'G92 E0'].join('\n'),
+  marlinEnd: ['M104 S0', 'M140 S0', 'M107', 'G1 Z{parkZ} F600', 'G1 X0 Y{bedY} F3000', 'M84'].join('\n'),
+  prusa: m => [`M862.3 P "${m}" ; comprueba el modelo`, 'M140 S{bedTemp}', 'M104 S170', 'G28', 'G29 ; malla de la cama',
+    'M104 S{nozzleTemp}', 'M190 S{bedTemp}', 'M109 S{nozzleTemp}', 'G92 E0', 'G1 Z0.3 F720', 'G1 X10 Y5 F6000',
+    'G1 X100 Y5 E9 F1200 ; purga', 'G92 E0'].join('\n'),
+  prusaEnd: ['M104 S0', 'M140 S0', 'M107', 'G1 Z{parkZ} F720', 'G1 X0 Y{bedY} F3600', 'M84'].join('\n'),
+  bambu: ['; Inicio mínimo. Bambu Studio usa uno largo y propio de cada modelo;',
+    '; parte de ese y, para enviarlo por red, empaquétalo como .gcode.3mf.',
+    'M140 S{bedTemp}', 'M104 S{nozzleTemp}', 'G28', 'M190 S{bedTemp}', 'M109 S{nozzleTemp}', 'G92 E0'].join('\n'),
+  bambuEnd: ['M104 S0', 'M140 S0', 'M106 S0', 'G1 Z{parkZ} F600', 'M84'].join('\n'),
+  wasp: 'G28 ; homing (en los delta WASP, arriba)',
+  waspEnd: 'G28',
+};
+
+// Catalogue figures and community profiles; every one is to be checked on the machine.
+const P = (o) => Object.assign({
+  material: 'filament', firmware: 'marlin', bedShape: 'rect', origin: 'corner', bedZ: 250,
+  nozzle: 0.4, lineWidth: 0.6, filamentD: 1.75, flow: 100, mult: 0.05,
+  nozzleTemp: 215, bedTemp: 60, fan: 100, fanFrom: 3,
+  speed: 80, firstSpeed: 30, travel: 150, minLayerTime: 8, accel: 0, retract: 0.8, maxFlow: 15,
+  dwell: 0, priming: false, primingLen: 20, safeZ: 5, note: '',
+}, o);
+const PROFILES = [
+  P({ id: 'clay-centre', name: 'Arcilla · genérica, origen al centro', material: 'clay', firmware: 'reprap', origin: 'centre', bedX: 300, bedY: 300, bedZ: 400,
+    nozzle: 4, lineWidth: 5, speed: 10, firstSpeed: 8, travel: 25, minLayerTime: 0, retract: 0, maxFlow: 0, safeZ: 20, start: '', end: '',
+    note: 'Lo que BarroCode emite hoy: sin plantillas, E como multiplicador de la bomba.' }),
+  P({ id: 'clay-corner', name: 'Arcilla · genérica, origen en esquina', material: 'clay', firmware: 'marlin', bedX: 300, bedY: 300, bedZ: 400,
+    nozzle: 4, lineWidth: 5, speed: 10, firstSpeed: 8, travel: 25, minLayerTime: 0, retract: 0, maxFlow: 0, safeZ: 20, start: '', end: '',
+    note: 'Cartesianas convertidas a arcilla (pasta con pistón o tornillo).' }),
+  P({ id: 'wasp2040', name: 'Delta WASP 2040 Clay', material: 'clay', firmware: 'reprap', bedShape: 'circle', origin: 'centre', bedX: 200, bedY: 200, bedZ: 400,
+    nozzle: 1.2, lineWidth: 1.6, speed: 20, firstSpeed: 12, travel: 60, minLayerTime: 0, retract: 0, maxFlow: 0, safeZ: 20, start: T.wasp, end: T.waspEnd,
+    note: 'Delta: cama circular Ø200, origen al centro. Capa mínima de catálogo 0,5 mm.' }),
+
+  P({ id: 'k1', name: 'Creality K1 / K1C', firmware: 'klipper', bedX: 220, bedY: 220, bedZ: 250, speed: 120, accel: 8000, maxFlow: 32, start: T.creality, end: T.crealityEnd,
+    note: 'Creality OS (Klipper). La macro START_PRINT calienta, hace homing y purga.' }),
+  P({ id: 'k1max', name: 'Creality K1 Max', firmware: 'klipper', bedX: 300, bedY: 300, bedZ: 300, speed: 120, accel: 8000, maxFlow: 32, start: T.creality, end: T.crealityEnd,
+    note: 'Como la K1, con cama de 300.' }),
+  P({ id: 'e3v3', name: 'Creality Ender-3 V3', firmware: 'klipper', bedX: 220, bedY: 220, bedZ: 250, speed: 120, accel: 8000, maxFlow: 32, start: T.creality, end: T.crealityEnd,
+    note: 'CoreXZ: Z rápido, bien para la onda Z. Macro de inicio supuesta igual a la K1.' }),
+  P({ id: 'e3v3ke', name: 'Creality Ender-3 V3 KE', firmware: 'klipper', bedX: 220, bedY: 220, bedZ: 240, speed: 100, accel: 5000, maxFlow: 24, start: T.creality, end: T.crealityEnd,
+    note: 'Cartesiana con Creality OS (Klipper).' }),
+  P({ id: 'e3v3se', name: 'Creality Ender-3 V3 SE', firmware: 'marlin', bedX: 220, bedY: 220, bedZ: 250, speed: 60, maxFlow: 15, start: T.marlin, end: T.marlinEnd,
+    note: 'Marlin: el G-code calienta, hace homing y purga por su cuenta.' }),
+  P({ id: 'e3s1', name: 'Creality Ender-3 S1', firmware: 'marlin', bedX: 220, bedY: 220, bedZ: 270, speed: 50, maxFlow: 12, start: T.marlin, end: T.marlinEnd }),
+  P({ id: 'a1mini', name: 'Bambu Lab A1 mini', firmware: 'bambu', bedX: 180, bedY: 180, bedZ: 180, speed: 100, accel: 10000, maxFlow: 20, start: T.bambu, end: T.bambuEnd,
+    note: 'Un .gcode suelto desde la tarjeta funciona en monocolor; por red pide .gcode.3mf.' }),
+  P({ id: 'a1', name: 'Bambu Lab A1', firmware: 'bambu', bedX: 256, bedY: 256, bedZ: 256, speed: 100, accel: 10000, maxFlow: 20, start: T.bambu, end: T.bambuEnd,
+    note: 'Ídem A1 mini.' }),
+  P({ id: 'p1s', name: 'Bambu Lab P1S / X1C', firmware: 'bambu', bedX: 256, bedY: 256, bedZ: 256, speed: 120, accel: 10000, maxFlow: 24, start: T.bambu, end: T.bambuEnd,
+    note: 'Cerrada: para PLA abrir la tapa o subir el ventilador.' }),
+  P({ id: 'mk4s', name: 'Prusa MK4S', firmware: 'prusa', bedX: 250, bedY: 210, bedZ: 220, speed: 80, accel: 4000, maxFlow: 20, start: T.prusa('MK4S'), end: T.prusaEnd,
+    note: 'Firmware Prusa (base Marlin). M862.3 rechaza el archivo en otro modelo.' }),
+  P({ id: 'coreone', name: 'Prusa CORE One', firmware: 'prusa', bedX: 250, bedY: 220, bedZ: 270, speed: 100, accel: 5000, maxFlow: 20, start: T.prusa('COREONE'), end: T.prusaEnd }),
+  P({ id: 'mini', name: 'Prusa MINI+', firmware: 'prusa', bedX: 180, bedY: 180, bedZ: 180, speed: 60, maxFlow: 12, start: T.prusa('MINI'), end: T.prusaEnd }),
+  P({ id: 'n4pro', name: 'Elegoo Neptune 4 Pro', firmware: 'klipper', bedX: 225, bedY: 225, bedZ: 265, speed: 100, accel: 5000, maxFlow: 20, start: T.marlin, end: T.marlinEnd,
+    note: 'Klipper de Elegoo; su perfil usa códigos estándar (M104/M109, G28).' }),
+  P({ id: 'kobra3', name: 'Anycubic Kobra 3', firmware: 'klipper', bedX: 250, bedY: 250, bedZ: 260, speed: 100, accel: 5000, maxFlow: 20, start: T.marlin, end: T.marlinEnd,
+    note: 'Firmware basado en Klipper con códigos estándar.' }),
+  P({ id: 'sv06', name: 'Sovol SV06', firmware: 'marlin', bedX: 220, bedY: 220, bedZ: 250, speed: 60, maxFlow: 12, start: T.marlin, end: T.marlinEnd }),
+  P({ id: 'voron', name: 'Voron 2.4 (350)', firmware: 'klipper', bedX: 350, bedY: 350, bedZ: 340, speed: 120, accel: 6000, maxFlow: 24, start: T.voron, end: T.voronEnd,
+    note: 'Cada Voron tiene su macro; PRINT_START BED= EXTRUDER= es la convención más común.' }),
+];
+const SEG_LIMIT = { marlin: 400, prusa: 600, reprap: 800, klipper: 2500, bambu: 2500 };
+const FIRMWARE = { marlin: 'Marlin', prusa: 'Prusa (Marlin)', klipper: 'Klipper', bambu: 'Bambu', reprap: 'RepRap / Duet' };
+const MAX_LAYERS = 500;
+const PLA_DENSITY = 1.24, CLAY_DENSITY = 1.8;
+
+// ── State ───────────────────────────────────────────────────────────────────
+const S = Object.assign({}, PROFILES[3], { profile: 'k1', posX: 110, posY: 110 });
+const part = { D: 80, H: 80, lobes: 6, depth: 12, amp: 1.0, wl: 6, spacing: 0.4, layerH: 0.2, transition: 10 };
+
+// ── Field definitions ───────────────────────────────────────────────────────
+const speedUnit = () => S.material === 'clay' ? ['mm/min', 60] : ['mm/s', 1];
+const LEFT = [
+  { sec: 'Perfil', html: `<select id="profile" aria-label="Perfil de impresora"></select>
+      <div class="row" style="margin-top:8px"><span>Material</span><div class="seg" data-seg="material"><button data-val="clay">Arcilla</button><button data-val="filament">Filamento</button></div></div>
+      <div class="row"><label for="firmware">Firmware</label><select id="firmware" style="width:150px">${Object.entries(FIRMWARE).map(([k, v]) => `<option value="${k}">${v}</option>`).join('')}</select></div>
+      <p class="profile-note" id="profileNote"></p>` },
+  { sec: 'Cama y origen', fields: [
+    { html: `<div class="row"><span>Forma</span><div class="seg" data-seg="bedShape"><button data-val="rect">Rectángulo</button><button data-val="circle">Círculo</button></div></div>` },
+    { k: 'bedX', label: () => S.bedShape === 'circle' ? 'Diámetro' : 'Ancho X', unit: 'mm', step: 1 },
+    { k: 'bedY', label: 'Fondo Y', unit: 'mm', step: 1, cls: 'rect-only' },
+    { k: 'bedZ', label: 'Altura Z', unit: 'mm', step: 1 },
+    { html: `<div class="row"><span>Origen (0, 0)</span><div class="seg" data-seg="origin"><button data-val="centre">Centro</button><button data-val="corner">Esquina</button></div></div>` },
+    { k: 'posX', label: 'Pieza en X', unit: 'mm', step: 1 },
+    { k: 'posY', label: 'Pieza en Y', unit: 'mm', step: 1 },
+    { html: `<div class="row"><span></span><button class="btn" data-act="centre">Centrar en la cama</button></div>` },
+  ] },
+  { sec: 'Boquilla y extrusión', fields: [
+    { k: 'nozzle', label: 'Boquilla', unit: 'mm', step: 0.1 },
+    { k: 'lineWidth', label: 'Ancho de cordón', unit: 'mm', step: 0.05 },
+    { k: 'filamentD', label: 'Filamento', unit: 'mm', step: 0.05, cls: 'fil-only' },
+    { k: 'flow', label: 'Flujo', unit: '%', step: 1, cls: 'fil-only' },
+    { k: 'mult', label: 'Multiplicador E', unit: '', step: 0.01, cls: 'clay-only' },
+    { k: 'maxFlow', label: 'Caudal máximo', unit: 'mm³/s', step: 1, cls: 'fil-only' },
+  ] },
+  { sec: 'Temperatura y ventilador', cls: 'fil-only', fields: [
+    { k: 'nozzleTemp', label: 'Boquilla', unit: '°C', step: 5 },
+    { k: 'bedTemp', label: 'Cama', unit: '°C', step: 5 },
+    { k: 'fan', label: 'Ventilador', unit: '%', step: 5 },
+    { k: 'fanFrom', label: 'Ventilador desde capa', unit: '', step: 1 },
+  ] },
+  { sec: 'Movimiento', fields: [
+    { k: 'speed', label: 'Vel. impresión', unit: () => speedUnit()[0], step: 1, speed: true },
+    { k: 'firstSpeed', label: 'Primera capa', unit: () => speedUnit()[0], step: 1, speed: true },
+    { k: 'travel', label: 'Desplazamiento', unit: () => speedUnit()[0], step: 1, speed: true },
+    { k: 'minLayerTime', label: 'Tiempo mín. por capa', unit: 's', step: 1 },
+    { k: 'accel', label: 'Aceleración (0 = no tocar)', unit: 'mm/s²', step: 500, cls: 'fil-only' },
+    { k: 'retract', label: 'Retracción', unit: 'mm', step: 0.1, cls: 'fil-only' },
+    { k: 'safeZ', label: 'Z de seguridad', unit: 'mm', step: 1 },
+  ] },
+  { sec: 'Arcilla', cls: 'clay-only', fields: [
+    { k: 'dwell', label: 'Pausa al inicio', unit: 'ms', step: 100 },
+    { html: `<div class="row"><label for="priming">Cebado de boquilla</label><input type="checkbox" class="sw" id="priming"></div>` },
+    { k: 'primingLen', label: 'Longitud de cebado', unit: 'mm', step: 1 },
+  ] },
+  { sec: 'Inicio y fin', html: `<label class="hint" for="start">Inicio · variables {nozzleTemp} {bedTemp} {bedX} {bedY} {parkZ}…</label><textarea id="start" rows="5" spellcheck="false"></textarea>
+      <label class="hint" for="end">Fin</label><textarea id="end" rows="3" spellcheck="false"></textarea>` },
+];
+const PART = [
+  { k: 'D', label: 'Diámetro', unit: 'mm', step: 1 }, { k: 'H', label: 'Altura', unit: 'mm', step: 1 },
+  { k: 'lobes', label: 'Lóbulos', unit: '', step: 1 }, { k: 'depth', label: 'Profundidad lóbulo', unit: '%', step: 1 },
+  { k: 'amp', label: 'Amplitud N', unit: 'mm', step: 0.1 }, { k: 'wl', label: 'Long. de onda', unit: 'mm', step: 0.5 },
+  { k: 'spacing', label: 'Espaciado de muestra', unit: 'mm', step: 0.05 }, { k: 'layerH', label: 'Altura de capa', unit: 'mm', step: 0.05 },
+];
+
+const val = v => typeof v === 'function' ? v() : v;
+function numRow(f, obj, prefix) {
+  return `<div class="row ${f.cls || ''}"><label for="${prefix}${f.k}" data-label="${f.k}">${val(f.label)}</label><div class="num"><input id="${prefix}${f.k}" type="number" step="${f.step}" data-k="${f.k}" data-obj="${prefix}"><span data-unit="${f.k}">${val(f.unit)}</span></div></div>`;
+}
+function buildLeft() {
+  const el = document.getElementById('left');
+  el.innerHTML = LEFT.map(s => `<div class="sec ${s.cls || ''}"><h2>${s.sec}</h2>${s.html || s.fields.map(f => f.html || numRow(f, S, 'm-')).join('')}</div>`).join('');
+  const sel = document.getElementById('profile');
+  for (const g of ['clay', 'filament']) {
+    const og = document.createElement('optgroup'); og.label = g === 'clay' ? 'Arcilla' : 'Filamento';
+    for (const p of PROFILES.filter(p => p.material === g)) og.append(new Option(p.name, p.id));
+    sel.append(og);
+  }
+  sel.append(new Option('Personalizado', 'custom'));
+  document.getElementById('part').innerHTML = PART.map(f => numRow(f, part, 'p-')).join('');
+}
+const allFields = () => LEFT.flatMap(s => s.fields || []).filter(f => f.k);
+
+function syncInputs() {
+  const [, sc] = speedUnit();
+  for (const f of allFields()) {
+    const inp = document.getElementById('m-' + f.k);
+    inp.value = +(f.speed ? S[f.k] * sc : S[f.k]).toFixed(3);
+    document.querySelector(`[data-unit="${f.k}"]`).textContent = val(f.unit);
+    document.querySelector(`[data-label="${f.k}"]`).textContent = val(f.label);
+  }
+  for (const f of PART) document.getElementById('p-' + f.k).value = part[f.k];
+  document.getElementById('profile').value = S.profile;
+  document.getElementById('firmware').value = S.firmware;
+  document.getElementById('priming').checked = S.priming;
+  document.getElementById('start').value = S.start;
+  document.getElementById('end').value = S.end;
+  for (const seg of document.querySelectorAll('[data-seg]'))
+    for (const b of seg.children) b.setAttribute('aria-pressed', String(S[seg.dataset.seg] === b.dataset.val));
+  const prof = PROFILES.find(p => p.id === S.profile);
+  document.getElementById('profileNote').textContent = (prof ? (prof.note ? prof.note + ' ' : '') + 'Cifras de catálogo, sin verificar en máquina.' : 'Valores propios.');
+  document.body.className = (S.material === 'clay' ? 'mat-clay' : 'mat-fil') + (S.bedShape === 'circle' ? ' bed-circle' : '');
+}
+function applyProfile(id) {
+  const p = PROFILES.find(p => p.id === id);
+  Object.assign(S, p, { profile: id });
+  centreOnBed();
+  syncInputs(); update();
+}
+function centreOnBed() {
+  if (S.origin === 'centre') { S.posX = 0; S.posY = 0; } else { S.posX = S.bedX / 2; S.posY = (S.bedShape === 'circle' ? S.bedX : S.bedY) / 2; }
+}
+function markCustom() {
+  if (S.profile !== 'custom') { S.profile = 'custom'; document.getElementById('profile').value = 'custom'; document.getElementById('profileNote').textContent = 'Valores propios, partiendo del perfil anterior.'; }
+}
+
+// ── Geometry: a lobed ring with a wave along its normal, identical on every layer ─
+function buildLayerXY() {
+  const R = part.D / 2 / (1 + part.depth / 100), k = Math.max(0, Math.round(part.lobes)), d = part.depth / 100;
+  const N = 4000, dense = [];
+  for (let i = 0; i <= N; i++) {
+    const a = i / N * 2 * Math.PI, r = R * (1 + d * Math.cos(k * a));
+    dense.push([r * Math.cos(a), r * Math.sin(a)]);
+  }
+  const cum = [0];
+  for (let i = 1; i <= N; i++) cum.push(cum[i - 1] + Math.hypot(dense[i][0] - dense[i - 1][0], dense[i][1] - dense[i - 1][1]));
+  const L = cum[N], n = Math.max(12, Math.round(L / Math.max(0.05, part.spacing)));
+  const cycles = Math.max(1, Math.round(L / Math.max(0.1, part.wl)));
+  const pts = []; let j = 1;
+  for (let i = 0; i < n; i++) {
+    const s = i / n * L;
+    while (cum[j] < s) j++;
+    const t = (s - cum[j - 1]) / (cum[j] - cum[j - 1] || 1);
+    const x = dense[j - 1][0] + (dense[j][0] - dense[j - 1][0]) * t, y = dense[j - 1][1] + (dense[j][1] - dense[j - 1][1]) * t;
+    const tx = dense[j][0] - dense[j - 1][0], ty = dense[j][1] - dense[j - 1][1], tl = Math.hypot(tx, ty) || 1;
+    const off = part.amp * Math.sin(2 * Math.PI * cycles * s / L);
+    pts.push([x + ty / tl * off, y - tx / tl * off]);
+  }
+  pts.push(pts[0].slice());
+  const seg = []; let len = 0;
+  for (let i = 1; i < pts.length; i++) { const d2 = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); seg.push(d2); len += d2; }
+  return { pts, seg, len, centreline: L };
+}
+
+// ── Program model shared by the summary, the checks and the emitter ─────────
+let M = null;
+function model() {
+  const xy = buildLayerXY();
+  const h = part.layerH, rawLayers = Math.max(1, Math.round(part.H / h)), layers = Math.min(rawLayers, 3000);
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, maxR = 0;
+  for (const [x, y] of xy.pts) { minX = Math.min(minX, x); maxX = Math.max(maxX, x); minY = Math.min(minY, y); maxY = Math.max(maxY, y); maxR = Math.max(maxR, Math.hypot(x, y)); }
+  const off = [S.posX, S.posY];
+  const box = { minX: minX + off[0], maxX: maxX + off[0], minY: minY + off[1], maxY: maxY + off[1] };
+  const topZ = layers * h;
+  const area = Math.PI * (S.filamentD / 2) ** 2;
+  const ePerMM = S.material === 'clay' ? S.mult : S.lineWidth * h / area * S.flow / 100;
+  const layerSpeed = li => {
+    const base = li === 0 ? S.firstSpeed : S.speed;
+    return S.minLayerTime > 0 ? Math.min(base, xy.len / S.minLayerTime) : base;
+  };
+  const slowed = S.minLayerTime > 0 && xy.len / S.speed < S.minLayerTime;
+  let time = 0;
+  for (let li = 0; li < layers; li++) time += xy.len / Math.max(0.1, layerSpeed(li));
+  time += (S.safeZ + topZ + 10) / Math.max(1, S.travel) + S.dwell / 1000;
+  const printLen = xy.len * layers;
+  const volume = S.lineWidth * h * printLen;
+  const lines = layers * (xy.pts.length + 5) + 40;
+  M = { xy, h, layers, rawLayers, box, maxR, off, topZ, ePerMM, layerSpeed, slowed, time, printLen, volume, area,
+    filamentLen: volume / area, bytes: lines * 44, lines };
+  return M;
+}
+
+// ── Emitter (BarroCode's structure: header, start, preamble, layers with markers, seam ramp, end) ─
+const f3 = n => n.toFixed(3);
+const vars = () => ({ nozzleTemp: S.nozzleTemp, bedTemp: S.bedTemp, bedX: S.bedX, bedY: S.bedShape === 'circle' ? S.bedX : S.bedY, bedZ: S.bedZ,
+  firstLayerZ: f3(M.h), topZ: f3(M.topZ), parkZ: Math.min(S.bedZ, Math.ceil(M.topZ + 10)),
+  minX: f3(M.box.minX), maxX: f3(M.box.maxX), minY: f3(M.box.minY), maxY: f3(M.box.maxY) });
+const fill = (tpl) => { const v = vars(); return tpl.replace(/\{(\w+)\}/g, (m, k) => k in v ? String(v[k]) : m); };
+const unresolved = () => [...(S.start + '\n' + S.end).matchAll(/\{(\w+)\}/g)].map(m => m[1]).filter(k => !(k in vars()));
+
+function headerLines() {
+  const prof = PROFILES.find(p => p.id === S.profile);
+  return [
+    '; ============================================================',
+    '; BarroCode — perfil: ' + (prof ? prof.name : 'Personalizado') + ' · ' + FIRMWARE[S.firmware],
+    '; ============================================================',
+    `; Material               : ${S.material === 'clay' ? 'arcilla' : 'filamento ' + S.filamentD + ' mm'}`,
+    `; Boquilla / cordón      : ${S.nozzle} / ${S.lineWidth} mm`,
+    `; Altura de capa / capas : ${part.layerH} mm / ${M.layers}`,
+    `; Onda N amp / λ         : ${part.amp} / ${part.wl} mm`,
+    S.material === 'clay' ? `; Multiplicador E        : ${S.mult}` : `; Temperaturas           : boquilla ${S.nozzleTemp} °C, cama ${S.bedTemp} °C`,
+    `; Velocidad              : ${S.speed} mm/s (primera capa ${S.firstSpeed})`,
+    `; Caja X ${f3(M.box.minX)}–${f3(M.box.maxX)}  Y ${f3(M.box.minY)}–${f3(M.box.maxY)}  Z ${f3(M.h)}–${f3(M.topZ)}`,
+    '; ============================================================',
+    `;LAYER_COUNT:${M.layers}`,
+  ];
+}
+function startLines() {
+  const out = [];
+  if (S.start.trim()) out.push('; ---- Inicio (plantilla) ----', ...fill(S.start).split('\n'), '; ---- Fin de la plantilla ----');
+  out.push('G21       ; mm units', 'G90       ; absolute positioning', 'M82       ; absolute extrusion', 'G92 E0    ; reset E');
+  if (S.material === 'filament' && S.accel > 0) out.push(S.firmware === 'klipper' ? `SET_VELOCITY_LIMIT ACCEL=${S.accel}` : `M204 S${S.accel}`);
+  if (S.material === 'filament') out.push('M107      ; ventilador apagado en las primeras capas');
+  out.push(`G1 Z${f3(S.safeZ)} F${S.travel * 60}  ; safe Z`);
+  return out;
+}
+function layerLines(li, eStart) {
+  const { xy, h, off } = M, out = [], last = li === M.layers - 1;
+  const z0 = (li + 1) * h, F = Math.round(M.layerSpeed(li) * 60);
+  out.push(`; ===== Capa ${li + 1} / ${M.layers}   Z = ${f3(z0)} mm =====`, ';LAYER_CHANGE', `;Z:${f3(z0)}`, `;HEIGHT:${h}`, `;LAYER:${li}`);
+  if (S.material === 'filament' && li === S.fanFrom - 1) out.push(`M106 S${Math.round(S.fan * 2.55)}  ; ventilador ${S.fan} %`);
+  if (li === 0) {
+    out.push(`G1 X${f3(xy.pts[0][0] + off[0])} Y${f3(xy.pts[0][1] + off[1])} F${S.travel * 60}  ; travel to start`, `G1 Z${f3(z0)} F${S.travel * 60}  ; descend`);
+    if (S.material === 'clay' && S.dwell > 0) out.push(`G4 P${S.dwell}  ; dwell — wait for clay flow`);
+  }
+  let e = eStart, run = 0;
+  const rampFrom = xy.len - part.transition;
+  for (let i = 1; i < xy.pts.length; i++) {
+    run += xy.seg[i - 1];
+    let z = z0;
+    if (!last && run > rampFrom) { const t = (run - rampFrom) / part.transition; z += h * t * t * (3 - 2 * t); }
+    e += xy.seg[i - 1] * M.ePerMM;
+    out.push(`G1 X${f3(xy.pts[i][0] + off[0])} Y${f3(xy.pts[i][1] + off[1])}${Math.abs(z - z0) > 1e-4 || i === 1 ? ' Z' + f3(z) : ''} E${e.toFixed(5)}${i === 1 ? ' F' + F : ''}`);
+  }
+  return { out, e };
+}
+function endLines() {
+  const out = ['; ===== Fin =====', `G1 Z${f3(Math.max(S.safeZ, M.topZ) + 10)} F${S.travel * 60}  ; final lift`];
+  if (S.end.trim()) out.push('; ---- Fin (plantilla) ----', ...fill(S.end).split('\n'));
+  else out.push('M84  ; disable motors');
+  return out;
+}
+function eAtLayer(li) { return li * M.xy.len * M.ePerMM; }
+
+// ── Checks ──────────────────────────────────────────────────────────────────
+function checks() {
+  const c = [], b = M.box, bedY = S.bedShape === 'circle' ? S.bedX : S.bedY;
+  const fmt = n => n.toLocaleString('es', { maximumFractionDigits: 1 });
+  let inside, why = '';
+  if (S.bedShape === 'circle') {
+    const cx = S.origin === 'centre' ? 0 : S.bedX / 2, cy = S.origin === 'centre' ? 0 : S.bedX / 2;
+    const r = M.maxR + Math.hypot(S.posX - cx, S.posY - cy);
+    inside = r <= S.bedX / 2; why = `radio ocupado ${fmt(r)} de ${fmt(S.bedX / 2)} mm`;
+  } else {
+    const [x0, x1, y0, y1] = S.origin === 'centre' ? [-S.bedX / 2, S.bedX / 2, -bedY / 2, bedY / 2] : [0, S.bedX, 0, bedY];
+    inside = b.minX >= x0 && b.maxX <= x1 && b.minY >= y0 && b.maxY <= y1;
+    why = `X ${fmt(b.minX)}–${fmt(b.maxX)} · Y ${fmt(b.minY)}–${fmt(b.maxY)} en una cama ${fmt(x0)}–${fmt(x1)} × ${fmt(y0)}–${fmt(y1)}`;
+  }
+  const negative = S.origin === 'corner' && (b.minX < 0 || b.minY < 0);
+  if (negative) c.push({ lvl: 'err', t: 'Parte de la pieza queda en X/Y negativos', d: 'Una cama con origen en la esquina no llega ahí: la máquina recorta el movimiento o rechaza el archivo.', act: 'centre' });
+  else if (!inside) c.push({ lvl: 'err', t: 'La pieza se sale de la cama', d: why, act: 'centre' });
+  else c.push({ lvl: 'ok', t: 'Dentro de la cama', d: why });
+
+  if (M.topZ > S.bedZ) c.push({ lvl: 'err', t: `Altura ${fmt(M.topZ)} mm, la máquina llega a ${S.bedZ}`, d: 'Baja la altura de la pieza.' });
+  else c.push({ lvl: 'ok', t: `Altura ${fmt(M.topZ)} de ${S.bedZ} mm` });
+
+  if (S.material === 'filament') {
+    const q = S.lineWidth * M.h * S.speed;
+    if (S.maxFlow > 0 && q > S.maxFlow) c.push({ lvl: 'warn', t: `Caudal ${fmt(q)} mm³/s, por encima de ${S.maxFlow}`, d: `La boquilla no funde tanto: baja la velocidad a ${fmt(S.maxFlow / (S.lineWidth * M.h))} mm/s o el ancho de cordón.` });
+    else c.push({ lvl: 'ok', t: `Caudal ${fmt(q)} mm³/s`, d: S.maxFlow ? `límite del perfil ${S.maxFlow} mm³/s` : '' });
+    if (M.h > 0.8 * S.nozzle) c.push({ lvl: 'err', t: `Capa de ${M.h} mm con boquilla de ${S.nozzle}`, d: 'Más del 80 % del diámetro: las capas no se pegan.' });
+    if (S.lineWidth < S.nozzle || S.lineWidth > 2 * S.nozzle) c.push({ lvl: 'warn', t: `Cordón de ${S.lineWidth} mm con boquilla de ${S.nozzle}`, d: 'Lo habitual es entre 1 y 2 veces la boquilla.' });
+  } else if (M.h > 0.8 * S.nozzle) c.push({ lvl: 'warn', t: `Capa de ${M.h} mm con boquilla de ${S.nozzle}`, d: 'En arcilla suele ir entre 40 y 70 % de la boquilla.' });
+
+  if (M.h < 0.25 * S.nozzle) c.push({ lvl: 'warn', t: `Capa de ${M.h} mm para una boquilla de ${S.nozzle}`, d: 'Muy fina: el cordón se aplasta y la onda no se lee. Prueba «Adaptar onda a la boquilla».' });
+  if (M.slowed) {
+    const v = M.xy.len / S.minLayerTime;
+    c.push({ lvl: v < 0.4 * S.speed ? 'warn' : 'ok', t: `Capas de ${fmt(M.xy.len / S.speed)} s, menos que el mínimo de ${S.minLayerTime} s`, d: `Se imprimen a ${fmt(v)} mm/s para que cada capa enfríe${S.material === 'clay' ? ' y se asiente' : ''}.` });
+  }
+  const segRate = S.speed / Math.max(0.01, part.spacing), lim = SEG_LIMIT[S.firmware];
+  if (segRate > lim) c.push({ lvl: 'warn', t: `${Math.round(segRate)} segmentos/s para ${FIRMWARE[S.firmware]}`, d: `Por encima de ≈ ${lim} el movimiento tartamudea. Baja la velocidad o muestrea cada ${fmt(S.speed / lim)} mm.` });
+  if (part.wl / part.spacing < 8) c.push({ lvl: 'warn', t: 'La onda tiene pocas muestras', d: `${fmt(part.wl / part.spacing)} por ciclo; con menos de 8 sale angulosa.` });
+  if (M.rawLayers > MAX_LAYERS) c.push({ lvl: 'warn', t: `${M.rawLayers} capas`, d: `BarroCode hoy corta en ${MAX_LAYERS} (el plan propone subirlo para filamento).` });
+  const bad = unresolved();
+  if (bad.length) c.push({ lvl: 'err', t: 'Variables desconocidas en las plantillas', d: bad.map(k => `{${k}}`).join(' ') + ' quedarían tal cual en el G-code.' });
+  else if (S.start.trim()) c.push({ lvl: 'ok', t: 'Plantillas completas' });
+  if (S.firmware === 'bambu') c.push({ lvl: 'warn', t: 'Bambu Lab no imprime cualquier .gcode', d: 'Desde la tarjeta funciona en monocolor; por red espera un .gcode.3mf con su propio inicio.' });
+  if (S.firmware === 'prusa' && !/M862\.3/.test(S.start)) c.push({ lvl: 'warn', t: 'Falta la comprobación de modelo', d: 'Sin M862.3 la impresora no avisa si el archivo es de otro modelo.' });
+  if (S.material === 'filament' && S.firmware === 'klipper' && /M109|M190/.test(S.start) && /START_PRINT|PRINT_START/.test(S.start)) c.push({ lvl: 'warn', t: 'Calentamiento doble', d: 'La plantilla espera temperatura con M109/M190 y además llama a la macro de inicio.' });
+  if (M.bytes > 40e6) c.push({ lvl: 'warn', t: `Archivo de ≈ ${fmt(M.bytes / 1e6)} MB`, d: 'Algunas pantallas tardan en abrirlo; baja el muestreo si la onda lo permite.' });
+  const order = { err: 0, warn: 1, ok: 2 };
+  return c.sort((a, b2) => order[a.lvl] - order[b2.lvl]);
+}
+
+// ── Viewer ──────────────────────────────────────────────────────────────────
+const view = { az: -0.65, el: 0.55, zoom: 1, panX: 0, panY: 0 };
+const cv = document.getElementById('view'), ctx = cv.getContext('2d');
+function ramp(t) { return `oklch(${0.52 + 0.14 * t} 0.19 ${(268 + 132 * t) % 360})`; }
+function draw() {
+  const r = cv.getBoundingClientRect(), dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(r.width * dpr) || cv.height !== Math.round(r.height * dpr)) { cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, r.width, r.height);
+  if (!M) return;
+  const drawerOpen = !document.getElementById('drawer').classList.contains('hidden');
+  const top = 56, bottom = drawerOpen ? r.height * 0.44 : 16, availH = r.height - top - bottom;
+  const bedY = S.bedShape === 'circle' ? S.bedX : S.bedY;
+  const bc = S.origin === 'centre' ? [0, 0] : [S.bedX / 2, bedY / 2];
+  const span = Math.max(S.bedX, bedY, S.bedZ * 0.7, 50);
+  const sc = Math.min(r.width, availH) / span * 0.82 * view.zoom;
+  const ca = Math.cos(view.az), sa = Math.sin(view.az), ce = Math.cos(view.el), se = Math.sin(view.el);
+  const zc = Math.min(M.topZ, S.bedZ) / 2;
+  const cx = r.width / 2 + view.panX, cy = top + availH / 2 + view.panY;
+  const P = (x, y, z) => { x -= bc[0]; y -= bc[1]; z -= zc * 0.6; const X = x * ca - y * sa, Y = x * sa + y * ca; return [cx + X * sc, cy - (z * ce + Y * se) * sc]; };
+  const red = getComputedStyle(document.body).getPropertyValue('--err');
+  const out = checks().some(c => c.lvl === 'err' && c.act);
+  // Bed
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  if (S.bedShape === 'circle') for (let i = 0; i <= 96; i++) { const a = i / 96 * 2 * Math.PI, p = P(bc[0] + S.bedX / 2 * Math.cos(a), bc[1] + S.bedX / 2 * Math.sin(a), 0); i ? ctx.lineTo(...p) : ctx.moveTo(...p); }
+  else { const [x0, y0] = [bc[0] - S.bedX / 2, bc[1] - bedY / 2]; [[x0, y0], [x0 + S.bedX, y0], [x0 + S.bedX, y0 + bedY], [x0, y0 + bedY], [x0, y0]].forEach((q, i) => { const p = P(q[0], q[1], 0); i ? ctx.lineTo(...p) : ctx.moveTo(...p); }); }
+  ctx.fillStyle = '#E8E8EC'; ctx.fill();
+  ctx.save(); ctx.clip();
+  ctx.strokeStyle = '#D4D4D8'; ctx.lineWidth = 0.6;
+  const g0x = bc[0] - S.bedX / 2, g0y = bc[1] - bedY / 2;
+  for (let g = 10; g < Math.max(S.bedX, bedY); g += 10) {
+    if (g < S.bedX) { ctx.beginPath(); ctx.moveTo(...P(g0x + g, g0y, 0)); ctx.lineTo(...P(g0x + g, g0y + bedY, 0)); ctx.stroke(); }
+    if (g < bedY) { ctx.beginPath(); ctx.moveTo(...P(g0x, g0y + g, 0)); ctx.lineTo(...P(g0x + S.bedX, g0y + g, 0)); ctx.stroke(); }
+  }
+  ctx.restore();
+  ctx.beginPath();
+  if (S.bedShape === 'circle') for (let i = 0; i <= 96; i++) { const a = i / 96 * 2 * Math.PI, p = P(bc[0] + S.bedX / 2 * Math.cos(a), bc[1] + S.bedX / 2 * Math.sin(a), 0); i ? ctx.lineTo(...p) : ctx.moveTo(...p); }
+  else [[g0x, g0y], [g0x + S.bedX, g0y], [g0x + S.bedX, g0y + bedY], [g0x, g0y + bedY], [g0x, g0y]].forEach((q, i) => { const p = P(q[0], q[1], 0); i ? ctx.lineTo(...p) : ctx.moveTo(...p); });
+  ctx.strokeStyle = out ? red : '#8A8A93'; ctx.lineWidth = out ? 2 : 1.2; ctx.setLineDash(out ? [6, 4] : []); ctx.stroke(); ctx.setLineDash([]);
+  // Build volume (faint) and origin axes
+  ctx.strokeStyle = '#D4D4D8'; ctx.lineWidth = 0.8; ctx.setLineDash([3, 4]);
+  const corners = S.bedShape === 'circle' ? [] : [[g0x, g0y], [g0x + S.bedX, g0y], [g0x + S.bedX, g0y + bedY], [g0x, g0y + bedY]];
+  for (const q of corners) { ctx.beginPath(); ctx.moveTo(...P(q[0], q[1], 0)); ctx.lineTo(...P(q[0], q[1], S.bedZ)); ctx.stroke(); }
+  ctx.setLineDash([]);
+  const o = P(0, 0, 0), ax = P(25, 0, 0), ay = P(0, 25, 0);
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = '#C33CAE'; ctx.beginPath(); ctx.moveTo(...o); ctx.lineTo(...ax); ctx.stroke();
+  ctx.strokeStyle = '#404DD8'; ctx.beginPath(); ctx.moveTo(...o); ctx.lineTo(...ay); ctx.stroke();
+  ctx.font = '11px GSCode, monospace'; ctx.fillStyle = '#55555D';
+  ctx.fillText('0, 0', o[0] - 34, o[1] + 4); ctx.fillText('X', ax[0] + 3, ax[1]); ctx.fillText('Y', ay[0] + 3, ay[1]);
+  // Part: a subset of layers, decimated
+  const { pts } = M.xy, stride = Math.max(1, Math.ceil(M.layers / 110)), step = Math.max(1, Math.floor(pts.length / 360));
+  ctx.lineWidth = 1;
+  for (let li = 0; li < M.layers; li += stride) {
+    const z = (li + 1) * M.h;
+    ctx.beginPath();
+    for (let i = 0; i < pts.length; i += step) { const p = P(pts[i][0] + M.off[0], pts[i][1] + M.off[1], z); i ? ctx.lineTo(...p) : ctx.moveTo(...p); }
+    ctx.closePath(); ctx.strokeStyle = ramp(li / Math.max(1, M.layers - 1)); ctx.globalAlpha = 0.8; ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  // Priming line (clay)
+  if (S.material === 'clay' && S.priming) {
+    const y = M.box.minY - 10, a = P(M.box.minX, y, M.h), b = P(M.box.minX + S.primingLen, y, M.h);
+    ctx.strokeStyle = '#38383E'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+  }
+  document.getElementById('legend').textContent = `cama ${S.bedShape === 'circle' ? 'Ø' + S.bedX : S.bedX + ' × ' + bedY} × ${S.bedZ} mm · origen ${S.origin === 'centre' ? 'al centro' : 'en la esquina'}${stride > 1 ? ` · se dibuja 1 de cada ${stride} capas` : ''}`;
+}
+let drag = null;
+cv.addEventListener('pointerdown', e => { drag = { x: e.clientX, y: e.clientY, az: view.az, el: view.el, pan: e.shiftKey, px: view.panX, py: view.panY }; cv.setPointerCapture(e.pointerId); setPreset(null); });
+cv.addEventListener('pointermove', e => {
+  if (!drag) return;
+  if (drag.pan) { view.panX = drag.px + e.clientX - drag.x; view.panY = drag.py + e.clientY - drag.y; }
+  else { view.az = drag.az - (e.clientX - drag.x) * 0.008; view.el = Math.max(-0.05, Math.min(Math.PI / 2, drag.el + (e.clientY - drag.y) * 0.008)); }
+  draw();
+});
+cv.addEventListener('pointerup', () => { drag = null; });
+cv.addEventListener('wheel', e => { e.preventDefault(); view.zoom = Math.max(0.3, Math.min(6, view.zoom * Math.exp(-e.deltaY * 0.0015))); draw(); }, { passive: false });
+const PRESETS = { iso: [-0.65, 0.55], top: [0, Math.PI / 2], front: [0, 0.02] };
+function setPreset(v) {
+  for (const b of document.querySelectorAll('#presets button')) b.setAttribute('aria-pressed', String(b.dataset.v === v));
+  if (v) { [view.az, view.el] = PRESETS[v]; draw(); }
+}
+document.getElementById('presets').addEventListener('click', e => { const v = e.target.dataset.v; if (v) setPreset(v); });
+document.getElementById('fit').addEventListener('click', () => { Object.assign(view, { zoom: 1, panX: 0, panY: 0 }); setPreset('iso'); });
+
+// ── G-code views ────────────────────────────────────────────────────────────
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function paint(lines, tplFrom = -1, tplTo = -1) {
+  return lines.map((l, i) => {
+    const x = esc(l);
+    if (i > tplFrom && i < tplTo) return `<span class="t">${x}</span>`;
+    if (l.startsWith(';')) return `<span class="c">${x}</span>`;
+    if (/^(M|SET_|START_|PRINT_|END_)/.test(l)) return `<span class="m">${x}</span>`;
+    return x.replace(/(;.*)$/, '<span class="c">$1</span>');
+  }).join('\n');
+}
+function startSection() {
+  const s = startLines();
+  const a = s.indexOf('; ---- Inicio (plantilla) ----'), b = s.indexOf('; ---- Fin de la plantilla ----');
+  return { lines: s, a, b };
+}
+function renderPreview() {
+  const head = headerLines(), st = startSection();
+  const l0 = layerLines(0, 0).out, last = layerLines(M.layers - 1, eAtLayer(M.layers - 1)).out, end = endLines();
+  const omitted = M.lines - (head.length + st.lines.length + 28 + 14 + end.length);
+  const lines = [...head, ...st.lines, ...l0.slice(0, 28), `; … ${omitted.toLocaleString('es')} líneas más …`, ...last.slice(-14), ...end];
+  const off = head.length;
+  document.getElementById('preview').innerHTML = paint(lines, st.a >= 0 ? off + st.a : -1, st.b >= 0 ? off + st.b : -1);
+  document.getElementById('drawerInfo').textContent = `${M.lines.toLocaleString('es')} líneas · ≈ ${(M.bytes / 1e6).toLocaleString('es', { maximumFractionDigits: 1 })} MB · se muestran el principio y el final`;
+}
+let section = 'start';
+function renderToc() {
+  const items = [['head', 'Encabezado', headerLines().length], ['start', 'Inicio', startLines().length]];
+  for (let li = 0; li < M.layers; li++) items.push(['L' + li, `Capa ${li + 1} · ${((li + 1) * M.h).toLocaleString('es', { maximumFractionDigits: 2 })} mm`, M.xy.pts.length + 4]);
+  items.push(['end', 'Fin', endLines().length]);
+  if (!items.some(i => i[0] === section)) section = 'start';
+  document.getElementById('toc').innerHTML = items.map(([id, t, n]) => `<button data-s="${id}" aria-current="${id === section}">${t}<small>${n}</small></button>`).join('');
+  renderSection();
+}
+function renderSection() {
+  let html;
+  if (section === 'head') html = paint(headerLines());
+  else if (section === 'start') { const s = startSection(); html = paint(s.lines, s.a, s.b); }
+  else if (section === 'end') html = paint(endLines());
+  else { const li = +section.slice(1); html = paint(layerLines(li, eAtLayer(li)).out); }
+  document.getElementById('section').innerHTML = html;
+  for (const b of document.querySelectorAll('#toc button')) b.setAttribute('aria-current', String(b.dataset.s === section));
+}
+document.getElementById('toc').addEventListener('click', e => { const b = e.target.closest('button'); if (b) { section = b.dataset.s; renderSection(); } });
+function setMode(m) {
+  for (const b of document.querySelectorAll('#mode button')) b.setAttribute('aria-pressed', String(b.dataset.m === m));
+  document.getElementById('textview').classList.toggle('hidden', m !== 'texto');
+  document.getElementById('drawer').classList.toggle('hidden', m === 'texto');
+  draw();
+  if (m === 'texto') renderToc();
+}
+document.getElementById('mode').addEventListener('click', e => { const m = e.target.dataset.m; if (m) setMode(m); });
+document.getElementById('toText').addEventListener('click', () => setMode('texto'));
+document.getElementById('copyAll').addEventListener('click', async e => {
+  const btn = e.currentTarget;
+  const parts = [...headerLines(), ...startLines()];
+  let eAcc = 0;
+  for (let li = 0; li < M.layers; li++) { const r = layerLines(li, eAcc); parts.push(...r.out); eAcc = r.e; }
+  parts.push(...endLines());
+  try { await navigator.clipboard.writeText(parts.join('\n')); btn.textContent = 'Copiado'; }
+  catch { btn.textContent = 'No se pudo copiar'; }
+  setTimeout(() => { btn.textContent = 'Copiar G-code'; }, 1800);
+});
+
+// ── Right panel ─────────────────────────────────────────────────────────────
+function renderRight() {
+  const cs = checks(), nErr = cs.filter(c => c.lvl === 'err').length, nWarn = cs.filter(c => c.lvl === 'warn').length;
+  document.getElementById('checkCount').textContent = nErr ? `${nErr} error${nErr > 1 ? 'es' : ''}${nWarn ? ' · ' + nWarn + ' aviso' + (nWarn > 1 ? 's' : '') : ''}` : nWarn ? `${nWarn} aviso${nWarn > 1 ? 's' : ''}` : 'todo en orden';
+  const icon = { ok: '✓', warn: '!', err: '×' };
+  document.getElementById('checks').innerHTML = cs.map(c => `<div class="chk ${c.lvl}"><i aria-hidden="true">${icon[c.lvl]}</i><div>${c.t}${c.d ? `<small>${c.d}</small>` : ''}${c.act ? '<button class="btn" data-act="centre">Centrar en la cama</button>' : ''}</div></div>`).join('');
+  const n = (v, d = 1) => v.toLocaleString('es', { maximumFractionDigits: d });
+  const hm = s => s >= 3600 ? `${Math.floor(s / 3600)} h ${Math.round(s % 3600 / 60)} min` : `${Math.max(1, Math.round(s / 60))} min`;
+  const grams = M.volume / 1000 * (S.material === 'clay' ? CLAY_DENSITY : PLA_DENSITY);
+  const rows = [
+    ['Tiempo', hm(M.time) + (S.material === 'filament' && S.accel ? ' (sin aceleración)' : '')],
+    S.material === 'clay' ? ['Arcilla', `${n(M.volume / 1000, 0)} cm³ · ≈ ${n(grams / 1000, 2)} kg`] : ['Filamento', `${n(M.filamentLen / 1000, 1)} m · ${n(grams, 0)} g de PLA`],
+    ['Capas', `${M.layers} × ${n(M.h, 2)} mm`],
+    ['Caja', `${n(M.box.maxX - M.box.minX)} × ${n(M.box.maxY - M.box.minY)} × ${n(M.topZ)} mm`],
+    ['Recorrido', `${n(M.printLen / 1000, 1)} m`],
+    ['Archivo', `≈ ${n(M.bytes / 1e6, 1)} MB`],
+  ];
+  document.getElementById('stats').innerHTML = rows.map(([a, b]) => `<div class="stat"><span>${a}</span><span>${b}</span></div>`).join('');
+  const sumEl = document.getElementById('summary');
+  sumEl.textContent = `${hm(M.time)} · ${n(M.box.maxX - M.box.minX, 0)} × ${n(M.box.maxY - M.box.minY, 0)} × ${n(M.topZ, 0)} mm · ` +
+    (S.material === 'clay' ? `${n(M.volume / 1000, 0)} cm³ de arcilla` : `${n(M.filamentLen / 1000, 1)} m · ${n(grams, 0)} g`);
+  sumEl.title = sumEl.textContent;
+  const a = adaptValues();
+  document.getElementById('adaptHint').textContent = `Para boquilla ${S.nozzle} mm: capa ${a.layerH}, cordón ${a.lineWidth}, N ${a.amp}, λ ${a.wl}, muestreo ${a.spacing} mm.`;
+}
+function adaptValues() {
+  const n = S.nozzle, r = (v, s) => Math.round(v / s) * s, fx = v => +v.toFixed(2);
+  const k = S.material === 'clay' ? { h: 0.6, w: 1.25, a: 0.75, wl: 5 } : { h: 0.5, w: 1.5, a: 2.5, wl: 15 };
+  const wl = fx(Math.max(1, r(n * k.wl, 0.5)));
+  return { layerH: fx(r(n * k.h, 0.05)), lineWidth: fx(r(n * k.w, 0.05)), amp: fx(r(n * k.a, 0.1)), wl, spacing: fx(Math.max(0.05, r(wl / 16, 0.05))) };
+}
+document.getElementById('adapt').addEventListener('click', () => {
+  const a = adaptValues();
+  Object.assign(part, { layerH: a.layerH, amp: a.amp, wl: a.wl, spacing: a.spacing });
+  S.lineWidth = a.lineWidth; markCustom(); syncInputs(); update();
+});
+
+// ── Wiring ──────────────────────────────────────────────────────────────────
+let timer = 0;
+function update() {
+  model(); draw(); renderRight();
+  clearTimeout(timer);
+  timer = setTimeout(() => {
+    if (!document.getElementById('textview').classList.contains('hidden')) renderToc();
+    renderPreview();
+  }, 120);
+}
+buildLeft();
+document.body.addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.k) {
+    const v = parseFloat(t.value); if (!isFinite(v)) return;
+    const f = allFields().find(f => f.k === t.dataset.k);
+    if (t.dataset.obj === 'p-') part[t.dataset.k] = Math.max(t.dataset.k === 'lobes' || t.dataset.k === 'depth' || t.dataset.k === 'amp' ? 0 : 0.01, v);
+    else { S[t.dataset.k] = f && f.speed ? v / speedUnit()[1] : v; if (!['posX', 'posY'].includes(t.dataset.k)) markCustom(); }
+    if (t.dataset.k === 'bedX') syncLabels();
+    update();
+  } else if (t.id === 'start' || t.id === 'end') { S[t.id] = t.value; markCustom(); update(); }
+});
+function syncLabels() { for (const f of allFields()) document.querySelector(`[data-label="${f.k}"]`).textContent = val(f.label); }
+document.body.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'profile' && t.value !== 'custom') applyProfile(t.value);
+  else if (t.id === 'firmware') { S.firmware = t.value; markCustom(); update(); }
+  else if (t.id === 'priming') { S.priming = t.checked; markCustom(); update(); }
+});
+document.body.addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  const seg = b.parentElement.dataset.seg;
+  if (seg) {
+    S[seg] = b.dataset.val; markCustom();
+    if (seg === 'origin' || seg === 'bedShape') centreOnBed();
+    syncInputs(); update();
+  } else if (b.dataset.act === 'centre') { centreOnBed(); syncInputs(); update(); }
+});
+new ResizeObserver(draw).observe(document.getElementById('stage'));
+syncInputs(); update();
+document.fonts.ready.then(draw);
+</script>
+</body>
+</html>

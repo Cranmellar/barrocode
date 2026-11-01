@@ -1,4 +1,5 @@
 import type { PrintParams, SampledPath, SVGViewBox } from '../../types';
+import { MACHINE_PROFILES } from '../machineProfiles';
 
 export const VIEWBOX: SVGViewBox = { x: 0, y: 0, width: 200, height: 200 };
 
@@ -8,6 +9,7 @@ export const VIEWBOX: SVGViewBox = { x: 0, y: 0, width: 200, height: 200 };
 export const CENTRE = { x: 0, y: 0 };
 
 export const PARAMS: PrintParams = {
+  ...MACHINE_PROFILES[0].values, machineProfile: MACHINE_PROFILES[0].id,
   sampleSpacing: 2,
   lissAmpN: 0, lissAmpT: 0, lissAmpZ: 0,
   lissWlN: 20, lissWlT: 20, lissWlZ: 20,

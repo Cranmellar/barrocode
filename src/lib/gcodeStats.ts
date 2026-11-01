@@ -6,19 +6,34 @@
  *
  * Time assumes each move runs at its programmed feedrate: no acceleration,
  * so real prints take somewhat longer. With E disabled every move counts as
- * travel.
+ * travel. E only counts once it passes its highest value so far, so a
+ * retraction and its recovery consume nothing.
  */
+
+export interface GcodeBox { minX: number; maxX: number; minY: number; maxY: number; minZ: number; maxZ: number }
 
 export interface GcodeStats {
   timeSec: number;
   printLength: number;   // mm extruded along
   travelLength: number;  // mm moved without extruding
   eTotal: number;        // E units consumed
+  // Every coordinate a G0/G1 names, travel included; ±Infinity when none.
+  box: GcodeBox;
+}
+
+export const emptyBox = (): GcodeBox =>
+  ({ minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity });
+
+export function growBox(b: GcodeBox, x?: number, y?: number, z?: number) {
+  if (x !== undefined) { if (x < b.minX) b.minX = x; if (x > b.maxX) b.maxX = x; }
+  if (y !== undefined) { if (y < b.minY) b.minY = y; if (y > b.maxY) b.maxY = y; }
+  if (z !== undefined) { if (z < b.minZ) b.minZ = z; if (z > b.maxZ) b.maxZ = z; }
 }
 
 export function summarizeGcode(gcode: string): GcodeStats {
-  let x = 0, y = 0, z = 0, e = 0, f = 0;
+  let x = 0, y = 0, z = 0, e = 0, f = 0, eHigh = 0;
   let timeSec = 0, printLength = 0, travelLength = 0, eTotal = 0;
+  const box = emptyBox();
 
   for (const raw of gcode.split('\n')) {
     const line = raw.split(';')[0].trim();
@@ -35,17 +50,18 @@ export function summarizeGcode(gcode: string): GcodeStats {
       if (f > 0) timeSec += d / (f / 60);
       if (ne > e) {
         printLength += d;
-        eTotal += ne - e;
+        if (ne > eHigh) { eTotal += ne - eHigh; eHigh = ne; }
       } else {
         travelLength += d;
       }
+      growBox(box, arg.X, arg.Y, arg.Z);
       x = nx; y = ny; z = nz; e = ne;
     } else if (cmd === 'G4') {
       timeSec += arg.P !== undefined ? arg.P / 1000 : arg.S ?? 0;
     } else if (cmd === 'G92' && arg.E !== undefined) {
-      e = arg.E;
+      e = eHigh = arg.E;
     }
   }
 
-  return { timeSec, printLength, travelLength, eTotal };
+  return { timeSec, printLength, travelLength, eTotal, box };
 }

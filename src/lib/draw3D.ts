@@ -151,6 +151,96 @@ export interface Scene {
   showDims: boolean;
   // Size factor of keyframe diamonds that are popping in (absent = 1).
   kfPop?: Map<string, number>;
+  // The machine's bed, drawn instead of the ground grid (Máquina).
+  bed?: BedOverlay | null;
+}
+
+/**
+ * A printer bed in toolpath coordinates: the G-code's corner-origin offset is
+ * already taken off, so it sits under the part as the printer will see it.
+ */
+export interface BedOverlay {
+  shape: 'rect' | 'circle';
+  minX: number; maxX: number; minY: number; maxY: number;
+  // The machine's X0 Y0.
+  originX: number; originY: number;
+  height: number;
+  // Something leaves the bed: the outline turns red.
+  out: boolean;
+}
+
+function bedOutline(bed: BedOverlay, z: number): [number, number, number][] {
+  if (bed.shape === 'circle') {
+    const cx = (bed.minX + bed.maxX) / 2, cy = (bed.minY + bed.maxY) / 2, r = (bed.maxX - bed.minX) / 2;
+    return Array.from({ length: 97 }, (_, i) => {
+      const a = i / 96 * 2 * Math.PI;
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a), z];
+    });
+  }
+  return [[bed.minX, bed.minY, z], [bed.maxX, bed.minY, z], [bed.maxX, bed.maxY, z], [bed.minX, bed.maxY, z], [bed.minX, bed.minY, z]];
+}
+
+function drawBed(ctx: CanvasRenderingContext2D, toScreen: (x: number, y: number, z: number) => [number, number], bed: BedOverlay, top: boolean) {
+  ctx.save();
+  const trace = (z: number) => {
+    ctx.beginPath();
+    bedOutline(bed, z).forEach(([x, y, zz], i) => { const [sx, sy] = toScreen(x, y, zz); if (i) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy); });
+    ctx.closePath();
+  };
+  trace(0);
+  ctx.fillStyle = withAlpha(palette.muted, 0.07);
+  ctx.fill();
+  if (top) {
+    ctx.save();
+    ctx.clip();
+    ctx.strokeStyle = withAlpha(palette.muted, 0.14);
+    ctx.lineWidth = 0.8;
+    const step = Math.max(bed.maxX - bed.minX, bed.maxY - bed.minY) > 250 ? 20 : 10;
+    for (let g = Math.ceil(bed.minX / step) * step; g <= bed.maxX; g += step) {
+      const [x0, y0] = toScreen(g, bed.minY, 0), [x1, y1] = toScreen(g, bed.maxY, 0);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
+    for (let g = Math.ceil(bed.minY / step) * step; g <= bed.maxY; g += step) {
+      const [x0, y0] = toScreen(bed.minX, g, 0), [x1, y1] = toScreen(bed.maxX, g, 0);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  trace(0);
+  ctx.strokeStyle = bed.out ? palette.err : withAlpha(palette.muted, 0.7);
+  ctx.lineWidth = bed.out ? 1.8 : 1.2;
+  if (bed.out) ctx.setLineDash([6, 4]);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  // The build volume's top, faint.
+  trace(bed.height);
+  ctx.strokeStyle = withAlpha(palette.muted, 0.18);
+  ctx.lineWidth = 0.8;
+  ctx.setLineDash([3, 5]);
+  ctx.stroke();
+  if (bed.shape === 'rect') {
+    for (const [x, y] of [[bed.minX, bed.minY], [bed.maxX, bed.minY], [bed.maxX, bed.maxY], [bed.minX, bed.maxY]]) {
+      const [x0, y0] = toScreen(x, y, 0), [x1, y1] = toScreen(x, y, bed.height);
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
+    }
+  }
+  ctx.setLineDash([]);
+  // Machine origin with its X and Y axes.
+  const o = toScreen(bed.originX, bed.originY, 0);
+  const ax = toScreen(bed.originX + 20, bed.originY, 0), ay = toScreen(bed.originX, bed.originY + 20, 0);
+  ctx.lineWidth = 1.6;
+  ctx.strokeStyle = palette.tAxis;
+  ctx.beginPath(); ctx.moveTo(...o); ctx.lineTo(...ax); ctx.stroke();
+  ctx.strokeStyle = palette.nAxis;
+  ctx.beginPath(); ctx.moveTo(...o); ctx.lineTo(...ay); ctx.stroke();
+  ctx.font = '11px GSCode, monospace';
+  ctx.fillStyle = palette.ink2;
+  ctx.textAlign = 'left';
+  haloText(ctx, 'X', ax[0] + 3, ax[1] + 4);
+  haloText(ctx, 'Y', ay[0] + 3, ay[1] + 4);
+  ctx.textAlign = 'right';
+  haloText(ctx, '0, 0', o[0] - 5, o[1] + 12);
+  ctx.restore();
 }
 
 // What drawGeometry reads. It excludes the timeline, so a scrub can reuse a
@@ -222,8 +312,10 @@ export function drawScene(
   const flat = flatPoints;
   const numLayers = toolpath.length;
 
+  if (scene.bed) drawBed(ctx, toScreen, scene.bed, elevation > 5);
+
   // Ground grid
-  if (modelBounds && elevation > 5) {
+  if (!scene.bed && modelBounds && elevation > 5) {
     const { minX: flatMinX, maxX: flatMaxX, minY: flatMinY, maxY: flatMaxY } = modelBounds;
     const cx = (flatMinX + flatMaxX) / 2;
     const cy = (flatMinY + flatMaxY) / 2;

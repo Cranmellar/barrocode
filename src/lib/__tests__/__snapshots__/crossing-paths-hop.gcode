@@ -1,8 +1,13 @@
 ; ============================================================
 ; BarroCode — Lissajous G-code Generator
 ; ============================================================
+; Machine                : Arcilla · origen al centro · RepRap / Duet
+; Material               : clay
+; Nozzle / line width    : 4 / 5 mm
+; Box X 0.000…101.000  Y 0.000…101.000  Z 1.000…30.000 mm
 ; Lissajous amp N / T   : 2 / 0 mm
 ; Lissajous wl  N / T   : 20 / 20 mm
+; Lissajous amp / wl Z  : 0 / 20 mm, phase 0.0°
 ; Lissajous delta        : 0.0°
 ; Phase offset           : 0.0°
 ; Phase shift / layer    : 0.0°
@@ -16,12 +21,15 @@
 ; Rotation               : 0°
 ; Part centre at X / Y   : 0 / 0 mm
 ; Flip Y                 : false
+; Alternate direction    : false
+; Safe Z                 : 20 mm
 ; Z-hop height / radius  : 2.5 / 3 mm
 ; Skirt threshold        : 15 mm
 ; Print speed            : 600 mm/min
 ; Travel speed           : 1500 mm/min
 ; Generate E             : true
 ; Extrusion multiplier   : 0.05
+; Dwell / priming        : 0 ms / off
 ; ============================================================
 ;LAYER_COUNT:2
 
