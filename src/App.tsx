@@ -4,6 +4,7 @@ import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
+import { MACHINE_PROFILES } from './lib/machineProfiles';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
@@ -70,8 +71,6 @@ const DEFAULT_PARAMS: PrintParams = {
   numLayers: 6,
   useNumLayers: true,
   totalHeight: 15,
-  nozzleHeightOffset: 1,
-  safeZ: 20,
   softJoin: true,
   transitionLength: 10,
   scaleFactor: 1,
@@ -81,16 +80,9 @@ const DEFAULT_PARAMS: PrintParams = {
   marginX: 10,
   marginY: 10,
   flipY: true,
-  printSpeed: 600,
-  travelSpeed: 1500,
-  generateE: true,
-  extrusionMultiplier: 0.05,
   reversePath: false,
   alternateDirection: false,
   closePath: false,
-  dwellAtStart: 0,
-  primingMove: false,
-  primingLength: 20,
   // Center + scale around pivot
   centerX: 0,
   centerY: 0,
@@ -103,6 +95,9 @@ const DEFAULT_PARAMS: PrintParams = {
   hopRadius: 1.0,
   // Concentric skirt travel
   skirtThreshold: 15,
+  // The clay profile repeats the values above and adds the machine's.
+  ...MACHINE_PROFILES[0].values,
+  machineProfile: MACHINE_PROFILES[0].id,
 };
 
 // ── Floating panels ─────────────────────────────────────────────────────────

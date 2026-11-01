@@ -12,9 +12,16 @@
  *   part, so a normal lift-and-travel is used instead.
  *
  * Extrusion model:
- *   E is cumulative.  Each move of distance d:   E += d * extrusionMultiplier
- *   extrusionMultiplier ≈ 0.02–0.1 for clay systems (tune to pump/auger).
+ *   E is cumulative.  Each move of distance d:   E += d * ePerMM(params)
+ *   Clay: ePerMM = extrusionMultiplier, ≈ 0.02–0.1 (tune to pump/auger).
+ *   Filament: the bead's volume over the filament's section, times flowRatio.
  *   Set generateE=false for motion-only G-code.
+ *
+ * Machine:
+ *   startGcode / endGcode are templates ({nozzleTemp}, {bedTemp}, …; see
+ *   templateVars) around the program. With filament, travel between paths
+ *   retracts retractLength, the fan turns on at fanFromLayer, and layers
+ *   faster than minLayerTime slow down. Clay never retracts.
  *
  * Z-hop:
  *   When zHopHeight > 0, the nozzle arcs smoothly over self-intersecting path
@@ -26,7 +33,8 @@ import type { PrintParams } from '../types';
 import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 import { layerCount } from './waveGenerator';
-import type { GcodeStats } from './gcodeStats';
+import { emptyBox, growBox, type GcodeBox, type GcodeStats } from './gcodeStats';
+import { FIRMWARE_LABEL, profileName } from './machineProfiles';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
@@ -43,14 +51,21 @@ function dist(ax: number, ay: number, bx: number, by: number) {
 // Machine position plus the program summary, kept as each move is written so
 // the viewer needn't parse the G-code back. It reads the rounded values that
 // are written, as summarizeGcode would.
-interface Machine extends GcodeStats { x: number; y: number; z: number; e: number }
+interface Machine extends GcodeStats { x: number; y: number; z: number; e: number; eHigh: number }
 
 function newMachine(): Machine {
-  return { x: 0, y: 0, z: 0, e: 0, timeSec: 0, printLength: 0, travelLength: 0, eTotal: 0 };
+  return { x: 0, y: 0, z: 0, e: 0, eHigh: 0, timeSec: 0, printLength: 0, travelLength: 0, eTotal: 0, box: emptyBox() };
 }
 
-function statsOf({ timeSec, printLength, travelLength, eTotal }: Machine): GcodeStats {
-  return { timeSec, printLength, travelLength, eTotal };
+function statsOf({ timeSec, printLength, travelLength, eTotal, box }: Machine): GcodeStats {
+  return { timeSec, printLength, travelLength, eTotal, box: { ...box } };
+}
+
+/** E per mm of nozzle travel. */
+export function ePerMM(params: PrintParams): number {
+  if (params.material !== 'filament') return params.extrusionMultiplier;
+  const section = Math.PI * (params.filamentDiameter / 2) ** 2;
+  return params.lineWidth * params.layerHeight / section * params.flowRatio / 100;
 }
 
 function move(
@@ -71,10 +86,11 @@ function move(
   if (feed > 0) m.timeSec += d / (feed / 60);
   if (e > m.e) {
     m.printLength += d;
-    m.eTotal += e - m.e;
+    if (e > m.eHigh) { m.eTotal += e - m.eHigh; m.eHigh = e; }
   } else {
     m.travelLength += d;
   }
+  growBox(m.box, to.x !== undefined ? x : undefined, to.y !== undefined ? y : undefined, to.z !== undefined ? z : undefined);
   m.x = x; m.y = y; m.z = z; m.e = e;
   return comment ? `${line}  ; ${comment}` : line;
 }
@@ -89,13 +105,20 @@ function smoothstep(t: number) { return t * t * (3 - 2 * t); }
 
 // ── Header ──────────────────────────────────────────────────────────────────
 
-function buildHeader(params: PrintParams): string {
+function buildHeader(params: PrintParams, box: GcodeBox): string {
+  const deg = (r: number) => (r * 180 / Math.PI).toFixed(1);
+  const filament = params.material === 'filament';
   return [
     '; ============================================================',
     '; BarroCode — Lissajous G-code Generator',
     '; ============================================================',
+    `; Machine                : ${profileName(params.machineProfile)} · ${FIRMWARE_LABEL[params.firmware]}`,
+    `; Material               : ${filament ? `filament ${params.filamentDiameter} mm, flow ${params.flowRatio} %` : 'clay'}`,
+    `; Nozzle / line width    : ${params.nozzleDiameter} / ${params.lineWidth} mm`,
+    `; Box X ${fmt(box.minX)}…${fmt(box.maxX)}  Y ${fmt(box.minY)}…${fmt(box.maxY)}  Z ${fmt(box.minZ)}…${fmt(box.maxZ)} mm`,
     `; Lissajous amp N / T   : ${params.lissAmpN} / ${params.lissAmpT} mm`,
     `; Lissajous wl  N / T   : ${params.lissWlN} / ${params.lissWlT} mm`,
+    `; Lissajous amp / wl Z  : ${params.lissAmpZ} / ${params.lissWlZ} mm, phase ${deg(params.lissPhaseZ)}°`,
     `; Lissajous delta        : ${(params.lissDelta * 180 / Math.PI).toFixed(1)}°`,
     `; Phase offset           : ${(params.lissPhaseOffset * 180 / Math.PI).toFixed(1)}°`,
     `; Phase shift / layer    : ${(params.phaseShiftPerLayer * 180 / Math.PI).toFixed(1)}°`,
@@ -111,12 +134,21 @@ function buildHeader(params: PrintParams): string {
       ? `; Margin X / Y (corner)  : ${params.marginX} / ${params.marginY} mm`
       : `; Part centre at X / Y   : ${params.originX} / ${params.originY} mm`,
     `; Flip Y                 : ${params.flipY}`,
+    `; Alternate direction    : ${params.alternateDirection}`,
+    `; Safe Z                 : ${params.safeZ} mm`,
     `; Z-hop height / radius  : ${params.zHopHeight} / ${params.hopRadius} mm`,
     `; Skirt threshold        : ${params.skirtThreshold} mm`,
-    `; Print speed            : ${params.printSpeed} mm/min`,
+    `; Print speed            : ${params.printSpeed} mm/min`
+      + (params.firstLayerSpeed > 0 ? `, first layer ${params.firstLayerSpeed}` : '')
+      + (params.minLayerTime > 0 ? `, min layer time ${params.minLayerTime} s` : ''),
     `; Travel speed           : ${params.travelSpeed} mm/min`,
     `; Generate E             : ${params.generateE}`,
-    `; Extrusion multiplier   : ${params.extrusionMultiplier}`,
+    filament
+      ? `; E per mm               : ${ePerMM(params).toFixed(5)} (retract ${params.retractLength} mm)`
+      : `; Extrusion multiplier   : ${params.extrusionMultiplier}`,
+    filament
+      ? `; Temperatures           : nozzle ${params.nozzleTemp} °C, bed ${params.bedTemp} °C, fan ${params.fanSpeed} % from layer ${params.fanFromLayer}`
+      : `; Dwell / priming        : ${params.dwellAtStart} ms / ${params.primingMove ? `${params.primingLength} mm` : 'off'}`,
     '; ============================================================',
     `;LAYER_COUNT:${layerCount(params)}`,
     '',
@@ -144,6 +176,7 @@ function buildTransition(
   params: PrintParams,
   eRef: { value: number },
   m: Machine,
+  feed: number,
 ): string[] {
   // Steps shorter than this would extrude less than E's printed resolution.
   const span = Math.hypot(to.x - from.x, to.y - from.y, zTo - zFrom);
@@ -161,9 +194,9 @@ function buildTransition(
     const z = zFrom + (zTo - zFrom) * t;
 
     const segD = dist(prevX, prevY, x, y);
-    eRef.value += segD * params.extrusionMultiplier;
+    eRef.value += segD * ePerMM(params);
     const e = params.generateE ? eRef.value : undefined;
-    lines.push(move(m, { x, y, z, e }, params.printSpeed));
+    lines.push(move(m, { x, y, z, e }, feed));
     prevX = x; prevY = y;
   }
   return lines;
@@ -196,7 +229,9 @@ function primingStart(layer: ToolpathLayer): MM2 {
  * (marginX, marginY) instead of its centre at (originX, originY), for beds whose origin is a
  * corner. Only the G-code moves; the preview keeps the toolpath centred.
  */
-function toCornerOrigin(toolpath: ToolpathLayer[], params: PrintParams): ToolpathLayer[] {
+/** What the G-code adds to the toolpath's X and Y: zero unless the origin is the corner. */
+export function gcodeOffset(toolpath: ToolpathLayer[], params: PrintParams): MM2 {
+  if (params.gcodeOrigin !== 'corner') return { x: 0, y: 0 };
   let minX = Infinity, minY = Infinity;
   for (const layer of toolpath) {
     for (const path of layer.paths) {
@@ -206,7 +241,11 @@ function toCornerOrigin(toolpath: ToolpathLayer[], params: PrintParams): Toolpat
       }
     }
   }
-  const dx = params.marginX - minX, dy = params.marginY - minY;
+  return minX === Infinity ? { x: 0, y: 0 } : { x: params.marginX - minX, y: params.marginY - minY };
+}
+
+function toCornerOrigin(toolpath: ToolpathLayer[], params: PrintParams): ToolpathLayer[] {
+  const { x: dx, y: dy } = gcodeOffset(toolpath, params);
   return toolpath.map(layer => ({
     ...layer,
     centroid: { x: layer.centroid.x + dx, y: layer.centroid.y + dy },
@@ -236,10 +275,13 @@ function buildSkirtTravel(
   params: PrintParams,
   m: Machine,
   floor: MM2 | null,
+  retract: number,
 ): string[] {
   const arcPts = skirtArcPoints(from, to, centroid, params.skirtThreshold);
 
   const lines: string[] = [];
+  const e = m.e;
+  if (retract > 0) lines.push(move(m, { e: e - retract }, params.retractSpeed, 'retract'));
   lines.push(move(m, { z: topZ + TRAVEL_CLEARANCE }, params.travelSpeed, 'lift'));
 
   if (!arcPts) {
@@ -262,6 +304,7 @@ function buildSkirtTravel(
   }
 
   lines.push(move(m, { z: to.z }, params.travelSpeed, 'descend'));
+  if (retract > 0) lines.push(move(m, { e }, params.retractSpeed, 'unretract'));
   return lines;
 }
 
@@ -277,6 +320,7 @@ function pathToGcode(
   eRef: { value: number },
   zRef: { value: number },  // tracks current nozzle Z across calls
   m: Machine,
+  feed: number,
 ): string[] {
   const lines: string[] = [];
 
@@ -286,7 +330,7 @@ function pathToGcode(
     const d = dist(prev.x, prev.y, curr.x, curr.y);
     if (d < 1e-6) continue;
 
-    eRef.value += d * params.extrusionMultiplier;
+    eRef.value += d * ePerMM(params);
     const zChanged = Math.abs(curr.z - zRef.value) > 0.001;
     if (zChanged) zRef.value = curr.z;
 
@@ -295,10 +339,50 @@ function pathToGcode(
       y: curr.y,
       z: zChanged ? curr.z : undefined,
       e: params.generateE ? eRef.value : undefined,
-    }, params.printSpeed));
+    }, feed));
   }
 
   return lines;
+}
+
+// ── Machine templates and pacing ─────────────────────────────────────────────
+
+export const TEMPLATE_VARS = [
+  'nozzleTemp', 'bedTemp', 'bedX', 'bedY', 'bedZ', 'firstLayerZ', 'topZ', 'parkZ',
+  'minX', 'maxX', 'minY', 'maxY',
+] as const;
+
+/** Names in the start and end templates that have no value. */
+export function unknownTemplateVars(params: PrintParams): string[] {
+  const known = new Set<string>(TEMPLATE_VARS);
+  const names = [...`${params.startGcode}\n${params.endGcode}`.matchAll(/\{(\w+)\}/g)].map(m => m[1]);
+  return [...new Set(names.filter(n => !known.has(n)))];
+}
+
+function fillTemplate(tpl: string, vars: Record<string, string | number>): string {
+  return tpl.replace(/\{(\w+)\}/g, (all, k: string) => k in vars ? String(vars[k]) : all);
+}
+
+/** Printed length of a layer, mm. */
+export function layerLength(layer: ToolpathLayer): number {
+  let len = 0;
+  for (const path of layer.paths) {
+    for (let i = 1; i < path.length; i++) len += dist(path[i - 1].x, path[i - 1].y, path[i].x, path[i].y);
+  }
+  return len;
+}
+
+/**
+ * Print feed of each layer, mm/min: the first-layer speed on layer 0, and
+ * slower when a layer would take less than minLayerTime.
+ */
+export function layerFeeds(toolpath: ToolpathLayer[], params: PrintParams): number[] {
+  return toolpath.map((layer, li) => {
+    const base = li === 0 && params.firstLayerSpeed > 0 ? params.firstLayerSpeed : params.printSpeed;
+    if (params.minLayerTime <= 0) return base;
+    const capped = layerLength(layer) / params.minLayerTime * 60;
+    return capped < base ? Math.max(1, Math.round(capped)) : base;
+  });
 }
 
 // ── Layer markers ────────────────────────────────────────────────────────────
@@ -330,16 +414,23 @@ export function generateGcode(
   const corner = params.gcodeOrigin === 'corner';
   const toolpath = corner ? toCornerOrigin(centred, params) : centred;
   const floor = corner ? { x: params.marginX, y: params.marginY } : null;
+  const filament = params.material === 'filament';
+  const retract = filament && params.generateE ? params.retractLength : 0;
+  const feeds = layerFeeds(toolpath, params);
 
   const blocks: string[] = [];
-  blocks.push(buildHeader(params));
 
   // M82 guards against a relative-E mode left over from a previous job; it is
   // skipped for motion-only output, where controllers may reject E-axis codes.
+  // It comes after the start template, whose purge may leave E anywhere.
   blocks.push(
     'G21       ; mm units\nG90       ; absolute positioning\n' +
     (params.generateE ? 'M82       ; absolute extrusion\n' : '') +
-    'G92 E0    ; reset E\n',
+    'G92 E0    ; reset E\n' +
+    (params.accel > 0
+      ? (params.firmware === 'klipper' ? `SET_VELOCITY_LIMIT ACCEL=${params.accel}\n` : `M204 S${params.accel}  ; acceleration\n`)
+      : '') +
+    (filament ? 'M107      ; fan off for the first layers\n' : ''),
   );
   blocks.push(`${move(m, { z: params.safeZ }, params.travelSpeed, 'safe Z')}\n`);
 
@@ -356,7 +447,7 @@ export function generateGcode(
       `${move(m, { x: px, y: py }, params.travelSpeed)}\n` +
       `${move(m, { z: pz }, params.travelSpeed)}\n`,
     );
-    eRef.value += params.primingLength * params.extrusionMultiplier;
+    eRef.value += params.primingLength * ePerMM(params);
     const e = params.generateE ? eRef.value : undefined;
     blocks.push(
       `${move(m, { x: px + params.primingLength, y: py, e }, params.printSpeed)}\n` +
@@ -370,15 +461,21 @@ export function generateGcode(
     for (const path of layer.paths) for (const p of path) top = Math.max(top, p.z);
     topZ.push(top);
   }
+  const fanLayer = Math.max(0, Math.round(params.fanFromLayer) - 1);
 
   let cur: MM2 = { x: params.originX, y: params.originY };
 
   for (let li = 0; li < toolpath.length; li++) {
     const layer = toolpath[li];
     const nextLayer = toolpath[li + 1] ?? null;
+    const feed = feeds[li];
 
     blocks.push(`\n; ===== Layer ${li + 1} / ${toolpath.length}   Z = ${fmt(layer.z)} mm =====`);
     blocks.push(layerMarkers(li, layer.z, params.layerHeight));
+    if (filament && params.fanSpeed > 0 && li === fanLayer) {
+      blocks.push(`M106 S${Math.round(Math.min(100, params.fanSpeed) * 2.55)}  ; fan ${params.fanSpeed} %`);
+    }
+    if (feed !== params.printSpeed && (li === 0 || feed !== feeds[li - 1])) blocks.push(`; Print speed ${feed} mm/min`);
     if (layer.crossings > 0) {
       blocks.push(`; Z-hop: ${layer.crossings} crossing(s) detected`);
     }
@@ -395,12 +492,12 @@ export function generateGcode(
         zRef.value = start.z;
         if (params.dwellAtStart > 0) blocks.push(dwell(m, params.dwellAtStart));
       } else if (!joined) {
-        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params, m, floor);
+        const skirtLines = buildSkirtTravel(cur, start, layer.centroid, topZ[li], params, m, floor, retract);
         blocks.push(skirtLines.join('\n'));
         zRef.value = start.z;
       }
 
-      blocks.push(pathToGcode(pts, params, eRef, zRef, m).join('\n'));
+      blocks.push(pathToGcode(pts, params, eRef, zRef, m, feed).join('\n'));
       isFirstMove = false;
       joined = false;
       cur = pts[pts.length - 1];
@@ -411,7 +508,7 @@ export function generateGcode(
         if (next && gap <= params.transitionLength) {
           if (Math.hypot(gap, next.z - zRef.value) > JOIN_TOLERANCE) {
             const tLines = buildTransition(
-              cur, next, zRef.value, next.z, params.transitionLength, params, eRef, m,
+              cur, next, zRef.value, next.z, params.transitionLength, params, eRef, m, feed,
             );
             zRef.value = next.z;
             blocks.push(tLines.join('\n'));
@@ -423,11 +520,26 @@ export function generateGcode(
   }
 
   blocks.push('\n; ===== End =====');
-  const finalZ = Math.max(params.safeZ, topZ[topZ.length - 1]) + FINAL_CLEARANCE;
+  const partTop = topZ[topZ.length - 1];
+  const lift = Math.max(params.safeZ, partTop) + FINAL_CLEARANCE;
+  // A machine refuses moves past its Z travel; any lift above the part will do.
+  const finalZ = params.bedZ > partTop ? Math.min(lift, params.bedZ) : lift;
   blocks.push(move(m, { z: finalZ }, params.travelSpeed, 'final lift'));
-  blocks.push('M84  ; disable motors');
 
-  return { text: blocks.join('\n'), stats: statsOf(m) };
+  const box = m.box;
+  const vars: Record<string, string | number> = {
+    nozzleTemp: params.nozzleTemp, bedTemp: params.bedTemp,
+    bedX: params.bedX, bedY: params.bedShape === 'circle' ? params.bedX : params.bedY, bedZ: params.bedZ,
+    firstLayerZ: fmt(toolpath[0].z), topZ: fmt(partTop), parkZ: fmt(finalZ),
+    minX: fmt(box.minX), maxX: fmt(box.maxX), minY: fmt(box.minY), maxY: fmt(box.maxY),
+  };
+  if (params.endGcode.trim()) blocks.push('; --- End G-code ---', fillTemplate(params.endGcode.trimEnd(), vars));
+  else blocks.push('M84  ; disable motors');
+
+  const head = [buildHeader(params, box)];
+  if (params.startGcode.trim()) head.push(`; --- Start G-code ---\n${fillTemplate(params.startGcode.trimEnd(), vars)}\n; --- End of start G-code ---`);
+
+  return { text: [...head, ...blocks].join('\n'), stats: statsOf(m) };
 }
 
 // ── Download helper ──────────────────────────────────────────────────────────
