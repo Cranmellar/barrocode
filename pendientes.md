@@ -136,6 +136,17 @@ Orden: NP-0a/b/c (corrigen bugs latentes y son base de todo) → NP-1 → NP-2 �
 
 - [ ] **Biblioteca de SVG samples** — *parcial: hay 8 muestras en un carrusel ‹ › con miniatura.* Falta la grilla de pads, si se quiere. Actualizar la carpeta de samples y mostrar 12 (o más) pads pequeños con vistas mini de cada sample (tomando el ícono del propio SVG), para elegir visualmente. Alternativa: flechas left/right para navegar entre samples.
 
+### Posibilidades registradas (no a tratar)
+
+Ideas evaluadas que quedan solo como registro. No son tickets; probablemente se descarten.
+
+- **Tooltips gráficos en los parámetros** (evaluado 2026-11-01). Reemplazar el `title` nativo (≈ 50 parámetros con `hint`, casi todos a través de los `Num` / `Slider` / `Check` locales de cada panel) por un tooltip propio con un diagrama de cómo el parámetro cambia la figura. Tres niveles de costo:
+  1. *Tooltip propio, solo texto* (≈ medio día): componente `Tip` compartido como `NumInput`, en un portal con `position: fixed` (los paneles tienen `overflow-y: auto`), abierto hacia el lienzo, retardo ≈ 400 ms, también con foco de teclado (`aria-describedby`), oculto al arrastrar la etiqueta o usar la rueda.
+  2. *Diagrama fijo por parámetro* (≈ 2–4 días): solo los ≈ 20 geométricos (onda, altura de capa, espaciado, unión de capas, z-hop, desplazamientos, escala, rotación, pivote, invertir Y). Máquina quedaría con texto. Reutilizar `wavePath` / `Arrow` de `HelpDialog.tsx` en un módulo común.
+  3. *Diagrama en vivo con el valor actual* (poco más que el 2 en el panel Onda): la fórmula de la onda sobre ≈ 200 puntos, < 1 ms por redibujo, sin tocar el pipeline.
+
+  Descartado en cualquier caso: previsualizar la pieza real con el valor cambiado (correr el pipeline en cada hover cuesta 60–480 ms a 150 capas). Más adelante, para 3 o 4 parámetros, se podría resaltar en el visor 3D lo que tocan (cruces del z-hop, rampa de la costura, franja de la onda), a costo medio cada uno.
+
 ### Completado en sesiones previas
 
 - [x] **Eliminar todo lo relacionado con el .exe / Electron** — commit `3b516b7`.

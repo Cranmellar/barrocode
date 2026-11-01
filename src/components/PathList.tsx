@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { SampledPath, PrintParams } from '../types';
 import { NumInput } from './NumInput';
 import { Icon } from './icons';
+import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
   paths: SampledPath[];
@@ -39,6 +40,7 @@ export function PathList({ paths, params, hasKeyframes, onToggle, onOverride }: 
               <input
                 type="checkbox"
                 checked={path.enabled}
+                title={wrapHint('Imprimir esta ruta. Desactivada, no se imprime y la pieza se recentra con las demás.')}
                 onChange={() => onToggle(path.id)}
               />
               <code className="path-id">{path.id}</code>
@@ -68,7 +70,7 @@ export function PathList({ paths, params, hasKeyframes, onToggle, onOverride }: 
                   { key: 'wlNOverride'  as const, label: 'λ N',   unit: 'mm', ph: params.lissWlN  },
                   { key: 'wlTOverride'  as const, label: 'λ T',   unit: 'mm', ph: params.lissWlT  },
                 ]).map(({ key, label, unit, ph }) => (
-                  <div className="param-row" key={key}>
+                  <div className="param-row" key={key} title={wrapHint(`${label} solo para esta ruta. Vacío, vale la del panel Onda.`)}>
                     <label>{label}<span className="unit"> {unit}</span></label>
                     <NumInput
                       min={0} step={0.5}

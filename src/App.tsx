@@ -22,6 +22,7 @@ import { HelpDialog } from './components/HelpDialog';
 import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
+import { wrapHint } from './lib/wrapHint';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -875,7 +876,7 @@ export default function App() {
           ? kfAtCursor.id === selectedKfId
             ? 'Terminar de editar este keyframe (Esc)'
             : 'Ya hay un keyframe aquí: seleccionarlo'
-          : `Fijar la onda en ${Math.round(timelineProgress * 100)} % del recorrido (K). Entre keyframes los valores se interpolan.`}
+          : wrapHint(`Fijar la onda en ${Math.round(timelineProgress * 100)}\u00a0% del recorrido (K). Entre keyframes los valores se interpolan.`)}
       >
         {kfAtCursor
           ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${keyframes.indexOf(kfAtCursor) + 1}`
@@ -907,7 +908,7 @@ export default function App() {
   const kfEditor = selectedKf && (
     <div className="kf-editor">
       <div className="kf-group">
-        <div className="kf-field">
+        <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
           <label>Posición <span className="kf-field-hint">{layerLabel(layerAtT(toolpath, selectedKf.t), params.layerHeight)}</span></label>
           <div className="kf-field-input-row">
             <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
@@ -915,7 +916,7 @@ export default function App() {
             <span className="kf-unit">%</span>
           </div>
         </div>
-        <div className="kf-field" title="Giro alrededor del centro, antihorario visto desde arriba. Entre keyframes se interpola: 0° → 360° da una vuelta completa.">
+        <div className="kf-field" title={wrapHint('Giro de la forma en este keyframe, alrededor del centro de pivote y antihorario visto desde arriba. Entre keyframes se interpola: de 0° a 360° la pieza da una vuelta completa.')}>
           <label><Icon name="giro" size={11} />Giro</label>
           <div className="kf-field-input-row">
             <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
@@ -926,14 +927,14 @@ export default function App() {
       </div>
 
       <div className="kf-group">
-        <div className="kf-field">
+        <div className="kf-field" title={wrapHint('Escala en X en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
           <label><Icon name="escalaX" size={11} />Escala X</label>
           <div className="kf-field-input-row">
             <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
               onChange={v => updateKf('scaleX', v)} />
           </div>
         </div>
-        <div className="kf-field">
+        <div className="kf-field" title={wrapHint('Escala en Y en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
           <label><Icon name="escalaY" size={11} />Escala Y</label>
           <div className="kf-field-input-row">
             <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
@@ -943,7 +944,7 @@ export default function App() {
       </div>
 
       <div className="kf-group kf-group-ease">
-        <div className="kf-field" title="Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, los tramos son rectos.">
+        <div className="kf-field" title={wrapHint('Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, cambian a ritmo constante y el cambio de ritmo se nota en el keyframe.')}>
           <label>Transición</label>
           <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
           <label className="kf-switch">
@@ -1001,7 +1002,7 @@ export default function App() {
         ['maquina', 'Máquina', 'Impresora, cama, material y revisión del G-code'],
       ] as const)
         .map(([w, label, title]) => (
-          <button key={w} role="tab" aria-selected={workspace === w} title={title}
+          <button key={w} role="tab" aria-selected={workspace === w} title={wrapHint(title)}
             className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
             onClick={() => setWorkspace(w)}>{label}</button>
         ))}
@@ -1090,7 +1091,7 @@ export default function App() {
             <div className="file-block">
               <div className="file-row">
                 <button className="btn-small file-load" onClick={() => fileInputRef.current?.click()}
-                  title="Cargar un SVG. También puedes arrastrarlo a cualquier parte de la ventana.">
+                  title={wrapHint('Cargar un SVG. También puedes arrastrarlo a cualquier parte de la ventana.')}>
                   {parsedSVG ? 'Cambiar SVG' : 'Cargar SVG'}
                 </button>
                 <input ref={fileInputRef} type="file" accept=".svg,image/svg+xml"
@@ -1129,7 +1130,7 @@ export default function App() {
                       title="Volver a Forma para cambiar esta forma">Editar forma</button>
                   ) : (
                     <button className="btn-small" onClick={openInForma}
-                      title="Convertir los contornos cerrados de este SVG en nodos editables en Forma, al tamaño que se imprime">Abrir en Forma</button>
+                      title={wrapHint('Convertir los contornos cerrados de este SVG en nodos editables en Forma, al tamaño que se imprime')}>Abrir en Forma</button>
                   )}
                   <button className="btn-icon" title="Descartar el SVG" aria-label="Descartar el SVG" onClick={clearSVG}>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">

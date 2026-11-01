@@ -3,6 +3,7 @@ import { NumInput } from '../../components/NumInput';
 import { Icon, type IconName } from '../../components/icons';
 import { superformulaN3 } from '../lib/families';
 import { DEFAULT_SHAPE, familyName, paramSpec, type Family, type FamilyKey, type ShapeDoc } from '../lib/shape';
+import { wrapHint } from '../../lib/wrapHint';
 
 interface Props { doc: ShapeDoc; onChange: (doc: ShapeDoc) => void; onEditPoints: () => void }
 
@@ -33,7 +34,7 @@ function Slider({ label, value, min, max, step, unit, hint, def, disabled, onCha
   const trackBg = `linear-gradient(to right,var(--accent) 0%,var(--accent) ${fill},var(--control-edge) ${fill},var(--control-edge) 100%)`;
   const clamp = (v: number) => Math.min(max, Math.max(min, v));
   return (
-    <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={hint}>
+    <div className={`slider-row${disabled ? ' slider-row--off' : ''}`} title={wrapHint(hint)}>
       <div className="slider-header">
         <span className="slider-label">{label}</span>
         <span className="slider-num">
@@ -68,7 +69,7 @@ function Num({ label, value, min, max, step, unit, hint, onChange }: {
   step?: number; unit?: string; hint?: string; onChange: (v: number) => void;
 }) {
   return (
-    <div className="param-row" title={hint}>
+    <div className="param-row" title={wrapHint(hint)}>
       <label>{label}{unit && <span className="unit"> {unit}</span>}</label>
       <NumInput value={value} min={min} max={max} step={step} onChange={onChange} />
     </div>
@@ -132,28 +133,28 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
       <div key={doc.family} className="tab-pane" role="tabpanel">
         {doc.family === 'lobes' && (
           <Sec title="Lóbulos" icon="lobulos">
-            {slider('lobeCount', 'Número')}
-            {slider('lobeDepthPct', 'Profundidad', '%', 'Cuánto se hunden los valles respecto a las crestas')}
+            {slider('lobeCount', 'Número', undefined, 'Cuántos lóbulos tiene la forma alrededor del centro.')}
+            {slider('lobeDepthPct', 'Profundidad', '%', 'Cuánto se hunden los valles respecto de las crestas: con 20\u00a0% quedan al 80\u00a0% del radio.\n0\u00a0=\u00a0círculo.')}
             {slider('lobeSharp', 'Agudeza', undefined,
-              '1: ondulación suave. Más de 1: lóbulos estrechos como pétalos. Menos de 1: valles en punta')}
+              'Perfil de cada lóbulo. 1: ondulación suave y pareja. Más de\u00a01: lóbulos estrechos, como pétalos, con valles anchos. Menos de\u00a01: lóbulos anchos y valles en punta.')}
           </Sec>
         )}
         {doc.family === 'polygon' && (
           <Sec title="Polígono" icon="poligono">
-            {slider('polySides', 'Lados', undefined, 'Con estrella, número de puntas')}
-            {slider('polyStarPct', 'Estrella', '%', '0: polígono regular. Más: las puntas se separan y los vértices interiores se hunden')}
-            {slider('polyFilletMM', 'Radio de esquina', 'mm', 'Redondeo de cada esquina; se reduce donde el lado es demasiado corto')}
+            {slider('polySides', 'Lados', undefined, 'Lados del polígono; con Estrella, número de puntas.')}
+            {slider('polyStarPct', 'Estrella', '%', 'Cuánto se hunden hacia el centro los vértices interiores: con 30\u00a0% quedan al 70\u00a0% del radio de las puntas.\n0\u00a0=\u00a0polígono regular.')}
+            {slider('polyFilletMM', 'Radio de esquina', 'mm', 'Radio con que se redondea cada esquina, puntas y vértices interiores. Se achica solo donde el lado es demasiado corto. Si es menor que lo que la onda puede seguir, Imprimibilidad lo marca.')}
           </Sec>
         )}
         {doc.family === 'superformula' && (
           <Sec title="Superfórmula" icon="superformula">
-            {slider('sfM', 'Simetría (m)', undefined, 'Número de repeticiones alrededor del centro')}
-            {slider('sfN1', 'n1', undefined, 'Hinchazón: bajo, puntas afiladas; alto, forma llena')}
-            {slider('sfN2', 'n2', undefined, 'Forma de cada repetición')}
+            {slider('sfM', 'Simetría (m)', undefined, 'Cuántas veces se repite el motivo alrededor del centro.')}
+            {slider('sfN1', 'n1', undefined, 'Hinchazón de toda la forma. Bajo, los contrastes se exageran y las puntas se afilan; alto, la forma se acerca a un círculo.')}
+            {slider('sfN2', 'n2', undefined, 'Junto con n3, forma de cada repetición: n2 manda en un lado y n3 en el otro. Iguales y por debajo de 2, cada repetición se afina en punta; por encima de 2, se ensancha.')}
             <Slider label="n3" min={paramSpec('sfN3').min} max={paramSpec('sfN3').max} step={paramSpec('sfN3').step}
               def={DEFAULT_SHAPE.sfN3} disabled={oddM}
               value={superformulaN3(doc.sfM, doc.sfN2, doc.sfN3)}
-              hint={oddM ? 'Con m impar, n3 sigue a n2 para que la forma cierre' : 'Forma de cada repetición, lado contrario'}
+              hint={oddM ? 'Con m impar, n3 sigue a n2: si no, la forma no cerraría.' : 'El otro lado de cada repetición. Distinto de n2, cada repetición deja de ser simétrica.'}
               onChange={v => set('sfN3', v)} />
           </Sec>
         )}
@@ -161,14 +162,14 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
 
       <Sec title="Tamaño y costura" icon="costura">
         <Num label="Diámetro exterior" unit="mm" value={doc.sizeMM} min={5} max={1000} step={1}
-          hint="Dos veces la distancia del centro al punto más lejano"
+          hint="Dos veces la distancia del centro al punto más lejano: el círculo que encierra la forma. Es el tamaño exacto con que llega a Impresión."
           onChange={v => set('sizeMM', Math.max(5, v))} />
         <Num label="Giro" unit="°" value={doc.rotation} step={5}
-          hint="Gira la forma, antihorario visto desde arriba" onChange={v => set('rotation', v)} />
+          hint="Gira la forma alrededor de su centro, antihorario visto desde arriba." onChange={v => set('rotation', v)} />
         <Num label="Costura" unit="°" value={doc.seamAngle} step={5}
-          hint="Dónde empieza y termina cada capa: ángulo desde +X, antihorario visto desde arriba"
+          hint="Dónde empieza y termina cada capa: ángulo desde +X, antihorario visto desde arriba. Ahí sube la rampa a la capa siguiente; conviene ponerla donde se note menos."
           onChange={v => set('seamAngle', v)} />
-        <div className="param-row param-check" title="Sentido en que la boquilla recorre el contorno, visto desde arriba">
+        <div className="param-row param-check" title={wrapHint('Sentido en que la boquilla recorre el contorno, visto desde arriba. Desactivado, antihorario.')}>
           <label>
             <input type="checkbox" checked={doc.clockwise} onChange={e => set('clockwise', e.target.checked)} />
             Sentido horario
