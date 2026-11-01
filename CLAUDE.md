@@ -495,7 +495,7 @@ When you need context, this is where to look:
 - [docs/performance-optimization-spec.md](docs/performance-optimization-spec.md) — execution spec for preview caching, LOD, G-code debounce, and worker offload (Ola 8).
 - [docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md) — graphical overhaul: diagnosis of the current UI, layout proposal, open decisions (D-1…D-6) and phased plan. Check it before any UI/CSS work.
 - [docs/shaper-plan.md](docs/shaper-plan.md) — plan and record of *Forma*, the in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, decisions (D-S1…D-S7, only D-S4 open), phases F0–F6 (all done, with what was measured) and possible next steps.
-- [docs/maquina-plan.md](docs/maquina-plan.md) — evaluation plan (proposal, nothing built) for a third workspace, *Máquina*: bed and origin, pre-export checks, printer profiles (clay, Creality K1, Ender-3 V3), start/end templates and a filament (FDM) mode; decisions D-G1…D-G8 and phases G-1…G5.
+- [docs/maquina-plan.md](docs/maquina-plan.md) — evaluation plan (proposal, nothing built) for a third workspace, *Máquina*: bed and origin, pre-export checks, printer profiles (clay, Creality K1, Ender-3 V3), start/end templates and a filament (FDM) mode; decisions D-G1…D-G8 and phases G-1…G5. Low-fidelity mockups of three layouts in `docs/mockups/maquina/` (static HTML; `node shoot.cjs` re-renders the PNGs).
 - `docs/ui-interactive-mockup.html`, `docs/ui-image-prompt.md` — UI design references, not shipped.
 
 ---

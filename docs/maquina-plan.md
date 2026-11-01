@@ -131,6 +131,8 @@ Tercer botón del selector de espacio (`Workspace = 'forma' | 'impresion' | 'maq
 - La pestaña *Máquina* del panel izquierdo de *Impresión* desaparece; sus campos se mudan. *Pieza* conserva la escala y el pivote; el origen (*Posición X / Y*, *Margen*) pasa a *Máquina → Cama y origen*, porque depende de la cama, no del diseño. *Trayecto* conserva z-hop y unión de capas (son geometría y se ven en el visor).
 - El panel derecho de *Máquina* no tiene onda: muestra la **revisión previa** y el resumen.
 
+Maquetas de baja fidelidad de tres variantes en [`docs/mockups/maquina/`](mockups/maquina/): **A** espacio *Máquina* con el visor y el cajón de G-code (esta propuesta), **B** espacio *Máquina* centrado en el texto del G-code, navegable por secciones, **C** la alternativa mínima de D-G2, solo la pestaña *Máquina* de *Impresión* con perfil y cama.
+
 ### 6.2 Estado
 
 Sigue las convenciones: **todo plano dentro de `PrintParams`**, sin objetos anidados.
