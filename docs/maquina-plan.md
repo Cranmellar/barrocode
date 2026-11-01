@@ -133,6 +133,8 @@ Tercer botón del selector de espacio (`Workspace = 'forma' | 'impresion' | 'maq
 
 Maquetas de baja fidelidad de tres variantes en [`docs/mockups/maquina/`](mockups/maquina/): **A** espacio *Máquina* con el visor y el cajón de G-code (esta propuesta), **B** espacio *Máquina* centrado en el texto del G-code, navegable por secciones, **C** la alternativa mínima de D-G2, solo la pestaña *Máquina* de *Impresión* con perfil y cama.
 
+Prototipo interactivo en [`docs/mockups/maquina/prototipo.html`](mockups/maquina/prototipo.html) (un solo archivo, se abre en el navegador sin servidor). Junta las variantes A y B (*Visor* / *Texto*), genera G-code real para una pieza de prueba (anillo lobulado con onda N y rampa de costura) y trae perfiles de 19 máquinas: arcilla genérica (origen al centro y en esquina), Delta WASP 2040 Clay, Creality K1 / K1C, K1 Max, Ender-3 V3, V3 KE, V3 SE, Ender-3 S1, Bambu Lab A1 mini, A1, P1S / X1C, Prusa MK4S, CORE One, MINI+, Elegoo Neptune 4 Pro, Anycubic Kobra 3, Sovol SV06 y Voron 2.4. Las cifras son de catálogo o perfiles de la comunidad, sin verificar en máquina.
+
 ### 6.2 Estado
 
 Sigue las convenciones: **todo plano dentro de `PrintParams`**, sin objetos anidados.
