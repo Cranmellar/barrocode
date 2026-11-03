@@ -413,4 +413,7 @@ G1 X51.000 Y1.000 E21.791 F600
 
 ; ===== End =====
 G1 Z30.000 F1500  ; final lift
-M84  ; disable motors
+; --- Shutdown ---
+M400  ; wait for the last move to finish
+M107  ; auxiliary output off (auger or air valve on the fan pin)
+M84   ; disable motors, extruder included
