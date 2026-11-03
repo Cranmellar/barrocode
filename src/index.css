@@ -419,6 +419,19 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   z-index: 1;
   pointer-events: none;
 }
+/* The favicon above the "barrocode" the canvas draws 30 px over the centre,
+   tinted like that text. */
+.stage-empty-logo {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 130px);
+  width: 64px;
+  height: 64px;
+  transform: translateX(-50%);
+  background: var(--ink-2);
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
+}
 .stage-empty-flow {
   position: absolute;
   left: 50%;

@@ -128,6 +128,9 @@ const VIEW_TWEEN_MS = 300;
 const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 
+// Absolute, so the CSS mask doesn't resolve it against the stylesheet's folder.
+const LOGO_URL = new URL(`${import.meta.env.BASE_URL}favicon.black.ico`, document.baseURI).href;
+
 const VIEW_PRESETS = [
   { label: 'Isométrica', short: 'Iso', azimuth: 325, elevation: 28, title: 'Vista isométrica' },
   { label: 'Planta', short: 'Planta', azimuth: 0,   elevation: 90, title: 'Vista superior (X → derecha, Y ↑)' },
@@ -828,6 +831,8 @@ export function Preview2D({
       {sampledPaths.length === 0 && numLayers === 0 && (
         <div className="stage-empty"
           style={{ left: insets.left, right: insets.right + sliderInset, top: insets.top, bottom: bottomInset }}>
+          <span className="stage-empty-logo" aria-hidden="true"
+            style={{ '--logo': `url(${LOGO_URL})` } as CSSProperties} />
           <FlowSteps />
         </div>
       )}
