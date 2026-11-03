@@ -78,8 +78,12 @@ export function MachineReview({ params, toolpath, checks, stats, gcodeBytes, bus
               ? <><dt>Filamento</dt><dd>{n(filamentM, 2)} m · {n(grams, 0)} g de PLA</dd></>
               : <><dt>Arcilla</dt><dd>{n(volume, 0)} cm³ · ≈ {n(grams / 1000, 2)} kg</dd></>}
             <dt>Capas</dt><dd>{toolpath.length} × {n(params.layerHeight, 2)} mm</dd>
-            <dt>Caja</dt><dd>X {n(stats.box.minX)} a {n(stats.box.maxX)}<br />Y {n(stats.box.minY)} a {n(stats.box.maxY)}<br />Z hasta {n(top)} mm</dd>
-            <dt>Recorrido</dt><dd>{n(stats.printLength / 1000, 1)} m impresos · {n(stats.travelLength / 1000, 1)} m en vacío</dd>
+            <dt>Tamaño</dt>
+            <dd title={`X ${n(stats.box.minX)} a ${n(stats.box.maxX)} · Y ${n(stats.box.minY)} a ${n(stats.box.maxY)} · Z hasta ${n(top)} mm, en coordenadas de la máquina`}>
+              {n(stats.box.maxX - stats.box.minX, 0)} × {n(stats.box.maxY - stats.box.minY, 0)} × {n(top, 0)} mm
+            </dd>
+            <dt>Impreso</dt><dd>{n(stats.printLength / 1000, 1)} m</dd>
+            <dt>En vacío</dt><dd>{n(stats.travelLength / 1000, 1)} m</dd>
             <dt>Archivo</dt><dd>{n(gcodeBytes / 1e6, 1)} MB</dd>
           </dl>
           <p className="machine-note">Tiempo a la velocidad programada, sin aceleraciones: la impresión real tarda algo más.</p>

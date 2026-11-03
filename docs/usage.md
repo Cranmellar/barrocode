@@ -49,12 +49,12 @@ En el lienzo, la rueda acerca o aleja alrededor del cursor, y arrastrar el fondo
 
 ## 3. Rutas SVG
 
-Cada elemento que BarroCode encuentra aparece en **Rutas SVG**, con su largo. Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) se separa en una ruta por subtrazado: `nombre-1`, `nombre-2`…
+Cada elemento que BarroCode encuentra aparece en **Rutas SVG**, con su largo en mm (a la escala SVG→mm, sin la onda). Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) se separa en una ruta por subtrazado: `nombre-1`, `nombre-2`…
 
 En cada ruta puedes:
 
 - desactivarla para que no se imprima (la pieza se vuelve a centrar con las demás);
-- cambiar su amplitud y longitud de onda N y T. Un campo vacío usa el valor de la onda global.
+- con la flecha `›`, cambiar su amplitud y longitud de onda N y T. Un campo vacío usa el valor de la onda global.
 
 Con keyframes, los valores por ruta no se aplican y quedan desactivados.
 
@@ -69,7 +69,7 @@ Pestaña **Pieza** del panel izquierdo.
 | **Pasadas por capa** (Muro) | Cuántos cordones, uno al lado del otro, forman la pared (1 a 4). Todos repiten la onda con las crestas alineadas. En un contorno cerrado se imprimen uno tras otro y solo el último sube a la capa siguiente; en un trazo abierto van de ida y vuelta. |
 | **Separación** | Distancia entre cordones vecinos, en % del ancho de cordón de *Máquina*. Al 100 % se tocan. En los flancos de la onda quedan más juntos que en las crestas. |
 | **Afuera / Adentro / Centrado** | Hacia dónde crece la pared desde la línea dibujada. Afuera y adentro dejan el primer cordón sobre la línea; centrado la deja en el medio de la pared. |
-| **Espaciado de muestra** (Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm con escala 1). Conviene tener unos 10 puntos por ciclo de la onda más corta. Debajo, el panel cuenta los puntos por ciclo y sugiere un valor. |
+| **Espaciado** (Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm con escala 1). Conviene tener unos 10 puntos por ciclo de la onda más corta. Debajo, el panel cuenta los puntos por ciclo y sugiere un valor. |
 | **Factor de escala** | Convierte unidades SVG a mm. Se ajusta solo con un SVG que declara su tamaño; *Usar tamaño real* lo restablece. Sin unidades, usa `1` si el dibujo está en mm o `0.2645` si está en píxeles a 96 dpi. |
 | **Invertir eje Y** | El SVG cuenta Y hacia abajo y casi todas las impresoras hacia arriba. Activado, la pieza sale en la cama como se ve en el dibujo. |
 | **Centro** | Punto alrededor del que se escala y gira la pieza, medido desde el centro de la pieza (0, 0 es el centro). Se mueve con los campos o en el recuadro pequeño. *Centrar en la pieza* lo devuelve a 0, 0. |
@@ -145,8 +145,8 @@ En *Impresión*, una marca en la barra superior avisa de los mismos errores (en 
 | **Material** | *Arcilla*: `E` es un multiplicador de la bomba y nunca hay retracción. *Filamento*: `E` es el volumen del cordón sobre la sección del filamento, con retracción, ventilador y temperaturas. |
 | **Firmware** | Marlin, Klipper, Prusa, Bambu Lab o RepRap. Define cómo se escribe la aceleración y qué avisos da la revisión. |
 | **Cama** | Rectangular (ancho y fondo) o redonda (diámetro), y altura. La subida final no pasa de esa altura. |
-| **Origen de la máquina** | Dónde está X0 Y0: en la esquina delantera izquierda (casi todas las cartesianas) o en el centro (deltas). |
-| **Colocar la pieza por** | *Su centro* lo pone en *Posición X / Y*. *Su esquina inf. izq.* pone la esquina inferior izquierda de la pieza a *Margen X / Y* del origen. |
+| **Origen X0 Y0** | Dónde está X0 Y0: en el *Centro* (deltas) o en la *Esquina* delantera izquierda (casi todas las cartesianas). |
+| **Colocar por** | *Centro* pone el centro de la pieza en *Posición X / Y*. *Esquina* pone la esquina inferior izquierda de la pieza a *Margen X / Y* del origen. |
 | **Boquilla** / **Ancho de cordón** | Con la altura de capa, definen el volumen extruido (filamento) y la revisión de la capa. |
 | **Generar valores E** / **Multiplicador** | Incluye la columna `E`. En arcilla, el multiplicador son unidades `E` por mm recorrido: ajústalo a tu bomba, pistón o tornillo. `E` sigue el largo real de cada movimiento, subidas incluidas. |
 | **Temperaturas** / **Ventilador** | Filamento. Las temperaturas entran en la plantilla de inicio; el ventilador se enciende en la capa indicada. |

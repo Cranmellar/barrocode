@@ -1183,15 +1183,13 @@ export default function App() {
       />
 
       {/* ── Panel izquierdo ── */}
-      {shown.left ? (
+      {shown.left ? (<>
+        <button className={`panel-handle${leaving === 'left' ? ' panel-leave' : ''}`} style={{ left: STAGE_GAP + LEFT_W - 1 }}
+          onClick={() => togglePanel('left')} title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
         <aside className={`float-panel panel-left${leaving === 'left' ? ' panel-leave' : ''}`} style={{ width: LEFT_W }}>
           <div ref={leftScroll.ref} className={`panel-scroll${leftScroll.more ? ' scroll-more' : ''}`}>
             <div className="panel-header">
               {switcher}
-              <span className="panel-header-actions">
-                <button className="btn-icon" onClick={() => togglePanel('left')}
-                  title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
-              </span>
             </div>
             {workspace === 'maquina' ? <Suspense fallback={null}><MachineParams params={params} onChange={setParams} /></Suspense> : <>
             {savedSession && !parsedSVG && (
@@ -1273,11 +1271,11 @@ export default function App() {
             )}
 
             <PathParams params={params} onChange={setParams} svgMmPerUnit={parsedSVG?.mmPerUnit ?? null}
-              shortestWl={shortestWl} />
+              shortestWl={shortestWl} onOpenMachine={() => setWorkspace('maquina')} />
             </>}
           </div>
         </aside>
-      ) : (
+      </>) : (
         <aside className="float-panel panel-rail panel-rail--left" style={{ width: RAIL_W }}>
           <button className="btn-icon rail-open" onClick={() => togglePanel('left')}
             title="Mostrar panel de pieza" aria-label="Mostrar panel izquierdo"><Icon name="pieza" size={16} /><Chevron dir="right" /></button>

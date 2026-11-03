@@ -36,21 +36,23 @@ function Check({ label, icon, checked, hint, onChange }: {
   );
 }
 
+// Two or three options on the label's row; `long` names an option in full
+// where the button only fits a short word.
 function Choice<T extends string>({ label, value, options, hint, onChange }: {
-  label: string; value: T; options: [T, string][]; hint?: string; onChange: (v: T) => void;
+  label: string; value: T; options: [T, string, string?][]; hint?: string; onChange: (v: T) => void;
 }) {
   return (
-    <>
-      <div className="param-row" title={wrapHint(hint)}><label>{label}</label></div>
-      <div className="param-row param-check param-choice" title={wrapHint(hint)}>
-        {options.map(([v, text]) => (
-          <label key={v}>
-            <input type="radio" checked={value === v} onChange={() => onChange(v)} />
+    <div className="param-row" title={wrapHint(hint)}>
+      <label>{label}</label>
+      <div className="seg" role="group" aria-label={label}>
+        {options.map(([v, text, long]) => (
+          <button key={v} type="button" aria-pressed={value === v} title={long}
+            className={`seg-option${value === v ? ' seg-option--on' : ''}`} onClick={() => onChange(v)}>
             {text}
-          </label>
+          </button>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -108,7 +110,7 @@ export function MachineParams({ params, onChange }: Props) {
         </div>
         <p className="machine-note">
           {profile
-            ? <>{profile.note} Cifras de catálogo, sin verificar en máquina: revisa la cama y las plantillas antes de imprimir.</>
+            ? <>{profile.note}{!profile.generic && ' Cifras de catálogo: revisa cama y plantillas.'}</>
             : 'Valores propios. Elegir un perfil reemplaza la máquina y centra la pieza en su cama.'}
         </p>
         <Choice label="Material" value={params.material} options={[['clay', 'Arcilla'], ['filament', 'Filamento']]}
@@ -124,7 +126,7 @@ export function MachineParams({ params, onChange }: Props) {
       </Sec>
 
       <Sec title="Cama y origen" icon="escala">
-        <Choice label="Forma de la cama" value={params.bedShape} options={[['rect', 'Rectangular'], ['circle', 'Redonda']]}
+        <Choice label="Cama" value={params.bedShape} options={[['rect', 'Rectangular'], ['circle', 'Redonda']]}
           hint="Rectangular: ancho por fondo. Redonda: un diámetro, como en las deltas."
           onChange={v => set('bedShape', v)} />
         <Num label={params.bedShape === 'circle' ? 'Diámetro' : 'Ancho X'} value={params.bedX} min={10} step={10} unit="mm"
@@ -136,13 +138,13 @@ export function MachineParams({ params, onChange }: Props) {
         <Num label="Altura Z" value={params.bedZ} min={10} step={10} unit="mm"
           hint="La Z más alta a la que llega la máquina. La revisión avisa si la pieza no cabe, y la subida final no pasa de aquí."
           onChange={v => set('bedZ', Math.max(10, v))} />
-        <Choice label="Origen de la máquina (X0 Y0)" value={params.bedOrigin}
-          options={[['corner', 'Esquina delantera izq.'], ['centre', 'Centro']]}
+        <Choice label="Origen X0 Y0" value={params.bedOrigin}
+          options={[['centre', 'Centro'], ['corner', 'Esquina', 'Esquina delantera izquierda']]}
           hint="Dónde está X0 Y0 en esta impresora: en la esquina delantera izquierda (casi todas las cartesianas) o en el centro (deltas). No mueve la pieza: sirve para dibujar la cama, revisar y centrar."
           onChange={v => set('bedOrigin', v)} />
-        <Choice label="Colocar la pieza por" value={params.gcodeOrigin}
-          options={[['centre', 'Su centro'], ['corner', 'Su esquina inf. izq.']]}
-          hint="Qué punto de la pieza se coloca en la cama. Su centro: el centro de la pieza va a Posición X / Y. Su esquina: la esquina inferior izquierda de la caja de todo lo impreso va a Margen X / Y."
+        <Choice label="Colocar por" value={params.gcodeOrigin}
+          options={[['centre', 'Centro', 'El centro de la pieza'], ['corner', 'Esquina', 'La esquina inferior izquierda de la pieza']]}
+          hint="Qué punto de la pieza se coloca en la cama. Centro: el centro de la pieza va a Posición X / Y. Esquina: la esquina inferior izquierda de la caja de todo lo impreso va a Margen X / Y."
           onChange={v => set('gcodeOrigin', v)} />
         {params.gcodeOrigin === 'corner'
           ? <>
@@ -159,7 +161,7 @@ export function MachineParams({ params, onChange }: Props) {
             </>}
         <div className="param-info">
           {centred
-            ? `→ centrada en la cama (${fmt(centre.x)}, ${fmt(centre.y)})`
+            ? <span className="state-line state-ok"><Icon name="ok" />Centrada en la cama ({fmt(centre.x)}, {fmt(centre.y)})</span>
             : <button className="btn-small" onClick={() => onChange({ ...params, gcodeOrigin: 'centre', originX: centre.x, originY: centre.y })}>
                 Centrar en la cama ({fmt(centre.x)}, {fmt(centre.y)})
               </button>}

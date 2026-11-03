@@ -43,18 +43,20 @@ export function PathList({ paths, params, hasKeyframes, onToggle, onOverride }: 
                 title={wrapHint('Imprimir esta ruta. Desactivada, no se imprime y la pieza se recentra con las demás.')}
                 onChange={() => onToggle(path.id)}
               />
-              <code className="path-id">{path.id}</code>
-
-              {/* Tag pill doubles as the collapse toggle */}
+              <code className="path-id" title={`<${path.tagName}> ${path.id}`}>{path.id}</code>
+              <span className="path-len" title={wrapHint('Largo del trazo en la cama, a la escala SVG→mm, antes de la onda')}>
+                {Math.round(path.totalLength * params.scaleFactor)} mm
+              </span>
               <button
-                className={`path-tag${isCollapsed ? ' path-tag-collapsed' : ''}`}
+                className={`btn-icon path-expand${isCollapsed ? '' : ' path-expand--open'}`}
                 onClick={() => toggleCollapse(path.id)}
-                title={isCollapsed ? 'Expandir parámetros' : 'Colapsar parámetros'}
+                aria-expanded={!isCollapsed}
+                aria-label={isCollapsed ? `Ajustes de ${path.id}` : `Ocultar ajustes de ${path.id}`}
+                title={isCollapsed ? 'Onda propia de esta ruta' : 'Ocultar la onda propia de esta ruta'}
               >
-                {path.tagName}
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4.5 2.5 8 6l-3.5 3.5" /></svg>
               </button>
-
-              <span className="path-len">{path.totalLength.toFixed(1)} u</span>
             </div>
 
             {!isCollapsed && (

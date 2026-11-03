@@ -181,6 +181,31 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 
 .panel-header-actions { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 
+/* Hides the left panel: a tab on its outer edge, so the panel header holds
+   only the workspace switch. Sits in the gap before the stage's top bar. */
+.panel-handle {
+  position: absolute;
+  top: 50%;
+  z-index: 11;
+  width: 14px;
+  height: 44px;
+  margin-top: -22px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: var(--ink-2);
+  cursor: pointer;
+  animation: rail-in var(--dur) var(--ease) 40ms both;
+  transition: color var(--dur-fast), background var(--dur-fast);
+}
+.panel-handle:hover { color: var(--ink); background: var(--surface-2); }
+.panel-handle.panel-leave { animation: panel-out-left 140ms cubic-bezier(0.4, 0, 1, 1) both; }
+.panel-handle svg { width: 12px; height: 12px; }
+
 .panel-scroll {
   --fade-bg: var(--surface);
   flex: 1;
@@ -932,6 +957,27 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   color: var(--ink-2);
 }
 .param-info .btn-small { font-style: normal; }
+.state-ok .ico { color: var(--ok); }
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.btn-link {
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.btn-link:hover { text-decoration-thickness: 2px; }
 
 /* Resolución: what the sample spacing means for the current wave */
 .resolution {
@@ -1006,7 +1052,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
 }
 .liss-context-text { flex: 1; min-width: 0; }
+.liss-context-scope { flex-shrink: 0; }
 .liss-context > .ico { color: var(--ink-2); }
+.liss-context--global .liss-context-text { color: var(--ink-2); }
 .liss-context-done { padding: 2px 10px; font-size: var(--fs-xs); }
 .liss-context--live { color: var(--ink-2); }
 
@@ -1319,27 +1367,9 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   font-size: var(--fs-sm);
 }
-.path-tag {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-  padding: 1px 6px;
-  border-radius: var(--radius-sm);
-  font: inherit;
-  font-size: var(--fs-xs);
-  white-space: nowrap;
-  color: var(--ink-2);
-  background: transparent;
-  border: 1px solid var(--control-edge);
-  cursor: pointer;
-  transition: opacity var(--dur-fast), background var(--dur-fast), color var(--dur-fast);
-}
-.path-tag:hover { background: var(--surface-2); color: var(--ink); }
-/* Collapsed: a dashed edge, not a fade; the tag is still a button. */
-.path-tag.path-tag-collapsed {
-  color: var(--muted);
-  border-style: dashed;
-}
+.path-expand { width: 24px; height: 24px; }
+.path-expand svg { transition: transform var(--dur-fast) var(--ease); }
+.path-expand--open svg { transform: rotate(90deg); }
 .path-len { font-size: var(--fs-md); color: var(--muted); flex-shrink: 0; }
 .path-overrides { padding-left: 22px; }
 .path-overrides .param-row { padding: 2px 0; }
@@ -1513,6 +1543,36 @@ input[type="range"]::-moz-range-thumb {
 }
 
 /* ── Máquina ─────────────────────────────────────────────────────────────── */
+/* Segmented choice on a param row (Máquina): the raised segment is the one picked. */
+.seg {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-3);
+  border-radius: var(--radius);
+}
+.seg-option {
+  height: 24px;
+  padding: 0 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast);
+}
+.seg-option:hover { color: var(--ink); background: var(--surface-2); }
+.seg-option--on, .seg-option--on:hover {
+  color: var(--ink);
+  background: var(--field);
+  box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
+  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
+}
+
 .machine-select {
   flex: 1;
   min-width: 0;
