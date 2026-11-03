@@ -1468,13 +1468,12 @@ input[type="range"]::-moz-range-thumb {
   width: 13px;
   height: 13px;
   border-radius: 50%;
-  border: 1px solid var(--control-edge);
   font-size: var(--fs-xs);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.workspace-tab--on .workspace-num { background: var(--ink); border-color: var(--ink); color: var(--field); }
+.workspace-tab--on .workspace-num { background: var(--ink); color: var(--field); }
 .workspace-sep {
   flex: none;
   width: 5px;
