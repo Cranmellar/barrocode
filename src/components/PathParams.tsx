@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
-import type { PrintParams } from '../types';
+import type { PrintParams, WallSide } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
 import { Icon, type IconName } from './icons';
-import { MAX_LAYERS, SAMPLES_PER_CYCLE, layerCount, suggestedSpacingMM } from '../lib/waveGenerator';
+import { MAX_LAYERS, MAX_WALL_PASSES, SAMPLES_PER_CYCLE, layerCount, suggestedSpacingMM, wallPassCount, wallSpacingMM } from '../lib/waveGenerator';
 import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
@@ -91,6 +91,47 @@ function Resolution({ params, shortestWl, onSpacing }: {
   );
 }
 
+const WALL_SIDES: [WallSide, string][] = [['out', 'Afuera'], ['in', 'Adentro'], ['centre', 'Centrado']];
+
+function Wall({ params, set }: {
+  params: PrintParams;
+  set: <K extends keyof PrintParams>(k: K, v: PrintParams[K]) => void;
+}) {
+  const passes = wallPassCount(params);
+  const spacing = wallSpacingMM(params);
+  const span = (passes - 1) * spacing;
+  return (
+    <Sec title="Muro" icon="muro">
+      <Num label="Pasadas por capa" value={passes} min={1} max={MAX_WALL_PASSES} step={1}
+        hint={`Cuántos cordones, uno al lado del otro, forman la pared en cada capa. Todos repiten la misma onda con las crestas alineadas y a la misma altura. En un contorno cerrado se imprimen uno tras otro, unidos en la costura; en un trazo abierto, de ida y vuelta. Cada pasada suma su material y su tiempo. Las esquinas se redondean más, en 1,5 veces la distancia al cordón más alejado, para que el cordón interior no se pliegue en ellas.\n1\u00a0=\u00a0pared simple. Máximo ${MAX_WALL_PASSES}.`}
+        onChange={v => set('wallPasses', Math.min(MAX_WALL_PASSES, Math.max(1, Math.round(v))))} />
+      {passes > 1 && <>
+        <Num label="Separación" value={params.wallSpacing} min={10} max={200} step={5} unit="%"
+          hint={'Distancia entre los centros de dos cordones vecinos, en porcentaje del ancho de línea de Máquina. Al 100\u00a0% los cordones se tocan; por debajo se montan y quedan mejor unidos. En los flancos de la onda quedan más juntos que en las crestas: con N 3\u00a0mm y λ 20\u00a0mm, al 74\u00a0% de esta distancia.'}
+          onChange={v => set('wallSpacing', Math.max(10, v))} />
+        <div className="param-info">
+          → {fmt(spacing)} mm entre cordones (línea de {fmt(params.lineWidth)} mm) · pared de {fmt(span + params.lineWidth)} mm
+        </div>
+        <div className="param-row param-check param-choice"
+          title={wrapHint('Hacia dónde crece la pared desde la línea dibujada. Afuera y adentro dejan el primer cordón sobre la línea; centrado reparte los cordones a ambos lados y la línea queda en el medio de la pared. En un trazo abierto, afuera es el lado convexo de la curva.')}>
+          {WALL_SIDES.map(([v, text]) => (
+            <label key={v}>
+              <input type="radio" checked={params.wallSide === v} onChange={() => set('wallSide', v)} />
+              {text}
+            </label>
+          ))}
+        </div>
+        {params.softJoin && span > params.transitionLength && (
+          <p className="state-line">
+            <Icon name="aviso" />
+            La última pasada termina a {fmt(span)} mm de la primera, más que el arco de transición ({fmt(params.transitionLength)} mm): en cada cambio de capa la boquilla se levanta.
+          </p>
+        )}
+      </>}
+    </Sec>
+  );
+}
+
 type GroupId = 'pieza' | 'trayecto';
 
 const TAB_KEY = 'barrocode.leftTab';
@@ -129,7 +170,7 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
   const height = +(effLayers * params.layerHeight).toFixed(1);
 
   const summaries: Record<GroupId, string> = {
-    pieza: `${effLayers} capas · ${height} mm`,
+    pieza: `${effLayers} capas · ${height} mm` + (wallPassCount(params) > 1 ? ` · ${wallPassCount(params)} pasadas` : ''),
     trayecto: [
       params.softJoin ? 'unión suave' : 'sin unión',
       params.zHopHeight > 0 ? `z-hop ${params.zHopHeight} mm` : 'sin z-hop',
@@ -182,6 +223,8 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
                 </div>
               </>}
         </Sec>
+
+        <Wall params={params} set={set} />
 
         <Resolution params={params} shortestWl={shortestWl} onSpacing={v => set('sampleSpacing', v)} />
 

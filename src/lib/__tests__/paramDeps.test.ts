@@ -16,6 +16,7 @@ const BASE: PrintParams = {
   centerX: 40, centerY: 30, scaleX: 1.2, scaleY: 0.9, rotation: 25,
   scaleFactor: 0.8, originX: 5, originY: 7, flipY: true,
   zHopHeight: 2.5, hopRadius: 3,
+  wallPasses: 2, wallSide: 'in',
 };
 
 // Keyframes leave the optional fields out, so the sampler falls back to BASE.

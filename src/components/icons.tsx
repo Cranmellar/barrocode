@@ -45,6 +45,10 @@ const PATHS = {
     <rect x="2.5" y="6.5" width="11" height="3" rx="1.5" />
     <rect x="2.5" y="2.5" width="11" height="3" rx="1.5" opacity="0.45" />
   </>),
+  muro: (<>
+    <rect x="2.5" y="2.5" width="4.5" height="11" rx="2.25" />
+    <rect x="9" y="2.5" width="4.5" height="11" rx="2.25" opacity="0.45" />
+  </>),
   resolucion: (<>
     <path d="M2 12a6 6 0 0 1 12 0" opacity="0.45" />
     <circle cx="2.4" cy="10" r="1.1" fill="currentColor" />

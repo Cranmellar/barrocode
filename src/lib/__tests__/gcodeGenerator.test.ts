@@ -47,11 +47,16 @@ const FILAMENT: Partial<PrintParams> = {
   firstLayerSpeed: 300, minLayerTime: 20, fanFromLayer: 2, fanSpeed: 80,
 };
 for (const softJoin of [true, false]) CONFIGS.push({ ...WAVE, ...HOP, ...FILAMENT, numLayers: 3, softJoin, primingMove: !softJoin });
+// Thicker walls: passes joined at the seam, or back and forth on open paths.
+for (const [wallPasses, wallSide] of [[2, 'out'], [2, 'in'], [3, 'centre']] as const) {
+  CONFIGS.push({ ...WAVE, ...HOP, numLayers: 3, softJoin: true, wallPasses, wallSide });
+}
 
 describe('generateGcode — motion invariants', () => {
   for (const [name, geometry] of Object.entries(GEOMETRIES)) {
     for (const config of CONFIGS) {
-      const label = `${name} softJoin=${config.softJoin} priming=${config.primingMove} alt=${config.alternateDirection}`;
+      const label = `${name} softJoin=${config.softJoin} priming=${config.primingMove} alt=${config.alternateDirection}`
+        + (config.wallPasses ? ` wall=${config.wallPasses}${config.wallSide}` : '');
 
       // A soft-join transition is split into short steps, so its span is
       // checked as a whole against transitionLength.

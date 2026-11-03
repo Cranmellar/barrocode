@@ -270,6 +270,24 @@ function applyTransformSVG(
   return pt;
 }
 
+/**
+ * Unit normal of the transformed curve for a normal (nx, ny) of the source:
+ * normals map through the inverse transpose of scale-then-rotate, so a
+ * non-uniform scale keeps them perpendicular and the passes keep their
+ * spacing in mm.
+ */
+function transformNormal(
+  nx: number, ny: number, scaleX: number, scaleY: number, rotation: number, flipY: boolean,
+): [number, number] {
+  if (scaleX === 1 && scaleY === 1 && rotation === 0) return [nx, ny];
+  const sx = nx / scaleX, sy = ny / scaleY;
+  const a = (flipY ? -rotation : rotation) * Math.PI / 180;
+  const c = Math.cos(a), s = Math.sin(a);
+  const x = sx * c - sy * s, y = sx * s + sy * c;
+  const m = Math.hypot(x, y) || 1;
+  return [x / m, y / m];
+}
+
 // getPointAtLength works in float32, so a closed source can miss its start
 // by a little more than 0.001 units on large coordinates.
 function isLoop({ points: pts, totalLength }: SampledPath): boolean {
@@ -302,11 +320,72 @@ export function cornerRadius(ampN: number, ampT: number, wlT: number): number {
   return CORNER_RADIUS_FACTOR * Math.max(Math.abs(ampN) / margin, Math.abs(ampT));
 }
 
-/** Corner radius (mm) for the whole part: the tightest any keyframe needs, else the global wave's. */
+/**
+ * Corner radius (mm) for the whole part: the tightest any keyframe needs,
+ * else the global wave's, plus the wall passes' margin (wallCornerMargin).
+ */
 export function waveCornerRadius(params: PrintParams, keyframes: WaveKeyframe[]): number {
-  return keyframes.length > 0
+  const wave = keyframes.length > 0
     ? Math.max(0, ...keyframes.map(k => cornerRadius(k.ampN, k.ampT, k.wlT)))
     : cornerRadius(params.lissAmpN, params.lissAmpT, params.lissWlT);
+  return wave + wallCornerMargin(params);
+}
+
+// ── Wall passes ─────────────────────────────────────────────────────────────
+//
+// A thicker wall prints the same waved line several times side by side.
+// Each pass is the first one moved along the centerline's outward normal,
+// sample by sample, so crests line up across the wall and every pass shares
+// the first one's Z. Offsetting the waved curve along its own normal would
+// keep the width constant, but it folds wherever a crest is tighter than
+// the spacing (3.4 mm at N 3 mm, λ 20 mm, against a 5 mm bead); moved along
+// the centerline's normal, the gap narrows on the wave's flanks instead
+// (to 74 % there) and never folds.
+
+export const MAX_WALL_PASSES = 4;
+
+export function wallPassCount(params: PrintParams): number {
+  return Math.min(MAX_WALL_PASSES, Math.max(1, Math.round(params.wallPasses)));
+}
+
+/** Distance (mm) between neighbouring passes. */
+export function wallSpacingMM(params: PrintParams): number {
+  return params.lineWidth * params.wallSpacing / 100;
+}
+
+/** Offset of each pass from the drawn line in pass spacings, in print order; positive is outward. */
+export function wallOffsets(params: PrintParams): number[] {
+  const n = wallPassCount(params);
+  return Array.from({ length: n }, (_, k) =>
+    params.wallSide === 'out' ? k : params.wallSide === 'in' ? -k : k - (n - 1) / 2);
+}
+
+/** How far (mm) the farthest pass sits from the drawn line. */
+export function wallExtentMM(params: PrintParams): number {
+  return Math.max(...wallOffsets(params).map(Math.abs)) * wallSpacingMM(params);
+}
+
+/**
+ * Extra corner radius (mm) for the wall passes. On the inside of a bend a
+ * pass's centerline turns tighter by its offset, and since its crests stay
+ * in line with the first pass's, its wave is squeezed by the same ratio:
+ * with only the offset added it folds into a hook. 1.5× the farthest offset
+ * keeps the tightest point of the inner pass at least as round as a single
+ * pass gets (measured over the wave's phase, N 1.5–5 mm, λ 10–40 mm,
+ * spacing 3–10 mm; 1.3–1.5× needed).
+ */
+export function wallCornerMargin(params: PrintParams): number {
+  return 1.5 * wallExtentMM(params);
+}
+
+// Twice the signed area; positive when the interior is on the tangent's left.
+function signedArea(pts: SampledPoint[]): number {
+  let a = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i], q = pts[(i + 1) % pts.length];
+    a += p.x * q.y - q.x * p.y;
+  }
+  return a;
 }
 
 /** Shortest wavelength (mm) among the wave axes that move, over all keyframes; null with no wave. */
@@ -575,6 +654,7 @@ export const WAVE_PARAMS = [
   'lissDelta', 'lissPhaseZ', 'lissPhaseOffset', 'phaseShiftPerLayer',
   'layerHeight', 'numLayers', 'useNumLayers', 'totalHeight', 'nozzleHeightOffset',
   'reversePath', 'alternateDirection', 'closePath',
+  'wallPasses', 'wallSpacing', 'wallSide', 'lineWidth',
   'centerX', 'centerY', 'scaleX', 'scaleY', 'rotation',
   'scaleFactor', 'flipY',
 ] as const satisfies readonly (keyof PrintParams)[];
@@ -601,13 +681,15 @@ export function generateWaveLayers(
   const sf = params.scaleFactor > 0 ? params.scaleFactor : 1;
   const useKeyframes = keyframes.length > 0;
 
+  const offsets = wallOffsets(params);
+  const passStep = wallSpacingMM(params) / sf;  // SVG units
   const kfRadius = waveCornerRadius(params, keyframes);
   const enabled = sampledPaths.filter(p => p.enabled).map(path => {
     const radius = useKeyframes ? kfRadius : cornerRadius(
       path.ampNOverride ?? params.lissAmpN,
       path.ampTOverride ?? params.lissAmpT,
       path.wlTOverride ?? params.lissWlT,
-    );
+    ) + wallCornerMargin(params);
     const rounded = roundCorners(path, radius / sf);
     return isLoop(rounded) ? joinSeamFrame(rounded) : rounded;
   });
@@ -615,8 +697,8 @@ export function generateWaveLayers(
   let totalFlatPoints = 0;
   for (let li = 0; li < numLayers; li++) {
     for (const path of enabled) {
-      totalFlatPoints += path.points.length;
-      if (params.closePath && path.points.length > 1) totalFlatPoints += 1;
+      const n = path.points.length + (params.closePath && path.points.length > 1 ? 1 : 0);
+      totalFlatPoints += n * offsets.length;
     }
   }
   const tDenom = Math.max(1, totalFlatPoints - 1);
@@ -629,6 +711,8 @@ export function generateWaveLayers(
   const loops = enabled.map(isLoop);
   const centre = partCentreSVG(sampledPaths);
   const closed = loops.map(l => l || params.closePath);
+  // +1 when the outward normal is the tangent turned clockwise (y up).
+  const outward = enabled.map(path => signedArea(path.points) >= 0 ? 1 : -1);
 
   const layers: WaveLayer[] = [];
   // Absolute Z of each point on the previous layer, in sampling order.
@@ -692,6 +776,8 @@ export function generateWaveLayers(
       }
 
       let prevS = 0, cycN = 0, cycT = 0, cycZ = 0;
+      // Outward direction at each point, after the shape transform.
+      const dirX: number[] = [], dirY: number[] = [];
 
       const result: WavePoint[] = pts.map((p, i) => {
         const s = arcAt(p);
@@ -724,6 +810,14 @@ export function generateWaveLayers(
         wavePt.zOffset = Math.max(wavePt.zOffset, floor - z);
         pathZ[si] = z + wavePt.zOffset;
 
+        if (offsets.length > 1) {
+          const [dx, dy] = transformNormal(
+            outward[pi] * p.tangentY, -outward[pi] * p.tangentX,
+            lp.scaleX, lp.scaleY, lp.rotation, params.flipY,
+          );
+          dirX.push(dx); dirY.push(dy);
+        }
+
         return applyTransformSVG(
           wavePt,
           centre, lp.centerX, lp.centerY,
@@ -736,11 +830,21 @@ export function generateWaveLayers(
         const a = result[0], b = result[result.length - 1];
         if (Math.hypot(a.x - b.x, a.y - b.y) > 0.001) {
           result.push({ ...a });
+          dirX.push(dirX[0]); dirY.push(dirY[0]);
           flatIdx++;
         }
       }
 
-      return result;
+      if (offsets.length === 1) return result;
+
+      // Passes follow each other at the seam on a closed path, which keeps
+      // the seam ramp on the last one; an open path goes back and forth.
+      flatIdx += (offsets.length - 1) * result.length;
+      return offsets.flatMap((off, k) => {
+        const d = off * passStep;
+        const pass = result.map((p, i) => ({ x: p.x + d * dirX[i], y: p.y + d * dirY[i], zOffset: p.zOffset }));
+        return closed[pi] || k % 2 === 0 ? pass : pass.reverse();
+      });
     });
 
     layers.push({ index: li, z, paths: pathPoints, closed });

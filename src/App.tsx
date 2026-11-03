@@ -1,7 +1,7 @@
 import { Fragment, lazy, Suspense, useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
-import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
+import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, wallPassCount, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
 import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
@@ -88,6 +88,9 @@ const DEFAULT_PARAMS: PrintParams = {
   reversePath: false,
   alternateDirection: false,
   closePath: false,
+  wallPasses: 1,
+  wallSpacing: 100,
+  wallSide: 'out',
   // Center + scale around pivot
   centerX: 0,
   centerY: 0,
@@ -370,10 +373,12 @@ export default function App() {
     spacingMM: params.sampleSpacing,
     label: keyframes.length > 0
       ? `${keyframes.length} keyframe${keyframes.length !== 1 ? 's' : ''}`
-      : [`N ${params.lissAmpN} mm`, params.lissAmpT ? `T ${params.lissAmpT} mm` : ''].filter(Boolean).join(' · '),
+      : [`N ${params.lissAmpN} mm`, params.lissAmpT ? `T ${params.lissAmpT} mm` : ''].filter(Boolean).join(' · ')
+        + (wallPassCount(params) > 1 ? ` · ${wallPassCount(params)} pasadas` : ''),
     ampNMM: keyframes.length > 0 ? Math.max(...keyframes.map(k => Math.abs(k.ampN))) : Math.abs(params.lissAmpN),
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [params.lissAmpN, params.lissAmpT, params.lissWlT, params.sampleSpacing, keyframes]);
+  }), [params.lissAmpN, params.lissAmpT, params.lissWlT, params.sampleSpacing, keyframes,
+    params.wallPasses, params.wallSpacing, params.wallSide, params.lineWidth]);
   const toolpathKey = TOOLPATH_PARAMS.map(k => params[k]).join('|');
   const toolpath = useMemo(
     () => buildToolpath(layers, params, centre),

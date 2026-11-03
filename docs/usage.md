@@ -60,13 +60,16 @@ Si un override queda vacío, BarroCode usa el valor global.
 
 ## 3. Parámetros De Impresión
 
-El panel izquierdo agrupa los parámetros de la pieza en dos pestañas: **Pieza** (capas, resolución, escala, centro, escala y giro) y **Trayecto** (dirección, unión de capas, z-hop, desplazamientos). Lo que depende de la impresora está en el espacio **Máquina** (ver *3b*). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
+El panel izquierdo agrupa los parámetros de la pieza en dos pestañas: **Pieza** (capas, muro, resolución, escala, centro, escala y giro) y **Trayecto** (dirección, unión de capas, z-hop, desplazamientos). Lo que depende de la impresora está en el espacio **Máquina** (ver *3b*). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
 
 | Parámetro | Efecto |
 |---|---|
 | **Espaciado de muestra** (Pieza › Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm cuando la escala es 1). Lo justo son unos 10 puntos por ciclo de la onda más corta: menos y la onda sale quebrada, más y el G-code pesa más y cada cambio tarda en recalcularse. Debajo, el panel muestra los puntos por ciclo y sugiere un valor (entre 0,25 y 2,5 mm). |
 | **Altura de capa** | Incremento Z entre capas apiladas. |
 | **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
+| **Pasadas por capa** (Pieza › Muro) | Cuántos cordones, uno al lado del otro, forman la pared (1–4). Todos repiten la onda con las crestas alineadas y a la misma altura. En un contorno cerrado se imprimen uno tras otro, unidos en la costura, y solo el último sube a la capa siguiente; en un trazo abierto van de ida y vuelta. Las esquinas se redondean 1,5 veces la distancia al cordón más alejado, para que el interior no se pliegue. |
+| **Separación** | Distancia entre cordones vecinos, en % del ancho de línea de *Máquina*. Al 100 % se tocan; por debajo se montan. En los flancos de la onda quedan más juntos que en las crestas (con N 3 mm y λ 20 mm, al 74 %). Si la última pasada queda más lejos de la primera que el *Arco de transición*, el cambio de capa levanta la boquilla. |
+| **Afuera / Adentro / Centrado** | Hacia dónde crece la pared desde la línea dibujada. Afuera y adentro dejan el primer cordón sobre la línea; centrado deja la línea en el medio de la pared. Se mide en cada contorno respecto de su propio interior; en un trazo abierto, afuera es el lado convexo. |
 | **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. |
 | **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
 | **Transición Z suave** | Conecta una capa con la siguiente con movimiento continuo, sin retracción ni levantamiento. En rutas cerradas la boquilla sube a la capa siguiente mientras recorre el final de la vuelta, en vez de subir en vertical en la costura. |

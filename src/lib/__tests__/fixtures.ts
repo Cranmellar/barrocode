@@ -24,6 +24,7 @@ export const PARAMS: PrintParams = {
   printSpeed: 600, travelSpeed: 1500,
   generateE: true, extrusionMultiplier: 0.05,
   reversePath: false, alternateDirection: false, closePath: false,
+  wallPasses: 1, wallSpacing: 100, wallSide: 'out',
   dwellAtStart: 0, primingMove: false, primingLength: 20,
 };
 
@@ -86,7 +87,9 @@ export function interpret(gcode: string): Move[] {
         case 'X': pos.x = v; break;
         case 'Y': pos.y = v; break;
         case 'Z': pos.z = v; break;
-        case 'E': extruding = v > e; e = v; break;
+        // Travel never carries E, so an unchanged E is a print move
+        // too short to add 0.001 at the emitted precision.
+        case 'E': extruding = v >= e; e = v; break;
       }
     }
     moves.push({ from, to: { ...pos }, extruding, transition });
