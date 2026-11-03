@@ -747,7 +747,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 .help-fig figcaption { margin-top: 6px; font-size: var(--fs-sm); color: var(--muted); }
 .help-fig figcaption b { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
-.help-fig--wide { max-width: 380px; }
 .help-keys { white-space: nowrap; }
 .hd-base     { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 3 3; }
 .hd-wave     { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
