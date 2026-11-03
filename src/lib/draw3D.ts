@@ -407,11 +407,13 @@ export function drawScene(
     ctx.restore();
 
     // Clear of the selected keyframe diamond (radius 14) that sits on the extruder.
+    // Names the nozzle's height: the timeline readout gives the part's height
+    // at the top of the same layer, which is a different number.
     ctx.save();
     ctx.font = '11px GSCode, monospace';
     ctx.fillStyle = palette.ink2;
     ctx.textBaseline = 'middle';
-    haloText(ctx, `z ${pt.z.toFixed(1)}`, ex + 19, ey);
+    haloText(ctx, `capa ${layerOfPoint(toolpath, idx) + 1} · boquilla ${pt.z.toFixed(1)} mm`, ex + 19, ey);
     ctx.restore();
   }
 

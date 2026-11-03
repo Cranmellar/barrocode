@@ -59,6 +59,8 @@ export interface MachineProfile {
   id: string;
   name: string;
   note: string;
+  // Generic starting points with no catalogue figures to check (the clay ones).
+  generic?: boolean;
   values: Omit<MachineFields, 'machineProfile' | 'gcodeOrigin' | 'originX' | 'originY' | 'marginX' | 'marginY'>;
 }
 
@@ -76,14 +78,14 @@ const CLAY: Partial<MachineProfile['values']> = {
   startGcode: '', endGcode: '',
 };
 
-const p = (id: string, name: string, note: string, v: Partial<MachineProfile['values']>): MachineProfile =>
-  ({ id, name, note, values: { ...BASE, ...v } });
+const p = (id: string, name: string, note: string, v: Partial<MachineProfile['values']>, generic = false): MachineProfile =>
+  ({ id, name, note, generic, values: { ...BASE, ...v } });
 
 export const MACHINE_PROFILES: MachineProfile[] = [
-  p('clay-centre', 'Arcilla · origen al centro', 'Lo que barrocode emitía siempre: sin plantillas, E como multiplicador de la bomba. Ajusta la cama a tu máquina.',
-    { ...CLAY, firmware: 'reprap', bedX: 300, bedY: 300, bedZ: 400, bedOrigin: 'centre' }),
+  p('clay-centre', 'Arcilla · origen al centro', 'Sin plantillas; E = largo recorrido × multiplicador. Ajusta la cama a tu máquina.',
+    { ...CLAY, firmware: 'reprap', bedX: 300, bedY: 300, bedZ: 400, bedOrigin: 'centre' }, true),
   p('clay-corner', 'Arcilla · origen en esquina', 'Cartesianas adaptadas a pasta (pistón o tornillo). Ajusta la cama a tu máquina.',
-    { ...CLAY, bedX: 300, bedY: 300, bedZ: 400 }),
+    { ...CLAY, bedX: 300, bedY: 300, bedZ: 400 }, true),
   p('wasp2040', 'Delta WASP 2040 Clay', 'Delta: cama circular de Ø200 mm con el origen al centro, 400 mm de alto. Capa mínima de catálogo 0,5 mm.',
     { ...CLAY, firmware: 'reprap', bedShape: 'circle', bedX: 200, bedY: 200, bedZ: 400, bedOrigin: 'centre',
       nozzleDiameter: 1.2, lineWidth: 1.6, printSpeed: 1200, travelSpeed: 3600, startGcode: T.wasp, endGcode: T.waspEnd }),

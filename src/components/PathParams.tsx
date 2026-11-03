@@ -11,6 +11,7 @@ interface Props {
   onChange: (p: PrintParams) => void;
   svgMmPerUnit: number | null;
   shortestWl: number | null;  // mm, from shortestWavelength
+  onOpenMachine: () => void;
 }
 
 function Num({ label, icon, value, min, max, step, unit, hint, onChange }: {
@@ -62,25 +63,33 @@ function Resolution({ params, shortestWl, onSpacing }: {
   const verdict = perCycle === null
     ? (mm > 2.5 ? 'coarse' : 'ok')
     : perCycle < 0.8 * SAMPLES_PER_CYCLE ? 'coarse' : perCycle > 4 * SAMPLES_PER_CYCLE ? 'fine' : 'ok';
+  const facts = <>
+    {sf !== 1 && <span>{fmt(mm)} mm reales</span>}
+    {perCycle === null
+      ? <span>sin onda: entre 1 y 2 mm basta</span>
+      : <span>{fmt(Math.round(perCycle * 10) / 10)} puntos por ciclo (λ {fmt(shortestWl!)} mm)</span>}
+  </>;
   return (
     <Sec title="Resolución" icon="resolucion">
-      <Num label="Espaciado de muestra" icon="espaciado" value={params.sampleSpacing}
+      <Num label="Espaciado" icon="espaciado" value={params.sampleSpacing}
         min={0.1} step={0.1} unit={sf === 1 ? 'mm' : 'u. SVG'}
         hint={`Distancia, a lo largo del trazo, entre los puntos que se toman de él. Más fino, curvas más suaves, pero más líneas de G-code y cada cambio tarda más en recalcularse. Lo justo son unos ${SAMPLES_PER_CYCLE} puntos por onda de la más corta: debajo se indica si sobra o falta, con un valor sugerido. Mínimo 0,1.`}
         onChange={onSpacing} />
       <div className={`resolution resolution--${verdict}`}>
-        <div className="resolution-facts">
-          {sf !== 1 && <span>{fmt(mm)} mm reales</span>}
-          {perCycle === null
-            ? <span>sin onda: entre 1 y 2 mm basta</span>
-            : <span>{fmt(Math.round(perCycle * 10) / 10)} puntos por ciclo (λ {fmt(shortestWl!)} mm)</span>}
-        </div>
-        <p className="state-line">
-          <Icon name={verdict === 'ok' ? 'ok' : verdict === 'coarse' ? 'aviso' : 'info'} />
-          {verdict === 'ok' && 'Bien: la onda sale suave sin cargar el G-code.'}
-          {verdict === 'coarse' && 'Pocos puntos: la onda sale quebrada, como un polígono.'}
-          {verdict === 'fine' && 'Más fino de lo necesario: más G-code y recálculo lento, sin ganar forma.'}
-        </p>
+        {verdict === 'ok' ? (
+          <p className="state-line" title="Bien: la onda sale suave sin cargar el G-code">
+            <Icon name="ok" />
+            <span className="resolution-facts">{facts}</span>
+            <span className="sr-only">: bien</span>
+          </p>
+        ) : <>
+          <div className="resolution-facts">{facts}</div>
+          <p className="state-line">
+            <Icon name={verdict === 'coarse' ? 'aviso' : 'info'} />
+            {verdict === 'coarse' && 'Pocos puntos: la onda sale quebrada, como un polígono.'}
+            {verdict === 'fine' && 'Más fino de lo necesario: más G-code y recálculo lento, sin ganar forma.'}
+          </p>
+        </>}
         {verdict !== 'ok' && Math.abs(suggestedSvg - params.sampleSpacing) > 1e-9 && (
           <button className="btn-small" onClick={() => onSpacing(suggestedSvg)}>
             Usar {fmt(suggestedSvg)}{sf === 1 ? ' mm' : ''} (sugerido)
@@ -149,7 +158,7 @@ function loadTab(): GroupId {
   }
 }
 
-export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props) {
+export function PathParams({ params, onChange, svgMmPerUnit, shortestWl, onOpenMachine }: Props) {
   const [tab, setTab] = useState(loadTab);
   // The new tab's content slides in from the side of the tab that was clicked.
   const dirRef = useRef<'next' | 'prev'>('next');
@@ -234,14 +243,17 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl }: Props
             hint={'Cuántos milímetros mide una unidad del SVG: 1\u00a0=\u00a0una unidad, un milímetro. Si el SVG declara su tamaño (en mm, cm, pulgadas…), se adopta solo al cargarlo.'}
             onChange={v => set('scaleFactor', v)} />
           {svgMmPerUnit !== null && (params.scaleFactor === svgMmPerUnit
-            ? <div className="param-info">→ tamaño real del SVG</div>
+            ? <div className="param-info state-line state-ok"><Icon name="ok" />Tamaño real del SVG</div>
             : <div className="param-info">
                 <button className="btn-small" onClick={() => set('scaleFactor', svgMmPerUnit)}
                   title={wrapHint('El SVG declara su tamaño en unidades físicas. Vuelve a ese tamaño.')}>
                   Usar tamaño real (×{svgMmPerUnit})
                 </button>
               </div>)}
-          <div className="param-info">→ la posición en la cama se elige en <i>Máquina</i></div>
+          <div className="param-info">
+            Posición en la cama: <button className="btn-link" onClick={onOpenMachine}
+              title="La posición de la pieza en la cama se elige en Máquina, junto con la cama y el origen">abrir Máquina</button>
+          </div>
           <Check label="Invertir eje Y" icon="reflejar" checked={params.flipY}
             hint="El SVG cuenta Y hacia abajo y casi todas las impresoras hacia arriba. Activado, la pieza sale en la cama como se ve en el dibujo; desactivado, sale reflejada de adelante hacia atrás."
             onChange={v => set('flipY', v)} />
