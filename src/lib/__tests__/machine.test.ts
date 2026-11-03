@@ -116,6 +116,21 @@ describe('fan, speeds and templates', () => {
     expect(gcode).toContain('G1 Z25.000 F1500  ; final lift');
   });
 
+  it('ends a Creality OS print with the heaters off and the bed clear of the part', () => {
+    const k1 = applyProfile(PARAMS, findProfile('k1')!);
+    const end = (layers: number) => {
+      const { gcode } = run(square(), { ...k1, layerHeight: 0.5, useNumLayers: true, numLayers: layers }, { x: 20, y: 20 });
+      const tail = gcode.slice(gcode.indexOf('; --- End G-code ---'));
+      const z = Number(/G1 Z([\d.]+) F600/.exec(tail)![1]);
+      const top = Math.max(...interpret(gcode).filter(mv => mv.extruding).map(mv => mv.to.z));
+      return { tail, z, top };
+    };
+    const short = end(10);
+    expect(short.tail).toMatch(/M104 S0[^\n]*\nM140 S0[^\n]*\nG1 Z[\d.]+ F600[^\n]*\nEND_PRINT$/);
+    expect(short.z).toBeCloseTo(short.top + 50, 3);
+    expect(end(400).z).toBe(k1.bedZ);
+  });
+
   it('reads back the same summary with retraction and templates', () => {
     const { gcode, stats } = run(facingPair(), { ...FIL, numLayers: 3, softJoin: false, retractLength: 0.8, primingMove: true, startGcode: 'G28' });
     const read = summarizeGcode(gcode);
