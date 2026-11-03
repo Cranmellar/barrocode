@@ -52,7 +52,7 @@ export function PrintCheck({ check, wave, doc, bounds }: Props) {
             en rojo: son más cerrados que R {mm(wave.radiusMM)} mm.
           </p>
           <p>
-            Al imprimir, BarroCode los suaviza a ese radio y la forma pierde detalle; en una vuelta casi
+            Al imprimir, barrocode los suaviza a ese radio y la forma pierde detalle; en una vuelta casi
             completa no puede y la onda se pliega.
           </p>
           <p>{fix(doc, wave)}</p>

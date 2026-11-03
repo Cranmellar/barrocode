@@ -1,5 +1,5 @@
 ; ============================================================
-; BarroCode — Lissajous G-code Generator
+; barrocode — Lissajous G-code Generator
 ; ============================================================
 ; Machine                : Arcilla · origen al centro · RepRap / Duet
 ; Material               : clay

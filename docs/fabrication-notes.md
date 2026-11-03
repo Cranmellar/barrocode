@@ -1,6 +1,6 @@
 # Notas de fabricación
 
-Las decisiones de BarroCode que vienen de imprimir con arcilla, y por qué se tomaron. Para usar cada opción, ver la [guía de uso](usage.md).
+Las decisiones de barrocode que vienen de imprimir con arcilla, y por qué se tomaron. Para usar cada opción, ver la [guía de uso](usage.md).
 
 ## Principios
 
@@ -21,7 +21,7 @@ Con *Transición Z suave*, cada contorno cerrado sube a la capa siguiente durant
 
 ## Saltos sobre los cruces
 
-Si *Altura de salto* es mayor que 0, BarroCode busca dónde la ruta se cruza a sí misma en la capa y, en la segunda pasada, sube la boquilla en parábola sobre el cordón que ya está. La extrusión no se detiene.
+Si *Altura de salto* es mayor que 0, barrocode busca dónde la ruta se cruza a sí misma en la capa y, en la segunda pasada, sube la boquilla en parábola sobre el cordón que ya está. La extrusión no se detiene.
 
 Pendiente de comprobar en una impresión: el cruce recibe dos cordones por capa, y la primera pasada de la capa siguiente cruza a la altura de ese cordón doble, sin espacio. Si se confirma, la solución es reducir o anular `E` dentro del salto.
 
@@ -33,7 +33,7 @@ Al terminar, la boquilla sube 10 mm sobre la pieza o sobre la Z de seguridad, la
 
 ## Esquinas y costura
 
-La onda desplaza la boquilla sobre la normal del trazo. En una esquina la normal gira de golpe: hacia adentro la onda se enrolla en bucles, hacia afuera salta. Por eso BarroCode redondea antes de ondular toda curva más cerrada de lo que la onda puede seguir, con un radio de unas 1,25 veces la amplitud N.
+La onda desplaza la boquilla sobre la normal del trazo. En una esquina la normal gira de golpe: hacia adentro la onda se enrolla en bucles, hacia afuera salta. Por eso barrocode redondea antes de ondular toda curva más cerrada de lo que la onda puede seguir, con un radio de unas 1,25 veces la amplitud N.
 
 El costo es que las puntas agudas pierden largo: una punta de 30° pierde unos 15 mm con amplitud 3 mm. La alternativa, atenuar la onda cerca de la punta en vez de redondearla, está pendiente de decidir.
 

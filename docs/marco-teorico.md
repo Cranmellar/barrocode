@@ -1,6 +1,6 @@
 # Marco teórico
 
-Referentes para pensar conceptual y formalmente lo que hace BarroCode: cómo una exploración geométrica precisa (una onda de Lissajous sobre una curva, apilada en capas) pasa por un instrumento y una materia, el barro, y vuelve como ornamento con algo de orgánico y algo de accidente.
+Referentes para pensar conceptual y formalmente lo que hace barrocode: cómo una exploración geométrica precisa (una onda de Lissajous sobre una curva, apilada en capas) pasa por un instrumento y una materia, el barro, y vuelve como ornamento con algo de orgánico y algo de accidente.
 
 Las referencias están citadas de memoria; conviene verificar fechas, ediciones y títulos exactos antes de citarlas en un texto.
 
@@ -14,13 +14,13 @@ La tradición que piensa el ornamento vegetal como una geometría que se va abst
 
 - **Alois Riegl, *Stilfragen* (1893).** Sigue la palmeta y el acanto desde Egipto hasta el arabesco y sostiene que el zarcillo vegetal evoluciona por lógica interna del motivo, no por copia de la naturaleza. Es la base del tema.
 - **Ernst Gombrich, *The Sense of Order* (1979).** Psicología del ornamento: el placer está entre lo que se repite y lo que sorprende. Sirve para pensar el accidente dentro de una regla.
-- **Wilhelm Worringer, *Abstraktion und Einfühlung* (1908).** Opone la abstracción geométrica a la empatía orgánica. BarroCode trabaja en la frontera entre ambas.
+- **Wilhelm Worringer, *Abstraktion und Einfühlung* (1908).** Opone la abstracción geométrica a la empatía orgánica. barrocode trabaja en la frontera entre ambas.
 - **William Hogarth, *The Analysis of Beauty* (1753).** La "línea de la belleza", serpentina: antecedente directo de la línea ondulada como valor estético.
 - **Owen Jones, *The Grammar of Ornament* (1856).** Repertorio y principios del ornamento de muchas culturas.
 - **Oleg Grabar, *The Mediation of Ornament* (1992)** y **Gülru Necipoğlu, *The Topkapı Scroll: Geometry and Ornament in Islamic Architecture* (1995).** El arabesco islámico (*islimi*): el tallo vegetal llevado a sistema geométrico.
 - **Antoine Picon, *Ornament: The Politics of Architecture and Subjectivity* (2013).** El regreso del ornamento con lo digital.
 
-## 2. Simetría formal: BarroCode dibuja frisos
+## 2. Simetría formal: barrocode dibuja frisos
 
 El puente técnico más preciso entre la teoría del ornamento y el código:
 
@@ -46,7 +46,7 @@ Referencias:
 
 ## 4. Máquinas de ornamento: los antecesores instrumentales
 
-BarroCode pertenece a una genealogía de instrumentos que convierten la superposición de oscilaciones en ornamento:
+barrocode pertenece a una genealogía de instrumentos que convierten la superposición de oscilaciones en ornamento:
 
 - **Torno de rosas y guilloché.** Levas que modulan el radio mientras la pieza gira: una modulación normal a lo largo de una curva, como el eje N. Referencia clásica: **Charles Holtzapffel, *Turning and Mechanical Manipulation*, vol. 5 (1884)**, sobre el torneado ornamental.
 - **Armonógrafo y figuras de Lissajous.** **Anthony Ashton, *Harmonograph: A Visual Guide to the Mathematics of Music* (2003)**, breve y visual.
@@ -59,7 +59,7 @@ BarroCode pertenece a una genealogía de instrumentos que convierten la superpos
 - **Gottfried Semper, *Der Stil* (1860–63).** El estilo nace de la técnica y del material; el origen textil de la arquitectura. Una pieza impresa en cordón de barro es, literalmente, un tejido enrollado.
 - **Anni Albers, *On Weaving* (1965).** La estructura que nace de la restricción del hilo.
 - **Lambros Malafouris, *How Things Shape the Mind* (2013).** Su caso central es el alfarero en el torno: la mente distribuida entre mano, barro y máquina.
-- **Gilles Deleuze, *Le Pli: Leibniz et le baroque* (1988).** El pliegue barroco; casi obligatorio para un proyecto que se llama BarroCode. Ahí aparece el **objetil** de **Bernard Cache** (*Earth Moves: The Furnishing of Territories*, 1995): el objeto como **familia paramétrica** de variantes, no como forma fija, fabricado por control numérico. Es lo que son los parámetros y keyframes de BarroCode.
+- **Gilles Deleuze, *Le Pli: Leibniz et le baroque* (1988).** El pliegue barroco; casi obligatorio para un proyecto que se llama barrocode. Ahí aparece el **objetil** de **Bernard Cache** (*Earth Moves: The Furnishing of Territories*, 1995): el objeto como **familia paramétrica** de variantes, no como forma fija, fabricado por control numérico. Es lo que son los parámetros y keyframes de barrocode.
 - **Mario Carpo, *The Alphabet and the Algorithm* (2011)** y *The Second Digital Turn* (2017). Variación no estándar y fabricación digital.
 
 ## 6. El accidente programado

@@ -31,7 +31,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     return (
       <div className="crash">
         <div className="crash-card">
-          <h1>BarroCode se detuvo por un error</h1>
+          <h1>barrocode se detuvo por un error</h1>
           <p>Copia el informe y envíalo para poder corregirlo. Incluye tus parámetros y keyframes. Al recargar puedes recuperar la sesión guardada.</p>
           <pre className="crash-text">{error.name}: {error.message}</pre>
           <div className="crash-actions">

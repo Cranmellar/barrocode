@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BarroCode · Máquina</title>
+<title>barrocode · Máquina</title>
 <style>
-/* Layout: three columns like the app (left panel 300 · stage · right panel 296); the stage is a canvas, the G-code drawer floats over it. One light world, as BarroCode. */
+/* Layout: three columns like the app (left panel 300 · stage · right panel 296); the stage is a canvas, the G-code drawer floats over it. One light world, as barrocode. */
 @font-face{font-family:GSCode;src:url(fonts/GSCode.ttf) format('truetype'),url(../../../public/fonts/GSCode.ttf) format('truetype');font-weight:100 900;font-style:normal}
 @font-face{font-family:GSCode;src:url(fonts/GSCode-Italic.ttf) format('truetype'),url(../../../public/fonts/GSCode-Italic.ttf) format('truetype');font-weight:100 900;font-style:italic}
 :root{
@@ -178,7 +178,7 @@ const P = (o) => Object.assign({
 const PROFILES = [
   P({ id: 'clay-centre', name: 'Arcilla · genérica, origen al centro', material: 'clay', firmware: 'reprap', origin: 'centre', bedX: 300, bedY: 300, bedZ: 400,
     nozzle: 4, lineWidth: 5, speed: 10, firstSpeed: 8, travel: 25, minLayerTime: 0, retract: 0, maxFlow: 0, safeZ: 20, start: '', end: '',
-    note: 'Lo que BarroCode emite hoy: sin plantillas, E como multiplicador de la bomba.' }),
+    note: 'Lo que barrocode emite hoy: sin plantillas, E como multiplicador de la bomba.' }),
   P({ id: 'clay-corner', name: 'Arcilla · genérica, origen en esquina', material: 'clay', firmware: 'marlin', bedX: 300, bedY: 300, bedZ: 400,
     nozzle: 4, lineWidth: 5, speed: 10, firstSpeed: 8, travel: 25, minLayerTime: 0, retract: 0, maxFlow: 0, safeZ: 20, start: '', end: '',
     note: 'Cartesianas convertidas a arcilla (pasta con pistón o tornillo).' }),
@@ -386,7 +386,7 @@ function model() {
   return M;
 }
 
-// ── Emitter (BarroCode's structure: header, start, preamble, layers with markers, seam ramp, end) ─
+// ── Emitter (barrocode's structure: header, start, preamble, layers with markers, seam ramp, end) ─
 const f3 = n => n.toFixed(3);
 const vars = () => ({ nozzleTemp: S.nozzleTemp, bedTemp: S.bedTemp, bedX: S.bedX, bedY: S.bedShape === 'circle' ? S.bedX : S.bedY, bedZ: S.bedZ,
   firstLayerZ: f3(M.h), topZ: f3(M.topZ), parkZ: Math.min(S.bedZ, Math.ceil(M.topZ + 10)),
@@ -398,7 +398,7 @@ function headerLines() {
   const prof = PROFILES.find(p => p.id === S.profile);
   return [
     '; ============================================================',
-    '; BarroCode — perfil: ' + (prof ? prof.name : 'Personalizado') + ' · ' + FIRMWARE[S.firmware],
+    '; barrocode — perfil: ' + (prof ? prof.name : 'Personalizado') + ' · ' + FIRMWARE[S.firmware],
     '; ============================================================',
     `; Material               : ${S.material === 'clay' ? 'arcilla' : 'filamento ' + S.filamentD + ' mm'}`,
     `; Boquilla / cordón      : ${S.nozzle} / ${S.lineWidth} mm`,
@@ -486,7 +486,7 @@ function checks() {
   const segRate = S.speed / Math.max(0.01, part.spacing), lim = SEG_LIMIT[S.firmware];
   if (segRate > lim) c.push({ lvl: 'warn', t: `${Math.round(segRate)} segmentos/s para ${FIRMWARE[S.firmware]}`, d: `Por encima de ≈ ${lim} el movimiento tartamudea. Baja la velocidad o muestrea cada ${fmt(S.speed / lim)} mm.` });
   if (part.wl / part.spacing < 8) c.push({ lvl: 'warn', t: 'La onda tiene pocas muestras', d: `${fmt(part.wl / part.spacing)} por ciclo; con menos de 8 sale angulosa.` });
-  if (M.rawLayers > MAX_LAYERS) c.push({ lvl: 'warn', t: `${M.rawLayers} capas`, d: `BarroCode hoy corta en ${MAX_LAYERS} (el plan propone subirlo para filamento).` });
+  if (M.rawLayers > MAX_LAYERS) c.push({ lvl: 'warn', t: `${M.rawLayers} capas`, d: `barrocode hoy corta en ${MAX_LAYERS} (el plan propone subirlo para filamento).` });
   const bad = unresolved();
   if (bad.length) c.push({ lvl: 'err', t: 'Variables desconocidas en las plantillas', d: bad.map(k => `{${k}}`).join(' ') + ' quedarían tal cual en el G-code.' });
   else if (S.start.trim()) c.push({ lvl: 'ok', t: 'Plantillas completas' });

@@ -146,7 +146,7 @@ describe('profiles', () => {
     }
   });
 
-  it('the first is the clay machine BarroCode always assumed', () => {
+  it('the first is the clay machine barrocode always assumed', () => {
     const p0 = applyProfile(PARAMS, MACHINE_PROFILES[0]);
     for (const k of ['printSpeed', 'travelSpeed', 'extrusionMultiplier', 'safeZ', 'nozzleHeightOffset', 'originX', 'originY'] as const) {
       expect(p0[k], k).toBe(PARAMS[k]);

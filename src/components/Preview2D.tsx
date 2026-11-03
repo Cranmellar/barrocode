@@ -823,7 +823,7 @@ export function Preview2D({
             aria-label={compact >= 3 ? `Descargar ${gcodeFilename}` : undefined}
             title={`Descargar ${gcodeFilename}`}><Icon name="descargar" />{compact < 3 && 'Descargar'}</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
-            aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
+            aria-label="Ayuda: cómo usar barrocode" title="Ayuda (?)">?</button>
           {gcodeBusy && gcode && <span className="gcode-progress" role="progressbar" aria-label="Generando G-code" />}
         </div>
       </div>

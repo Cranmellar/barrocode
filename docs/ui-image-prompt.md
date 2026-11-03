@@ -1,12 +1,12 @@
-# BarroCode High-Fidelity UI Image Prompt
+# barrocode High-Fidelity UI Image Prompt
 
 Use case: ui-mockup refinement
 
-Asset type: high-fidelity desktop UI reference for BarroCode before
+Asset type: high-fidelity desktop UI reference for barrocode before
 implementation.
 
 Primary request: create a polished, screenshot-like desktop app mockup for
-BarroCode, a browser tool that converts SVG curves into clay-printer G-code.
+barrocode, a browser tool that converts SVG curves into clay-printer G-code.
 The mockup must clearly show the exact UI elements, hierarchy, spacing and
 technical detail needed for implementation.
 
@@ -40,7 +40,7 @@ tilt. No browser chrome. Light warm background.
 
 Spans the full width.
 
-- Left: `BarroCode` wordmark.
+- Left: `barrocode` wordmark.
 - Under wordmark: `SVG > PATH > WAVE > G-CODE`.
 - Center status cluster: green dot, `READY`, vertical rule, `sample.svg`,
   vertical rule, `6 layers`, vertical rule, `1240 pts`.
@@ -230,7 +230,7 @@ Surfaces:
 
 ## Text To Include
 
-`BarroCode`, `SVG > PATH > WAVE > G-CODE`, `READY`, `sample.svg`,
+`barrocode`, `SVG > PATH > WAVE > G-CODE`, `READY`, `sample.svg`,
 `6 layers`, `1240 pts`, `LOAD SVG`, `or drop file here`, `USE SAMPLE`,
 `PATHS`, `PRINT`, `MACHINE / TOOLS`, `FLOW`, `ADVANCED`, `TRAJECTORY`,
 `CENTER / SCALE`, `LOCAL WAVE (N vs T)`, `G-CODE`, `EXPORT`, `N AXIS`,

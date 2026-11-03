@@ -6,9 +6,9 @@ Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F6 hechas (ver sec
 
 ## 1. Problema y objetivo
 
-Preparar SVGs adecuados para BarroCode se volvió el cuello de botella. Los archivos llegan de Illustrator o Inkscape con escala ambigua, esquinas más cerradas de lo que la onda puede seguir, trazados abiertos, rectángulos de mesa de trabajo y subtrazados sueltos. Buena parte de `parseSVG` y `roundCorners` existe para limpiar eso.
+Preparar SVGs adecuados para barrocode se volvió el cuello de botella. Los archivos llegan de Illustrator o Inkscape con escala ambigua, esquinas más cerradas de lo que la onda puede seguir, trazados abiertos, rectángulos de mesa de trabajo y subtrazados sueltos. Buena parte de `parseSVG` y `roundCorners` existe para limpiar eso.
 
-Lo que BarroCode necesita de verdad no es "un SVG", sino una **línea central cerrada, suave y medida en mm, sin curvas más cerradas que el radio que la onda puede seguir** (`cornerRadius` en `waveGenerator.ts`). El objetivo del módulo es **producir formas que cumplan ese contrato desde el origen**, dentro de la misma app, y entregarlas a la parte de impresión sin pasar por otro programa.
+Lo que barrocode necesita de verdad no es "un SVG", sino una **línea central cerrada, suave y medida en mm, sin curvas más cerradas que el radio que la onda puede seguir** (`cornerRadius` en `waveGenerator.ts`). El objetivo del módulo es **producir formas que cumplan ese contrato desde el origen**, dentro de la misma app, y entregarlas a la parte de impresión sin pasar por otro programa.
 
 ## 2. Qué tomamos de cada referente
 
@@ -18,7 +18,7 @@ Lo que BarroCode necesita de verdad no es "un SVG", sino una **línea central ce
 | [SvgPathEditor](https://github.com/Yqnn/svg-path-editor) (Yqnn) | Apache-2.0 | **Edición del trazado** sincronizada en dos vistas: lista de comandos del `d` y puntos arrastrables en el lienzo; insertar, borrar y convertir comandos. Su motor está publicado aparte (`svg-path-editor-lib`). | Su UI y las operaciones que no sirven para cerámica (relativo/absoluto como acción visible, minificar). |
 | [Method Draw](https://github.com/methodofaction/Method-Draw) | MIT | **La disciplina de omitir.** Una lista explícita de lo que el módulo no hará (sección 4). | El editor en sí (es SVG-Edit simplificado: rellenos, texto, capas). |
 
-Las ideas no tienen licencia; solo copiar código la tiene. Si se copia código de cualquiera de ellos, antes hay que darle una licencia a BarroCode (decisión D-S4).
+Las ideas no tienen licencia; solo copiar código la tiene. Si se copia código de cualquiera de ellos, antes hay que darle una licencia a barrocode (decisión D-S4).
 
 ## 3. Arquitectura: separado, pero dentro
 
@@ -96,7 +96,7 @@ Cada pedido nuevo se compara con esta lista antes de entrar.
 | D-S1 | **Deshacer en el shaper.** El proyecto no tiene undo, pero editar puntos sin deshacer es frustrante. | **Cerrada: sí**, local al shaper: una pila de `ShapeDoc` (son pocos bytes). *Impresión* sigue sin undo. |
 | D-S2 | **`svg-path-editor-lib` o modelo propio.** El proyecto no tiene dependencias en runtime aparte de React. | **Cerrada: modelo propio** (F4). La librería (1.0.4, Apache-2.0, ESM, ≈4,8 kB gzip) pasaba el filtro de peso, pero su modelo son comandos mutables cuyas asas pertenecen a comandos distintos: mover un nodo no mueve sus asas, no parte una curva sin cambiarla y convertir a curva pone las asas en tercios. Habría que escribir igual el arrastre con asas, la partición y la simetría, más adaptadores. |
 | D-S3 | **Selector de espacio de trabajo o página aparte.** | **Cerrada:** selector, en el encabezado del panel izquierdo (F0). |
-| D-S4 | **Licencia de BarroCode.** | **Cerrada: MIT** (`LICENSE`, © 2026 Cristián Mella). Admite código de Method Draw (MIT) y de SvgPathEditor (Apache-2.0, conservando su aviso); SuperformulaSVG tiene una licencia propia que hay que leer antes de copiar. |
+| D-S4 | **Licencia de barrocode.** | **Cerrada: MIT** (`LICENSE`, © 2026 Cristián Mella). Admite código de Method Draw (MIT) y de SvgPathEditor (Apache-2.0, conservando su aviso); SuperformulaSVG tiene una licencia propia que hay que leer antes de copiar. |
 | D-S5 | **Familias del MVP.** | **Cerrada:** superfórmula, polígono/estrella con radio de esquina, flor de lóbulos (F1). |
 | D-S6 | **Un contorno o varios en el MVP.** | **Cerrada: varios** (F5), porque las muestras 4, 7 y 8 los tienen. La simetría solo con un contorno. |
 | D-S7 | **Color del botón *Enviar a impresión*.** `--signal` está reservado a exportar el G-code y añadir keyframe. | **Cerrada:** `.btn-primary` (F0). |
@@ -127,7 +127,7 @@ Cada fase termina con `npm test` y `npm run build` en verde y algo usable. "Sesi
 
 ### F2 — Imprimibilidad (1 sesión)
 
-Esto es lo propio de BarroCode, que ningún referente tiene.
+Esto es lo propio de barrocode, que ningún referente tiene.
 
 - `printability.ts`: contorno cerrado, **radio de curvatura mínimo** (circunradio de tres muestras consecutivas sobre la polilínea densa), autointersecciones (rejilla, como `findCrossings`), caja en mm, sentido.
 - `PrintCheck` compara el radio mínimo con `waveRadiusMM`, que llega de `App` calculado con la onda actual. Aviso del tipo "la onda actual (N 6 mm) plegará esta forma en 4 puntos", con los puntos marcados en el lienzo.
@@ -208,7 +208,7 @@ Esto es lo propio de BarroCode, que ningún referente tiene.
 |---|---|
 | Que crezca hacia un Illustrator. | La lista de la sección 4 y una fase por vez. |
 | Edición de trazado (F4) más cara de lo previsto. | F0–F3 ya resuelven el cuello de botella sin F4; F4 se puede posponer. |
-| La forma generada y la que imprime BarroCode divergen (muestreo, `roundCorners`). | Test de ida y vuelta: shaper → `toSvg` → `parseSVG` no corre en Node (DOM), así que se verifica en Chromium al cerrar F1 y F4, como hoy con el parser. |
+| La forma generada y la que imprime barrocode divergen (muestreo, `roundCorners`). | Test de ida y vuelta: shaper → `toSvg` → `parseSVG` no corre en Node (DOM), así que se verifica en Chromium al cerrar F1 y F4, como hoy con el parser. |
 | Dos sistemas de estado (shape y print). | La frontera de la sección 3.2; `ShapeDoc` nunca entra en `PrintParams`. |
 
 ## 8. Fuera de este plan (siguientes pasos posibles)

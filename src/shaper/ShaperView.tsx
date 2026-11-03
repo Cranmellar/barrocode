@@ -531,7 +531,7 @@ export function ShaperView(props: Props) {
           <button className="btn-primary btn-send" onClick={() => onSend(shapeToSvg(doc), fileName(doc))}
             title={wrapHint('Cargar esta forma en Impresión, a su tamaño real')}>Enviar a impresión</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
-            aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
+            aria-label="Ayuda: cómo usar barrocode" title="Ayuda (?)">?</button>
         </div>
       </div>
     </div>

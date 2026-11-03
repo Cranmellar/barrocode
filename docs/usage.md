@@ -1,6 +1,6 @@
 # Guía de uso
 
-Cómo pasar de un dibujo a un archivo `.gcode` con BarroCode, y qué hace cada parámetro.
+Cómo pasar de un dibujo a un archivo `.gcode` con barrocode, y qué hace cada parámetro.
 
 ```mermaid
 flowchart TD
@@ -23,7 +23,7 @@ La app tiene tres espacios de trabajo. Se cambian con el selector de arriba del 
 
 ## 1. Cargar la pieza
 
-Arrastra un archivo SVG sobre la ventana o pulsa **Cargar SVG** en el panel izquierdo. BarroCode lee estos elementos: `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` y `<rect>`.
+Arrastra un archivo SVG sobre la ventana o pulsa **Cargar SVG** en el panel izquierdo. barrocode lee estos elementos: `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` y `<rect>`.
 
 No se imprime lo que el SVG no dibuja: el contenido de `<defs>`, `<clipPath>`, `<mask>`, `<symbol>`, `<marker>` y `<pattern>`, ni los elementos con `display:none`. Los elementos con `visibility:hidden` sí se imprimen; bórralos antes de exportar el SVG.
 
@@ -49,7 +49,7 @@ En el lienzo, la rueda acerca o aleja alrededor del cursor, y arrastrar el fondo
 
 ## 3. Rutas SVG
 
-Cada elemento que BarroCode encuentra aparece en **Rutas SVG**, con su largo en mm (a la escala SVG→mm, sin la onda). Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) se separa en una ruta por subtrazado: `nombre-1`, `nombre-2`…
+Cada elemento que barrocode encuentra aparece en **Rutas SVG**, con su largo en mm (a la escala SVG→mm, sin la onda). Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) se separa en una ruta por subtrazado: `nombre-1`, `nombre-2`…
 
 En cada ruta puedes:
 
@@ -129,7 +129,7 @@ Más:
 - *Borrar todos* pide un segundo clic. Al borrar el último keyframe, sus valores pasan a la onda global y la pieza no cambia.
 - Al cargar otro SVG, los keyframes conservan la onda y pierden el centro, la escala y el giro.
 
-**Giro con keyframes.** De 0° a 360°, la pieza da una vuelta completa a lo largo de su altura. Una torsión fuerte desplaza cada capa respecto a la de abajo, más cuanto más lejos del centro, y el cordón puede quedar en voladizo. BarroCode no lo limita: revísalo en la vista 3D.
+**Giro con keyframes.** De 0° a 360°, la pieza da una vuelta completa a lo largo de su altura. Una torsión fuerte desplaza cada capa respecto a la de abajo, más cuanto más lejos del centro, y el cordón puede quedar en voladizo. barrocode no lo limita: revísalo en la vista 3D.
 
 ## 8. Máquina
 
@@ -157,7 +157,7 @@ En *Impresión*, una marca en la barra superior avisa de los mismos errores (en 
 | **Pausa al inicio** / **Cebado** | Arcilla. Una pausa (`G4`) en la primera posición y una línea corta a 10 mm de la primera capa. |
 | **Inicio y fin** | G-code antes y después del programa, con variables: `{nozzleTemp}`, `{bedTemp}`, `{bedX}`, `{bedY}`, `{bedZ}`, `{firstLayerZ}`, `{topZ}`, `{parkZ}`, `{clearZ}`, `{minX}`, `{maxX}`, `{minY}`, `{maxY}`. Una variable desconocida es un error en la revisión. |
 
-Al final del programa, con arcilla, BarroCode siempre agrega `M400` (espera el último movimiento), `M107` (apaga la salida auxiliar, por si el tornillo o la válvula de aire cuelgan de ella) y `M84` (apaga los motores, extrusor incluido).
+Al final del programa, con arcilla, barrocode siempre agrega `M400` (espera el último movimiento), `M107` (apaga la salida auxiliar, por si el tornillo o la válvula de aire cuelgan de ella) y `M84` (apaga los motores, extrusor incluido).
 
 ## 9. Vista 3D
 
@@ -203,4 +203,4 @@ Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 l
 
 ## Sesión
 
-BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y rutas) un segundo después de cada cambio. Al volver aparece **Sesión anterior**, con *Restaurar* o *Descartar*. Cerrar el SVG con la ✕ también borra la sesión guardada. La máquina y la forma de *Forma* se guardan aparte y vuelven solas.
+barrocode guarda la sesión en el navegador (SVG, parámetros, keyframes y rutas) un segundo después de cada cambio. Al volver aparece **Sesión anterior**, con *Restaurar* o *Descartar*. Cerrar el SVG con la ✕ también borra la sesión guardada. La máquina y la forma de *Forma* se guardan aparte y vuelven solas.
