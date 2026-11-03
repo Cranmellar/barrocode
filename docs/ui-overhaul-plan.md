@@ -39,7 +39,7 @@ La app está **bien construida pero organizada como herramienta de escritorio de
 
 ## 2. Tu propuesta: una gran vista 3D con contenedores encima
 
-**Veredicto: sí, es la dirección correcta, con reglas.** Es el patrón de Figma, Spline, Bambu/Orca Studio o Shapr3D, y encaja con lo que BarroCode es: un visor de una pieza con parámetros alrededor.
+**Veredicto: sí, es la dirección correcta, con reglas.** Es el patrón de Figma, Spline, Bambu/Orca Studio o Shapr3D, y encaja con lo que barrocode es: un visor de una pieza con parámetros alrededor.
 
 **A favor**
 - La pieza pasa a ocupar el 100 % de la ventana; los paneles flotan en los bordes y la pieza se centra en el hueco libre.

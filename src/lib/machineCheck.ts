@@ -142,7 +142,7 @@ export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], sta
   }
 
   if (!params.useNumLayers && params.totalHeight / params.layerHeight > MAX_LAYERS) {
-    out.push({ level: 'warn', title: `La altura total pide más de ${MAX_LAYERS} capas`, detail: `BarroCode corta en ${MAX_LAYERS}; la pieza sale más baja.` });
+    out.push({ level: 'warn', title: `La altura total pide más de ${MAX_LAYERS} capas`, detail: `barrocode corta en ${MAX_LAYERS}; la pieza sale más baja.` });
   }
 
   const unknown = unknownTemplateVars(params);

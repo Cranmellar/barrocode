@@ -1,6 +1,6 @@
 # Arquitectura
 
-BarroCode es una app React + Vite sin servidor. La geometría vive en `src/lib/` (funciones puras, con pruebas), la interfaz en `src/components/` y el espacio *Forma* en `src/shaper/`. Todo el estado está en `App.tsx`.
+barrocode es una app React + Vite sin servidor. La geometría vive en `src/lib/` (funciones puras, con pruebas), la interfaz en `src/components/` y el espacio *Forma* en `src/shaper/`. Todo el estado está en `App.tsx`.
 
 ## De SVG a G-code
 

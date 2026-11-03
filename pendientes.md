@@ -1,6 +1,6 @@
 # Pendientes
 
-Backlog de cambios atómicos para BarroCode, con propuesta priorizada de ejecución.
+Backlog de cambios atómicos para barrocode, con propuesta priorizada de ejecución.
 
 > Este documento contiene **tickets accionables y priorizados** listos para ejecutar. Para notas de diseño abiertas e ideas de investigación (sin priorizar, en exploración), ver [docs/research-notes.md](docs/research-notes.md).
 

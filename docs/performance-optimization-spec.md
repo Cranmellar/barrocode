@@ -1,4 +1,4 @@
-# BarroCode Performance Optimization Spec
+# barrocode Performance Optimization Spec
 
 Execution spec for improving visualization and modelling performance with high
 layer counts and complex SVGs. This document is intentionally implementation

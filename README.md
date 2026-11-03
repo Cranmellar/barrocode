@@ -5,15 +5,15 @@
   </picture>
 </p>
 
-<h1 align="center">BarroCode</h1>
+<h1 align="center">barrocode</h1>
 
-BarroCode convierte un dibujo SVG en G-code para impresoras 3D de arcilla. El trazo del dibujo es la línea central de la pared; BarroCode lo ondula, apila las capas y escribe el archivo que lee la impresora. Se pronuncia como *barroco*.
+barrocode convierte un dibujo SVG en G-code para impresoras 3D de arcilla. El trazo del dibujo es la línea central de la pared; barrocode lo ondula, apila las capas y escribe el archivo que lee la impresora. Se pronuncia como *barroco*.
 
 Funciona en el navegador. No hay que instalar nada y los archivos no salen de tu computador.
 
 **Abrir la app:** <https://cranmellar.github.io/barrocode/>
 
-![BarroCode con la muestra 4 cargada: el panel de la pieza a la izquierda, la vista 3D de 60 capas al centro y el panel de la onda a la derecha](docs/img/barrocode.webp)
+![barrocode con la muestra 4 cargada: el panel de la pieza a la izquierda, la vista 3D de 60 capas al centro y el panel de la onda a la derecha](docs/img/barrocode.webp)
 
 ## Qué puedes hacer
 
@@ -97,7 +97,7 @@ Extracto de uno de los archivos de referencia de las pruebas:
 
 ```gcode
 ; ============================================================
-; BarroCode — Lissajous G-code Generator
+; barrocode — Lissajous G-code Generator
 ; ============================================================
 ; Machine                : Arcilla · origen al centro · RepRap / Duet
 ; Box X 0.000…101.000  Y 0.000…101.000  Z 1.000…30.000 mm
@@ -197,4 +197,4 @@ Usa Vite 5, React 18 y TypeScript estricto, Canvas 2D para la vista 3D y *Forma*
 
 ## Licencia
 
-[MIT](LICENSE) © 2026 Cristián Mella. Puedes usar, modificar y redistribuir el código manteniendo el aviso de copyright. El G-code y las piezas que hagas con BarroCode son tuyos.
+[MIT](LICENSE) © 2026 Cristián Mella. Puedes usar, modificar y redistribuir el código manteniendo el aviso de copyright. El G-code y las piezas que hagas con barrocode son tuyos.

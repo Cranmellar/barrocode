@@ -8,7 +8,7 @@ Este documento evalúa si conviene añadir un tercer espacio de trabajo, despué
 
 ## 1. Problema
 
-Hoy BarroCode resuelve bien *qué* se imprime (forma, onda, capas) y poco *en qué máquina*. Lo que define la máquina está repartido o escrito a mano en el código:
+Hoy barrocode resuelve bien *qué* se imprime (forma, onda, capas) y poco *en qué máquina*. Lo que define la máquina está repartido o escrito a mano en el código:
 
 | Qué | Dónde está hoy |
 |---|---|
@@ -37,11 +37,11 @@ Un tercer espacio, provisionalmente **Máquina** (nombre en D-G1), que:
 
 ### Por qué tiene sentido el filamento
 
-El G-code de BarroCode ya es, en FDM, un **modo jarrón** (*spiralize*): una sola pared continua, con la costura en rampa (`softJoin`) que sube una capa por vuelta sin cortar el flujo. Lo que BarroCode añade es la textura: la onda N/T/Z a lo largo del trayecto, con keyframes. Los laminadores comunes solo ofrecen *fuzzy skin* (ruido aleatorio) o texturas por desplazamiento de malla. Es un hueco real, y permite a los ceramistas probar una pieza en PLA (barato, rápido, de escritorio) antes de gastar arcilla.
+El G-code de barrocode ya es, en FDM, un **modo jarrón** (*spiralize*): una sola pared continua, con la costura en rampa (`softJoin`) que sube una capa por vuelta sin cortar el flujo. Lo que barrocode añade es la textura: la onda N/T/Z a lo largo del trayecto, con keyframes. Los laminadores comunes solo ofrecen *fuzzy skin* (ruido aleatorio) o texturas por desplazamiento de malla. Es un hueco real, y permite a los ceramistas probar una pieza en PLA (barato, rápido, de escritorio) antes de gastar arcilla.
 
 ## 3. Arcilla y filamento: qué cambia
 
-| Aspecto | Arcilla (hoy) | Filamento (K1, Ender-3 V3) | Consecuencia para BarroCode |
+| Aspecto | Arcilla (hoy) | Filamento (K1, Ender-3 V3) | Consecuencia para barrocode |
 |---|---|---|---|
 | Boquilla | 2–8 mm | 0,4 mm (0,6–0,8 opcional) | Toda la escala baja ×5–×10 (sección 5) |
 | Altura de capa | 1–3 mm | 0,1–0,3 mm (≤ 75 % de la boquilla) | Más capas: `MAX_LAYERS = 500` da 100 mm a 0,2 mm |
@@ -71,13 +71,13 @@ El G-code de BarroCode ya es, en FDM, un **modo jarrón** (*spiralize*): una sol
 | Inicio típico | `START_PRINT EXTRUDER_TEMP=… BED_TEMP=…` (la macro calienta, hace *homing* y purga) | Probablemente igual (verificar) | `G28`, `M140/M190`, `M104/M109`, línea de purga explícita | Como la K1 (verificar) |
 | Fin típico | `END_PRINT` | Probablemente igual | `M104 S0`, `M140 S0`, subir, presentar cama, `M84` | `END_PRINT` |
 | Boquilla / filamento | 0,4 mm / 1,75 mm, extrusor directo | 0,4 / 1,75, directo | 0,4 / 1,75, directo | 0,4 / 1,75, directo |
-| Notas para BarroCode | Z por husillos: Klipper limita `max_z_velocity`, así que la onda Z y la rampa no son peligrosas pero el tiempo estimado sale corto | Z rápido (CoreXZ): bien para onda Z | Marlin: muchos segmentos cortos a alta velocidad pueden vaciar el *planner*; vigilar segmentos/s | Como la K1 |
+| Notas para barrocode | Z por husillos: Klipper limita `max_z_velocity`, así que la onda Z y la rampa no son peligrosas pero el tiempo estimado sale corto | Z rápido (CoreXZ): bien para onda Z | Marlin: muchos segmentos cortos a alta velocidad pueden vaciar el *planner*; vigilar segmentos/s | Como la K1 |
 
 Lo que más cambia entre ellas no es la geometría (las cuatro tienen ≈ 220 × 220, origen en la esquina) sino **el inicio y el fin**: en Klipper una macro hace casi todo y el G-code solo le pasa las temperaturas; en Marlin el G-code tiene que hacerlo él. Si a una K1 se le manda el `M104/M109` sin `START_PRINT`, hay informes de que la boquilla se va a la temperatura por defecto de la macro. Por eso el perfil guarda la plantilla entera, no solo los números.
 
 ## 4. Lo que el espacio no hará
 
-BarroCode no se convierte en un laminador. Cada pedido nuevo se compara con esta lista:
+barrocode no se convierte en un laminador. Cada pedido nuevo se compara con esta lista:
 
 - Sin relleno, techos, fondos macizos ni soportes. Una pieza es una o varias paredes de un cordón (como hoy). Un fondo para el jarrón de filamento sería una fase aparte, fuera de este plan.
 - Sin importar STL ni mallas.

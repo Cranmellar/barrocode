@@ -187,7 +187,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
   {
     id: 'inicio', title: 'Empezar', body: <>
       <p className="help-lead">
-        BarroCode convierte un trazo SVG en G-code para impresoras de arcilla: lo ondula con una onda
+        barrocode convierte un trazo SVG en G-code para impresoras de arcilla: lo ondula con una onda
         de Lissajous y lo apila en capas.
       </p>
       <ol className="help-steps">
@@ -347,7 +347,7 @@ export function HelpDialog({ open, onClose }: Props) {
     >
       <div className="help-inner">
         <nav className="help-nav">
-          <h2 id="help-title">Cómo usar BarroCode</h2>
+          <h2 id="help-title">Cómo usar barrocode</h2>
           <div role="tablist" aria-orientation="vertical" aria-label="Secciones de la ayuda" onKeyDown={onTabKey}>
             {SECTIONS.map(s => (
               <button key={s.id} id={`help-tab-${s.id}`} role="tab" aria-selected={s.id === tab}

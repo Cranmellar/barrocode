@@ -80,7 +80,7 @@ const p = (id: string, name: string, note: string, v: Partial<MachineProfile['va
   ({ id, name, note, values: { ...BASE, ...v } });
 
 export const MACHINE_PROFILES: MachineProfile[] = [
-  p('clay-centre', 'Arcilla · origen al centro', 'Lo que BarroCode emitía siempre: sin plantillas, E como multiplicador de la bomba. Ajusta la cama a tu máquina.',
+  p('clay-centre', 'Arcilla · origen al centro', 'Lo que barrocode emitía siempre: sin plantillas, E como multiplicador de la bomba. Ajusta la cama a tu máquina.',
     { ...CLAY, firmware: 'reprap', bedX: 300, bedY: 300, bedZ: 400, bedOrigin: 'centre' }),
   p('clay-corner', 'Arcilla · origen en esquina', 'Cartesianas adaptadas a pasta (pistón o tornillo). Ajusta la cama a tu máquina.',
     { ...CLAY, bedX: 300, bedY: 300, bedZ: 400 }),

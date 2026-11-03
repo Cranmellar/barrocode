@@ -149,7 +149,7 @@ function buildHeader(params: PrintParams, box: GcodeBox, keyframes: WaveKeyframe
   const filament = params.material === 'filament';
   return [
     '; ============================================================',
-    '; BarroCode — Lissajous G-code Generator',
+    '; barrocode — Lissajous G-code Generator',
     '; ============================================================',
     `; Machine                : ${profileName(params.machineProfile)} · ${FIRMWARE_LABEL[params.firmware]}`,
     `; Material               : ${filament ? `filament ${params.filamentDiameter} mm, flow ${params.flowRatio} %` : 'clay'}`,
