@@ -1,42 +1,47 @@
-# BarroCode
+<p align="center"><img src="public/logo-43n-editable.svg" alt="BarroCode" width="420"></p>
 
-Herramienta web para convertir curvas `.svg` en G-code para impresoras 3D de arcilla. Se pronuncia como *barroco*.
+BarroCode convierte un dibujo SVG en G-code para impresoras 3D de arcilla. El trazo del dibujo es la línea central de la pared; BarroCode lo ondula, apila las capas y escribe el archivo que lee la impresora. Se pronuncia como *barroco*.
 
-BarroCode toma un dibujo vectorial como línea central de la pared, la muestrea a lo largo de su longitud de arco y desplaza cada punto con una onda de Lissajous local. Las capas se apilan con uniones suaves, sin retracción, y la trayectoria se exporta como G-code en milímetros. Todo corre en el navegador: no hay servidor ni instalación.
+Funciona en el navegador. No hay que instalar nada y los archivos no salen de tu computador.
 
 **Abrir la app:** <https://cranmellar.github.io/barrocode/>
 
-## Qué Hace
+![BarroCode con la muestra 4 cargada: el panel de la pieza a la izquierda, la vista 3D de 60 capas al centro y el panel de la onda a la derecha](docs/img/barrocode.webp)
 
-- **Dibuja o importa la pieza.** Carga un SVG (arrastrándolo a la ventana o con *Cargar SVG*), usa una de las muestras integradas o genera la forma en el espacio *Forma*: lóbulos, polígonos y estrellas redondeadas o superfórmula, a un diámetro exacto en mm, con edición de nodos.
-- **Ondula la pared.** Una onda sobre la normal (N), otra sobre la tangente (T) y, opcionalmente, una oscilación vertical (Z), medidas en mm sobre el arco del trayecto.
-- **Anima la pieza en altura.** Keyframes sobre la línea de tiempo cambian la onda, la escala, el giro y el centro a lo largo de la impresión, con transición recta o suave.
-- **Muestra lo que se imprime.** La vista 3D dibuja la misma trayectoria que se escribe en el G-code, con tiempo estimado, tamaño de la pieza y filtro por capas.
-- **Exporta G-code para arcilla.** Sin retracción, con subida a la capa siguiente mientras se imprime, saltos en Z sobre los cruces, viajes en arco por encima de la pieza, pausa y cebado opcionales.
+## Qué puedes hacer
 
-## Flujo De Uso
+- Cargar un SVG, usar una de las 13 muestras o dibujar la forma en el espacio *Forma*.
+- Ondular la pared hacia los lados (N), hacia adelante y atrás (T) y en altura (Z).
+- Cambiar la onda, la escala, el giro y el centro a lo largo de la altura con keyframes.
+- Ver en 3D exactamente lo que se va a imprimir, con el tiempo estimado y el tamaño.
+- Elegir tu impresora y revisar antes de exportar si la pieza cabe en la cama.
+- Descargar el G-code.
+
+## Cómo se usa
+
+La app tiene tres espacios de trabajo, en el selector de arriba a la izquierda:
 
 ```mermaid
 flowchart LR
-  F["Forma<br/>familias, nodos, importar"] -- "Enviar a impresión" --> P
-  S["SVG o muestra"] --> P["Impresión<br/>trayectos, capas, máquina"]
-  P --> W["Onda N / T / Z<br/>y keyframes"]
-  W --> V["Vista 3D"]
-  W --> G["Descargar .gcode"]
+  F["1 · Forma<br/>dibujar la línea central"] -- "Enviar a impresión" --> I
+  S["SVG o muestra"] --> I["2 · Impresión<br/>capas, onda, keyframes"]
+  I --> M["3 · Máquina<br/>impresora y revisión"]
+  M --> G[".gcode"]
 ```
 
-1. Crea la forma en *Forma* o carga un SVG en *Impresión*.
-2. Revisa los trayectos detectados: actívalos, desactívalos o cambia su onda uno a uno.
-3. Ajusta capas, escala y posición (*Pieza*), unión de capas y viajes (*Trayecto*), velocidades y extrusión (*Máquina*).
-4. Ajusta la onda en el panel derecho, con presets y una vista de la figura de Lissajous.
-5. Añade keyframes (`K`) si la pieza debe cambiar con la altura.
-6. Revisa la vista 3D y descarga el `.gcode`.
+1. **Forma** (opcional). Genera lóbulos, polígonos, estrellas o superfórmulas a un diámetro exacto en mm, y edita sus nodos. También puedes importar un SVG para corregirlo.
+2. **Impresión**. Elige los trayectos que se imprimen, la altura de capa, el número de capas y la onda. Agrega keyframes (`K`) si la pieza cambia con la altura.
+3. **Máquina**. Elige el perfil de tu impresora. La revisión avisa si la pieza se sale de la cama, si la capa no corresponde a la boquilla o si falta algo en las plantillas de inicio y fin.
 
-La sesión se guarda en el navegador y se puede restaurar al volver. La guía completa, con cada parámetro y atajo, está en [docs/usage.md](docs/usage.md); la app tiene además una ayuda rápida en el botón `?`.
+Después pulsa **Descargar**. La sesión se guarda en el navegador y se puede recuperar al volver.
 
-## Cómo Funciona La Onda
+La guía completa, con cada parámetro y atajo, está en [docs/usage.md](docs/usage.md). En la app, el botón `?` abre una ayuda rápida.
 
-Cada punto de la trayectoria es la línea central más tres oscilaciones:
+## La onda
+
+Cada punto del trayecto se desplaza desde la línea central según la distancia recorrida sobre el trazo:
+
+![Diagrama de la onda: el trayecto impreso oscila a los lados de la línea central, en la dirección de la normal N; la amplitud se mide desde la línea central y la longitud de onda a lo largo del trazo](docs/img/onda.svg)
 
 ```text
 punto(s) = centro(s)
@@ -45,51 +50,54 @@ punto(s) = centro(s)
          + Z    · ampZ · sin(2π·s/λZ + φZ + φ)
 ```
 
-- `s` es la longitud de arco acumulada sobre el trayecto, en mm.
-- `N(s)` y `T(s)` son la normal y la tangente unitarias en ese punto.
-- `λN`, `λT` y `λZ` son longitudes de onda medidas sobre el arco, no sobre un eje recto.
-- `δ` es el desfase entre N y T, y decide la figura: con longitudes iguales, `0°` da una línea y `90°` una elipse.
-- `φ` es la fase de la capa: un offset inicial más un desfase por capa, que produce torsiones y espirales.
-
-Algunos detalles que hacen la onda imprimible:
-
-- **Costura cerrada.** En un trayecto cerrado la longitud de onda se ajusta levemente para que entre un número entero de ciclos, así la onda se encuentra consigo misma en la costura.
-- **Esquinas redondeadas.** Las curvas más cerradas de lo que la onda puede seguir se redondean antes de ondular (radio ≈ 1,25 × amplitud N); sin eso, la onda forma bucles hacia dentro y saltos hacia fuera.
-- **Piso en Z.** Con oscilación vertical, la primera capa no baja de su altura y cada punto queda al menos media capa sobre el punto de abajo.
-
-## Pensado Para Arcilla
-
-| Comportamiento | Por qué |
+| Símbolo | Qué es |
 |---|---|
-| Sin retracción | Cortar el flujo de arcilla deja huecos y burbujas. |
-| Unión suave entre capas | En trayectos cerrados la boquilla sube a la capa siguiente durante el último tramo de la vuelta, imprimiendo, en vez de subir en vertical en la costura. |
-| Z-hop parabólico en cruces | Donde la trayectoria se cruza a sí misma, la boquilla pasa por encima del cordón ya depositado. |
-| Viajes en arco | Entre trayectos, la boquilla sube 2 mm sobre lo más alto impreso y viaja en arco concéntrico, sin arrastrar la pared. |
-| Pausa y cebado | Un `G4` opcional al inicio y una línea de cebado junto a la primera capa estabilizan el flujo. |
-| Subida final segura | Al terminar sube 10 mm sobre la pieza o sobre la Z de seguridad, lo que sea más alto. |
+| `s` | Distancia recorrida sobre el trazo, en mm. |
+| `N(s)`, `T(s)` | Normal (hacia el lado) y tangente (hacia adelante) del trazo en ese punto. |
+| `ampN`, `ampT`, `ampZ` | Amplitud de cada onda, en mm. |
+| `λN`, `λT`, `λZ` | Longitud de onda, medida sobre el trazo y no sobre un eje recto. |
+| `δ` | Desfase entre N y T. Con longitudes iguales, `0°` da una línea y `90°` una elipse. |
+| `φ` | Fase de la capa: un desfase inicial más un desfase por capa. El desfase por capa produce torsiones y espirales. |
 
-## Antes De Imprimir
+Tres ajustes automáticos hacen que la onda se pueda imprimir:
 
-- **Máquina.** En el espacio *Máquina* elige el perfil de tu impresora (arcilla o filamento: Creality, Bambu Lab, Prusa y otras) o ajusta cama, origen, boquilla y plantillas de inicio y fin. La vista dibuja la cama bajo la pieza y la *Revisión previa* avisa si algo se sale de la cama, si la capa no corresponde a la boquilla o si falta algo en las plantillas. Los perfiles son cifras de catálogo: compruébalos en tu máquina.
-- **Origen de la cama.** Con el perfil de arcilla por defecto el centro de la pieza va a X 0, Y 0, lo correcto en impresoras delta y otras con origen al centro. En una impresora con origen en una esquina, *Centrar en la cama* (Máquina) la coloca en el centro; si no, media pieza queda en coordenadas negativas y la revisión lo marca.
-- **Escala.** Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `in`, `pt`…), se imprime a ese tamaño. Si no, 1 unidad SVG = 1 mm; para píxeles a 96 dpi usa un factor de escala de `0.2645`. Las formas de *Forma* llegan siempre en mm.
-- **Extrusión.** `E` es absoluta (`M82`) y crece con la distancia recorrida. En arcilla, `E += distancia · multiplicador`: calibra el multiplicador para tu bomba, pistón o tornillo, o desactiva *Generar valores E* si tu máquina controla el flujo aparte. En filamento, `E` es el volumen del cordón (ancho × altura de capa) sobre la sección del filamento.
-- **Revisa el encabezado.** El G-code empieza con un bloque de comentarios con los parámetros usados.
+- En un contorno cerrado, la longitud de onda se ajusta un poco para que entre un número entero de ciclos. Así la onda cierra sin escalón en la costura.
+- Las curvas más cerradas de lo que la onda puede seguir se redondean antes de ondular, con un radio de unas 1,25 veces la amplitud N. Sin eso, la onda se enrolla hacia adentro y salta hacia afuera.
+- Con onda Z, la primera capa no baja de su altura y cada punto queda al menos media capa por encima del punto de abajo.
 
-## G-code Generado
+## Pensado para arcilla
 
-Extracto real de una de las pruebas de referencia:
+| Qué hace | Por qué |
+|---|---|
+| No retrae. | Cortar el flujo de arcilla deja huecos y burbujas. |
+| Sube a la capa siguiente mientras imprime. | En un contorno cerrado, la boquilla sube durante el último tramo de la vuelta. No hay una subida vertical en la costura. |
+| Salta sobre los cruces. | Donde el trayecto se cruza a sí mismo, la boquilla pasa en parábola por encima del cordón que ya está. |
+| Viaja en arco y por encima. | Entre trayectos sube 2 mm sobre lo más alto impreso y rodea la pieza en vez de cruzarla. |
+| Puede pausar y cebar. | Una pausa (`G4`) al inicio y una línea de cebado junto a la primera capa estabilizan el flujo. |
+| Termina arriba y detenido. | Sube 10 mm por encima de la pieza (o de la Z de seguridad, si es más alta), espera el último movimiento y apaga los motores, extrusor incluido. |
+
+## Antes de imprimir
+
+- **Tamaño.** Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `in`, `pt`…), se imprime a ese tamaño. Si no, 1 unidad SVG = 1 mm. Para píxeles a 96 dpi, usa un factor de escala de `0.2645`. Las formas de *Forma* y las muestras ya vienen en mm.
+- **Cama y origen.** El perfil de arcilla por defecto pone el centro de la pieza en X 0, Y 0, como en las impresoras delta. Si tu impresora tiene el origen en una esquina, elige ese perfil en *Máquina* o pulsa *Centrar en la cama*. Una marca roja en la barra superior avisa si algo se sale de la cama.
+- **Extrusión.** `E` es absoluta (`M82`) y crece con el largo de cada movimiento, subidas incluidas. En arcilla, `E` = largo × multiplicador: calibra el multiplicador para tu bomba, pistón o tornillo, o desactiva *Generar valores E* si la máquina controla el flujo aparte.
+- **Perfiles.** Los perfiles de impresora usan cifras de catálogo que no se han probado en cada máquina. Compruébalos en la tuya.
+- **Encabezado.** El G-code empieza con los parámetros usados, incluidos los keyframes. Revísalo antes de imprimir.
+
+## G-code generado
+
+Extracto de uno de los archivos de referencia de las pruebas:
 
 ```gcode
 ; ============================================================
 ; BarroCode — Lissajous G-code Generator
 ; ============================================================
+; Machine                : Arcilla · origen al centro · RepRap / Duet
+; Box X 0.000…101.000  Y 0.000…101.000  Z 1.000…30.000 mm
 ; Lissajous amp N / T   : 2 / 0 mm
-; Lissajous wl  N / T   : 20 / 20 mm
 ; Layer height           : 2.5 mm
 ; Soft join              : true (transition 10 mm)
-; Print speed            : 600 mm/min
-; Extrusion multiplier   : 0.05
+; Z-hop height / radius  : 2.5 / 3 mm
 ; ...
 G21       ; mm units
 G90       ; absolute positioning
@@ -99,8 +107,9 @@ G92 E0    ; reset E
 G1 Z20.000 F1500  ; safe Z
 
 ; ===== Layer 1 / 2   Z = 1.000 mm =====
-; Z-hop: 1 crossing(s) detected
-; --- Layer 1, Path 1 ---
+;LAYER_CHANGE
+;Z:1.000
+;LAYER:0
 G1 X0.000 Y50.000 F1500  ; travel to start
 G1 Z1.000 F1500  ; descend
 G1 X2.000 Y51.176 E0.116 F600
@@ -108,15 +117,24 @@ G1 X4.000 Y51.902 E0.222 F600
 ...
 ; ===== End =====
 G1 Z30.000 F1500  ; final lift
-; --- Shutdown ---
 M400  ; wait for the last move to finish
 M107  ; auxiliary output off (auger or air valve on the fan pin)
 M84   ; disable motors, extruder included
 ```
 
+Las marcas `;LAYER_CHANGE` y `;LAYER:` permiten ver las capas en los visores de PrusaSlicer y Cura.
+
+## Limitaciones conocidas
+
+- Los elementos ocultos con `visibility:hidden` se imprimen. Usa `display:none` o bórralos.
+- Las puntas muy agudas pierden largo al redondearse con amplitudes grandes (una punta de 30° pierde unos 15 mm con amplitud 3).
+- `E` no compensa el grosor real del cordón: con onda Z, el hueco con la capa de abajo varía entre la mitad y más de una vez y media la altura de capa.
+- En *Impresión* no hay deshacer. *Forma* sí tiene `Ctrl+Z`.
+- Solo para computador de escritorio, en un navegador actual.
+
 ## Desarrollo
 
-Requiere Node.js 18 o superior (CI usa Node 24).
+Requiere Node.js 18 o superior (la integración continua usa Node 24).
 
 ```bash
 npm install
@@ -126,90 +144,50 @@ npm install
 npm run dev
 ```
 
-Abre la URL que aparece en la terminal, normalmente `http://localhost:5173`.
+Abre la dirección que muestra la terminal, normalmente `http://localhost:5173`.
 
-| Comando | Para qué |
+| Comando | Qué hace |
 |---|---|
-| `npm run dev` | Servidor de desarrollo de Vite |
-| `npm test` | Pruebas con Vitest (`npm test -- -u` actualiza los G-code de referencia) |
-| `npm run build` | Comprobación de tipos con `tsc` y build estático en `dist/` |
-| `npm run preview` | Sirve `dist/` localmente |
+| `npm run dev` | Servidor de desarrollo de Vite. |
+| `npm test` | Pruebas con Vitest. `npm test -- -u` actualiza los G-code de referencia. |
+| `npm run build` | Revisa los tipos con `tsc` y genera la app estática en `dist/`. |
+| `npm run preview` | Sirve `dist/` en local. |
 
-El build usa rutas relativas, así que `dist/` funciona en cualquier servidor estático, en una subcarpeta o abierto directamente desde el disco.
+`dist/` usa rutas relativas: funciona en cualquier servidor estático, en una subcarpeta o abierto desde el disco.
 
-Cada pull request pasa las pruebas y el build en GitHub Actions ([ci.yml](.github/workflows/ci.yml)). Cada push a `main` los repite y publica la app en GitHub Pages ([deploy.yml](.github/workflows/deploy.yml)); una prueba fallida bloquea la publicación.
+Cada pull request corre las pruebas y el build ([ci.yml](.github/workflows/ci.yml)). Cada push a `main` los repite y publica la app en GitHub Pages ([deploy.yml](.github/workflows/deploy.yml)). Si una prueba falla, no se publica.
 
-Las pruebas cubren la lógica de `src/lib/` y `src/shaper/lib/`: invariantes de movimiento del G-code (sin extrusiones largas ni descensos sobre la pieza, viajes por encima de lo impreso, G-code igual a la vista previa), archivos `.gcode` de referencia, la onda, los keyframes y la geometría de *Forma*.
+Las pruebas cubren la lógica de `src/lib/` y `src/shaper/lib/`: que el G-code no extruya en saltos largos ni baje sobre la pieza, que los viajes pasen por encima de lo impreso, que el G-code coincida con la vista 3D, los archivos de referencia, la onda, los keyframes y la geometría de *Forma*.
 
-## Arquitectura
+### Cómo está hecho
 
 ```mermaid
-flowchart TB
-  SVG["SVG"] --> Parse["svgParser.ts<br/>muestreo por arco, tangentes"]
-  Shaper["src/shaper/<br/>Forma"] -- "SVG en mm" --> Parse
-  Parse --> Wave["waveGenerator.ts<br/>esquinas, onda N/T/Z, keyframes, capas"]
-  Params["PrintParams + keyframes"] --> Wave
-  Wave --> Toolpath["toolpath.ts<br/>mm, orden de trayectos, Z-hop, rampa de costura"]
-  Toolpath --> Preview["Preview2D.tsx + draw3D.ts<br/>vista 3D"]
-  Toolpath --> Gcode["gcodeGenerator.ts<br/>viajes, transiciones, E"]
-  Gcode --> File[".gcode + resumen"]
+flowchart LR
+  SVG["SVG"] --> Parse["svgParser<br/>muestreo"]
+  Forma["Forma<br/>SVG en mm"] --> Parse
+  Parse --> Wave["waveGenerator<br/>onda y capas"]
+  Wave --> Tool["toolpath<br/>trayectoria en mm"]
+  Tool --> View["vista 3D"]
+  Tool --> Gcode["gcodeGenerator<br/>.gcode"]
 ```
 
-- `src/lib/svgParser.ts` sanea el SVG, lo inserta en un contenedor oculto y usa la API SVG del navegador para medir longitudes, puntos y transforms. Ignora lo que no se dibuja (`defs`, `clipPath`, `display:none`…).
-- `src/lib/waveGenerator.ts` redondea esquinas, calcula la onda N/T/Z con keyframes, aplica escala y giro alrededor del pivote y apila las capas.
-- `src/lib/toolpath.ts` arma la trayectoria final en mm: centra la pieza, ordena los trayectos por cercanía y calcula la Z de cada punto (onda, Z-hop, rampa de costura). La usan la vista previa y el G-code, así que ambos muestran lo mismo.
-- `src/lib/gcodeGenerator.ts` emite esa trayectoria con viajes en arco, transiciones entre capas y `E`, y calcula a la vez el resumen (tiempo, longitudes, E).
-- `src/shaper/` es *Forma*, cargado aparte la primera vez que se abre. Solo entrega a `App` un SVG cuyo usuario es 1 mm.
+La vista 3D y el G-code leen la misma trayectoria, así que muestran lo mismo. El detalle está en [docs/architecture.md](docs/architecture.md).
 
-Más detalle técnico en [docs/architecture.md](docs/architecture.md).
-
-## Estructura Del Proyecto
-
-```text
-src/
-  App.tsx                 estado, paneles flotantes, muestras, atajos, sesión
-  index.css               todos los estilos y tokens de diseño
-  types/index.ts          tipos compartidos
-  components/             paneles, vista 3D, línea de tiempo, campos numéricos, ayuda
-  lib/
-    svgParser.ts          muestreo del SVG
-    waveGenerator.ts      onda de Lissajous, keyframes, capas
-    toolpath.ts           trayectoria en mm compartida
-    gcodeGenerator.ts     G-code y resumen
-    draw3D.ts, palette.ts dibujo de la vista 3D
-    hopUtils.ts           cruces y Z-hop
-    skirtUtils.ts         viajes en arco
-    __tests__/            pruebas y G-code de referencia
-  shaper/                 Forma: familias, nodos, imprimibilidad, descubrir
-public/
-  fonts/                  GSCode
-docs/                     guía de uso, arquitectura, notas y planes
-```
-
-## Limitaciones Conocidas
-
-- **Sin control de tamaño de cama.** La app no avisa si la pieza sale de la cama ni de coordenadas negativas; revisa *Posición X / Y* para tu máquina.
-- **Extrusión lineal en XY.** `E` sigue la distancia en XY e ignora la Z, así que con oscilación vertical o en la rampa de costura la cantidad extruida es aproximada.
-- **Transforms con escala en el SVG.** Dentro de un `<g transform="scale(…)">` el espaciado de muestras y las longitudes de onda se miden en unidades locales y salen escalados. Aplica los transforms en tu editor antes de exportar.
-- **`visibility:hidden` no se detecta.** Los elementos ocultos así se imprimen; usa `display:none` o bórralos.
-- **Las puntas agudas pierden largo** al redondear esquinas con amplitudes grandes.
-- **Sin deshacer en *Impresión*.** *Forma* sí tiene `Ctrl+Z`.
-- **Solo escritorio**, en navegadores modernos; no hay versión móvil ni de escritorio nativa.
+Usa Vite 5, React 18 y TypeScript estricto, Canvas 2D para la vista 3D y *Forma*, y Vitest para las pruebas. No usa librerías de interfaz: los estilos están en `src/index.css` y la tipografía es GSCode.
 
 ## Documentación
 
-- [docs/usage.md](docs/usage.md): guía de uso, parámetros y atajos.
-- [docs/architecture.md](docs/architecture.md): pipeline interno y responsabilidades.
-- [docs/fabrication-notes.md](docs/fabrication-notes.md): criterios de fabricación con arcilla.
-- [docs/research-notes.md](docs/research-notes.md): ideas de diseño y fabricación en exploración.
-- [docs/marco-teorico.md](docs/marco-teorico.md): referentes teóricos (ornamento, simetría, forma orgánica, materia, accidente programado).
-- [docs/shaper-plan.md](docs/shaper-plan.md): plan y registro de *Forma*.
-- [pendientes.md](pendientes.md): backlog priorizado.
-- [CLAUDE.md](CLAUDE.md): manual de trabajo para sesiones de Claude Code, con el estado actual del proyecto.
+| Documento | Contenido |
+|---|---|
+| [docs/usage.md](docs/usage.md) | Guía de uso: cada espacio de trabajo, parámetro y atajo. |
+| [docs/architecture.md](docs/architecture.md) | Cómo pasa el SVG a G-code dentro del código. |
+| [docs/fabrication-notes.md](docs/fabrication-notes.md) | Decisiones de fabricación con arcilla. |
+| [docs/marco-teorico.md](docs/marco-teorico.md) | Referentes teóricos: ornamento, simetría, forma orgánica, materia, accidente programado. |
+| [docs/research-notes.md](docs/research-notes.md) | Ideas de diseño y fabricación en exploración. |
+| [docs/shaper-plan.md](docs/shaper-plan.md), [docs/maquina-plan.md](docs/maquina-plan.md) | Planes y registro de *Forma* y *Máquina*. |
+| [pendientes.md](pendientes.md) | Tareas pendientes, por prioridad. |
+| [CLAUDE.md](CLAUDE.md) | Manual para trabajar en el código con Claude Code, con el estado actual del proyecto. |
 
-## Tecnologías
+## Licencia
 
-- [Vite 5](https://vitejs.dev/), [React 18](https://react.dev/) y TypeScript estricto.
-- Canvas 2D para la vista 3D y *Forma*.
-- [Vitest](https://vitest.dev/) para las pruebas.
-- Sin librerías de interfaz: el sistema visual vive en `src/index.css`, con la tipografía GSCode.
+[MIT](LICENSE) © 2026 Cristián Mella. Puedes usar, modificar y redistribuir el código manteniendo el aviso de copyright. El G-code y las piezas que hagas con BarroCode son tuyos.
