@@ -233,6 +233,20 @@ describe('generateGcode — layer markers', () => {
   });
 });
 
+describe('generateGcode — extrusion', () => {
+  it('extrudes along the 3D length of each move, Z-only steps included', () => {
+    const path = [{ x: 0, y: 0, z: 1 }, { x: 3, y: 4, z: 1 }, { x: 3, y: 4, z: 3 }, { x: 3, y: 4, z: 3 }, { x: 6, y: 8, z: 4 }];
+    const layer = { index: 0, z: 1, paths: [path], centroid: { x: 3, y: 4 }, crossings: 0 };
+    const { text } = generateGcode([layer], { ...PARAMS, numLayers: 1, extrusionMultiplier: 1 });
+    const prints = interpret(text).filter(m => m.extruding);
+
+    expect(prints).toHaveLength(3);
+    expect(prints[1].to).toEqual({ x: 3, y: 4, z: 3 });
+    const e = [...text.matchAll(/ E([\d.]+)/g)].map(m => +m[1]);
+    expect(e[e.length - 1]).toBeCloseTo(5 + 2 + Math.hypot(3, 4, 1), 3);
+  });
+});
+
 describe('generateGcode — program start and end', () => {
   it('sets absolute extrusion only when E is generated', () => {
     expect(run(facingPair()).gcode).toContain('\nM82 ');

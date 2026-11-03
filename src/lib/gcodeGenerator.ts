@@ -62,6 +62,12 @@ function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(bx - ax, by - ay);
 }
 
+// Extrusion follows the bead's length in space: the Z wave, the seam ramp
+// and z-hops all climb while printing.
+function dist3(ax: number, ay: number, az: number, bx: number, by: number, bz: number) {
+  return Math.hypot(bx - ax, by - ay, bz - az);
+}
+
 // ── Moves ───────────────────────────────────────────────────────────────────
 
 // Machine position plus the program summary, kept as each move is written so
@@ -203,7 +209,7 @@ function buildTransition(
   const lines: string[] = [
     `; ↗ Soft transition Z ${fmt(zFrom)} → ${fmt(zTo)} mm`,
   ];
-  let prevX = from.x, prevY = from.y;
+  let prevX = from.x, prevY = from.y, prevZ = zFrom;
 
   for (let i = 1; i <= nSteps; i++) {
     const t = i / nSteps;
@@ -212,11 +218,11 @@ function buildTransition(
     const y = from.y + (to.y - from.y) * st;
     const z = zFrom + (zTo - zFrom) * t;
 
-    const segD = dist(prevX, prevY, x, y);
+    const segD = dist3(prevX, prevY, prevZ, x, y, z);
     eRef.value += segD * ePerMM(params);
     const e = params.generateE ? eRef.value : undefined;
     lines.push(move(m, { x, y, z, e }, feed));
-    prevX = x; prevY = y;
+    prevX = x; prevY = y; prevZ = z;
   }
   return lines;
 }
@@ -346,7 +352,7 @@ function pathToGcode(
   for (let i = 1; i < pts.length; i++) {
     const prev = pts[i - 1];
     const curr = pts[i];
-    const d = dist(prev.x, prev.y, curr.x, curr.y);
+    const d = dist3(prev.x, prev.y, prev.z, curr.x, curr.y, curr.z);
     if (d < 1e-6) continue;
 
     eRef.value += d * ePerMM(params);
@@ -386,7 +392,10 @@ function fillTemplate(tpl: string, vars: Record<string, string | number>): strin
 export function layerLength(layer: ToolpathLayer): number {
   let len = 0;
   for (const path of layer.paths) {
-    for (let i = 1; i < path.length; i++) len += dist(path[i - 1].x, path[i - 1].y, path[i].x, path[i].y);
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], b = path[i];
+      len += dist3(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
   }
   return len;
 }
