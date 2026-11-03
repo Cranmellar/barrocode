@@ -259,6 +259,14 @@ function svgOutlines(raw: string, name: string, mmPerUnit: number | null, keep: 
 
 type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'ampTOverride' | 'wlNOverride' | 'wlTOverride'>;
 
+const pathStates = (paths: SampledPath[]): PathState[] =>
+  paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
+    ({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }));
+
+// Re-sampling measures every path again in the DOM: wait for the spacing to
+// settle while it is typed or wheeled.
+const RESAMPLE_MS = 300;
+
 interface SavedSession {
   raw: string;
   filename: string;
@@ -683,14 +691,18 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // Re-sample when spacing changes
+  // Re-sample when spacing changes, keeping each path's switch and overrides.
+  const parsedRef = useRef(parsedSVG);
+  useEffect(() => { parsedRef.current = parsedSVG; }, [parsedSVG]);
   useEffect(() => {
-    const ref = lastRawRef.current;
-    if (ref && parsedSVG && ref.spacing !== params.sampleSpacing) {
-      doParse(ref.raw, params.sampleSpacing);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.sampleSpacing]);
+    const t = setTimeout(() => {
+      const ref = lastRawRef.current, parsed = parsedRef.current;
+      if (ref && parsed && ref.spacing !== params.sampleSpacing) {
+        doParse(ref.raw, params.sampleSpacing, pathStates(parsed.paths));
+      }
+    }, RESAMPLE_MS);
+    return () => clearTimeout(t);
+  }, [params.sampleSpacing, doParse]);
 
   // Regenerate G-code with debounce — avoids freezing UI during slider/kf edits
   useEffect(() => {
@@ -739,8 +751,7 @@ export default function App() {
     const t = setTimeout(() => {
       const session: SavedSession = {
         raw, filename: gcodeFilename, params, keyframes,
-        paths: parsedSVG.paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
-          ({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride })),
+        paths: pathStates(parsedSVG.paths),
       };
       try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* full or unavailable */ }
     }, 1000);
