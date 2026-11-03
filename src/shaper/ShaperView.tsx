@@ -448,10 +448,6 @@ export function ShaperView(props: Props) {
         <div className="panel-scroll">
           <div className="panel-header">
             {switcher}
-            <span className="panel-header-actions">
-              <button className="btn-reset" onClick={reset} disabled={isDefault}
-                title={wrapHint('Vuelve a la forma inicial de las familias, sin nodos ni importaciones (Ctrl+Z lo deshace)')}>Restablecer</button>
-            </span>
           </div>
           {contours ? (
             <PathPanel contours={contours} order={order} symmetric={doc.pathSymmetric} canSymmetric={canSym}
@@ -520,6 +516,8 @@ export function ShaperView(props: Props) {
             aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶</button>
           <button className="btn-icon" onClick={redo} disabled={future.current.length === 0}
             aria-label="Rehacer" title="Rehacer (Ctrl+Shift+Z)">↷</button>
+          <button className="btn-reset" onClick={reset} disabled={isDefault}
+            title={wrapHint('Vuelve a la forma inicial de las familias, sin nodos ni importaciones (Ctrl+Z lo deshace)')}>Restablecer</button>
           <button className={`btn-toggle${showBand && bands.length ? ' btn-toggle--on' : ''}`}
             aria-pressed={showBand && bands.length > 0} disabled={bands.length === 0}
             onClick={() => setShowBand(!showBand)}

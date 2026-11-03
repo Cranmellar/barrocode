@@ -196,7 +196,11 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
           Onda en el extrusor ({autoKeyAt}). Al cambiar un valor se crea un keyframe aquí.
         </div>
       ) : (
-        <div className="liss-context"><Icon name="global" />Onda global: se aplica a toda la pieza</div>
+        <div className="liss-context liss-context--global" title="Sin keyframes, esta onda se aplica igual a toda la pieza">
+          <Icon name="global" />
+          <span className="liss-context-text">Onda global</span>
+          <span className="liss-context-scope">toda la pieza</span>
+        </div>
       )}
 
       {/* ── Preajustes ── */}
