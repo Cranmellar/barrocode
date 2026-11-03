@@ -266,7 +266,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
       </p>
       <KeyframeFigure />
       <ol className="help-list">
-        <li>Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>+ Keyframe</em> o <K>K</K>.</li>
+        <li>Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>Keyframe</em> o <K>K</K>.</li>
         <li>Clic en su rombo (en la línea de tiempo o en la vista 3D) para elegirlo y editarlo: la onda en el panel derecho; posición, escala, giro y centro sobre la línea de tiempo.</li>
         <li>Arrástralo para moverlo: se ajusta al inicio de cada capa; con <K>Alt</K>, queda libre.</li>
         <li><em>Transición suave</em> hace que los valores lleguen y salgan sin quiebre; el rombo se dibuja redondo.</li>

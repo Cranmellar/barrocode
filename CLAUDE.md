@@ -414,6 +414,7 @@ Keyboard shortcuts live in one window `keydown` handler in `App.tsx` (stable-ref
 4. **Canvas rendering** lives inside `useEffect` with the full dependency array — the canvas redraws on every relevant change. Expensive *geometry* may be memoized (`layers` and `toolpath` in `App.tsx`, `flatPoints` in `Preview2D`); the drawing itself is not.
 5. **Stable-refs pattern for window-level handlers.** Refs are updated in a separate `useEffect([dep])`, then read inside a `useEffect([])` that attaches `window` listeners once. See `Preview2D.tsx` keyframe drag code for the canonical example.
 6. **Spanish UI throughout.** Labels, tooltips, section titles, error messages — all Spanish. Code, identifiers, and comments — English. (Existing files mix in some Spanish comments; keep new comments English.)
+   **User docs** (`README.md`, `docs/usage.md`, `docs/architecture.md`, `docs/fabrication-notes.md`) are Spanish too, rewritten in Nov 2026 to the owner's style: short, direct sentences; sentence-case headings; UI names exactly as the app shows them; say what a setting does to the part; no filler intros, no stock phrasing, no em dashes. Update them in the same commit as a user-visible change.
 7. **No undo/redo** in Impresión: state changes are permanent until the user changes them again. Forma is the exception (the owner's call, `docs/shaper-plan.md` D-S1): `ShaperView` keeps a stack of `ShapeDoc`.
 8. **Default to writing no comments.** Only add a comment when the WHY is non-obvious (a hidden constraint, a workaround, a subtle invariant). Never explain WHAT well-named code already says, and never reference the current task / fix / caller.
 9. **Don't add error handling for impossible scenarios.** Trust internal code. Only validate at boundaries (user input, SVG parsing).
@@ -520,6 +521,8 @@ When you need context, this is where to look:
 - [docs/shaper-plan.md](docs/shaper-plan.md) — plan and record of *Forma*, the in-app shape generator and path editor that hands SVGs to the print workspace: references, module boundary, decisions (D-S1…D-S7, only D-S4 open), phases F0–F6 (all done, with what was measured) and possible next steps.
 - [docs/maquina-plan.md](docs/maquina-plan.md) — plan and record of the third workspace, *Máquina* (G0–G4 built; G-1 measurement and G5 test prints open): bed and origin, pre-export checks, printer profiles (clay, Creality K1, Ender-3 V3), start/end templates and a filament (FDM) mode; decisions D-G1…D-G8 and phases G-1…G5. Low-fidelity mockups of three layouts in `docs/mockups/maquina/` (static HTML; `node shoot.cjs` re-renders the PNGs), plus `prototipo.html`, a working single-file prototype with 19 printer profiles, live checks and real G-code for a test part.
 - `docs/ui-interactive-mockup.html`, `docs/ui-image-prompt.md` — UI design references, not shipped.
+- `docs/img/` — README and guide images: `barrocode.webp` (app screenshot, sample 4, 1440×860 at 2×), `onda.svg` (the N/T wave on a path) and `costura.svg` (seam ramp seen from the side). The SVGs are plain hand-editable files; keep their colours on the app's tokens (`--n-axis`, `--t-axis`, `--ink`) and their white background so they read on GitHub's dark theme.
+- [LICENSE](LICENSE) — MIT, © 2026 Cristián Mella.
 
 ---
 
