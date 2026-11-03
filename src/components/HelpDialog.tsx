@@ -163,6 +163,7 @@ const CONTROLS: [string, Row[]][][] = [[
   ['Línea de tiempo', [
     [<><K>←</K> <K>→</K></>, <>mover el extrusor 1 % (<K>Shift</K>: 0,1 %); con un keyframe elegido, saltar al vecino</>],
     [<K>K</K>, 'añadir keyframe en el extrusor'],
+    [<K>D</K>, 'copiar el keyframe anterior en el extrusor'],
     [<><K>Esc</K> · <K>Supr</K></>, 'soltar · borrar el keyframe elegido'],
     [<K>G</K>, 'mostrar u ocultar el G-code'],
   ]],
@@ -265,7 +266,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
       </p>
       <KeyframeFigure />
       <ol className="help-list">
-        <li>Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>+ Keyframe</em> o <K>K</K>.</li>
+        <li>Mueve el extrusor en la línea de tiempo, abajo, y pulsa <em>Keyframe</em> o <K>K</K>.</li>
         <li>Clic en su rombo (en la línea de tiempo o en la vista 3D) para elegirlo y editarlo: la onda en el panel derecho; posición, escala, giro y centro sobre la línea de tiempo.</li>
         <li>Arrástralo para moverlo: se ajusta al inicio de cada capa; con <K>Alt</K>, queda libre.</li>
         <li><em>Transición suave</em> hace que los valores lleguen y salgan sin quiebre; el rombo se dibuja redondo.</li>

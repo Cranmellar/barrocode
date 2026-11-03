@@ -7,8 +7,6 @@ import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenera
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
 import type { BedOverlay } from './lib/draw3D';
-import { MachineParams } from './components/MachineParams';
-import { MachineReview } from './components/MachineReview';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
@@ -23,9 +21,12 @@ import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 import { wrapHint } from './lib/wrapHint';
+import { keyframeChanges } from './lib/keyframeDiff';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
+const MachineParams = lazy(() => import('./components/MachineParams').then(m => ({ default: m.MachineParams })));
+const MachineReview = lazy(() => import('./components/MachineReview').then(m => ({ default: m.MachineReview })));
 
 type Workspace = 'forma' | 'impresion' | 'maquina';
 
@@ -44,20 +45,36 @@ const _P4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path
 const _P5 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m240 0 207.8 120v240L240 480 32.2 360V120Z" fill="#55555D"/></svg>`;
 const svgUri = (s: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
 
+// The samples are drawn on a 480-unit canvas. Each prints SAMPLE_MM across
+// and as tall: the square (x, y, size) around the drawing maps onto it, and
+// the root's size in mm makes loading it set scaleFactor to 1.
+const SAMPLE_MM = 150;
+function sizedSample(svg: string, x = 0, y = 0, size = 480): string {
+  return svg
+    .replace('viewBox="0 0 480 480">',
+      `width="${SAMPLE_MM}mm" height="${SAMPLE_MM}mm" viewBox="0 0 ${SAMPLE_MM} ${SAMPLE_MM}">`
+      + `<g transform="scale(${SAMPLE_MM / size}) translate(${-x} ${-y})">`)
+    .replace('</svg>', '</g></svg>');
+}
+const sample = (svg: string, name: string, x?: number, y?: number, size?: number) => {
+  const raw = sizedSample(svg, x, y, size);
+  return { uri: svgUri(raw), raw, name };
+};
+
 const SAMPLES = [
-  { uri: svgUri(_S1), raw: _S1, name: 'muestra-1.gcode' },
-  { uri: svgUri(_S2), raw: _S2, name: 'muestra-2.gcode' },
-  { uri: svgUri(_S3), raw: _S3, name: 'muestra-3.gcode' },
-  { uri: svgUri(_S4), raw: _S4, name: 'muestra-4.gcode' },
-  { uri: svgUri(_S5), raw: _S5, name: 'muestra-5.gcode' },
-  { uri: svgUri(_S6), raw: _S6, name: 'muestra-6.gcode' },
-  { uri: svgUri(_S7), raw: _S7, name: 'muestra-7.gcode' },
-  { uri: svgUri(_S8), raw: _S8, name: 'muestra-8.gcode' },
-  { uri: svgUri(_P1), raw: _P1, name: 'cuadrado.gcode' },
-  { uri: svgUri(_P2), raw: _P2, name: 'triangulo.gcode' },
-  { uri: svgUri(_P3), raw: _P3, name: 'circulo.gcode' },
-  { uri: svgUri(_P4), raw: _P4, name: 'pentagono.gcode' },
-  { uri: svgUri(_P5), raw: _P5, name: 'hexagono.gcode' },
+  sample(_S1, 'muestra-1.gcode'),
+  sample(_S2, 'muestra-2.gcode'),
+  sample(_S3, 'muestra-3.gcode'),
+  sample(_S4, 'muestra-4.gcode'),
+  sample(_S5, 'muestra-5.gcode'),
+  sample(_S6, 'muestra-6.gcode', 50.2, 50.2, 379.6),
+  sample(_S7, 'muestra-7.gcode'),
+  sample(_S8, 'muestra-8.gcode', 46.8, 46.8, 386.5),
+  sample(_P1, 'cuadrado.gcode'),
+  sample(_P2, 'triangulo.gcode'),
+  sample(_P3, 'circulo.gcode'),
+  sample(_P4, 'pentagono.gcode'),
+  sample(_P5, 'hexagono.gcode'),
 ];
 
 const DEFAULT_PARAMS: PrintParams = {
@@ -209,6 +226,9 @@ function loadMachine(): Partial<MachineFields> {
   }
 }
 const SESSION_KEY = 'barrocode.session';
+// The session's SVG, on its own key: it is the bulk of the session and only
+// changes when another file is loaded.
+const SESSION_SVG_KEY = 'barrocode.sessionSvg';
 // Forma's shape and the last SVG it sent, kept apart from the print session.
 const SHAPE_KEY = 'barrocode.shape';
 
@@ -259,6 +279,14 @@ function svgOutlines(raw: string, name: string, mmPerUnit: number | null, keep: 
 
 type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'ampTOverride' | 'wlNOverride' | 'wlTOverride'>;
 
+const pathStates = (paths: SampledPath[]): PathState[] =>
+  paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
+    ({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }));
+
+// Re-sampling measures every path again in the DOM: wait for the spacing to
+// settle while it is typed or wheeled.
+const RESAMPLE_MS = 300;
+
 interface SavedSession {
   raw: string;
   filename: string;
@@ -270,10 +298,18 @@ interface SavedSession {
 function loadSession(): SavedSession | null {
   try {
     const s = JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null');
-    return s && typeof s.raw === 'string' ? s : null;
+    const raw = localStorage.getItem(SESSION_SVG_KEY);
+    return s && typeof s === 'object' && raw !== null ? { ...s, raw } : null;
   } catch {
     return null;
   }
+}
+
+function forgetSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_SVG_KEY);
+  } catch { /* storage unavailable */ }
 }
 
 function hasSeenHelp() {
@@ -483,6 +519,21 @@ export default function App() {
     setSelectedKfId(newKf.id);
   }
 
+  // Copies the keyframe before the extruder (or after it, at the start) to
+  // the extruder, so a wave can be held or repeated further up.
+  const kfToDuplicate = kfAtCursor ? null : prevKf ?? nextKf;
+  function duplicateKeyframe() {
+    if (!kfToDuplicate) {
+      if (kfAtCursor) showToast('Ya hay un keyframe aquí: mueve el extrusor a donde quieras la copia');
+      return;
+    }
+    const copy = { ...kfToDuplicate, id: uid(), t: timelineProgress };
+    const updated = [...keyframes, copy].sort((a, b) => a.t - b.t);
+    setKeyframes(updated);
+    setSelectedKfId(copy.id);
+    showToast(`Keyframe ${keyframes.indexOf(kfToDuplicate) + 1} copiado en el ${Math.round(copy.t * 100)} % como ${updated.indexOf(copy) + 1}`);
+  }
+
   // Once the last keyframe goes, the global values take over again; they
   // take that keyframe's values so the part doesn't change shape.
   function adoptAsGlobal(kf: WaveKeyframe) {
@@ -540,12 +591,14 @@ export default function App() {
   const helpOpenRef = useRef(helpOpen);
   const workspaceRef = useRef(workspace);
   const addKeyframeRef = useRef(addKeyframe);
+  const duplicateKeyframeRef = useRef(duplicateKeyframe);
   const deleteKeyframeRef = useRef(deleteKeyframe);
   const neighbourKfRef = useRef({ prev: prevKf, next: nextKf, select: selectKf });
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
   useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
+  useEffect(() => { duplicateKeyframeRef.current = duplicateKeyframe; }, [keyframes, timelineProgress, selectedKfId]);
   useEffect(() => { deleteKeyframeRef.current = deleteKeyframe; }, [keyframes, params, selectedKfId]);
   useEffect(() => { neighbourKfRef.current = { prev: prevKf, next: nextKf, select: selectKf }; }, [keyframes, timelineProgress, selectedKfId]);
 
@@ -572,6 +625,8 @@ export default function App() {
       const id = selectedKfIdRef.current;
       if (key === 'k') {
         addKeyframeRef.current();
+      } else if (key === 'd') {
+        duplicateKeyframeRef.current();
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]') && id) {
         // With a keyframe open the arrows walk between keyframes, so the
         // extruder never drifts away from the one being edited.
@@ -683,14 +738,18 @@ export default function App() {
     reader.readAsText(file);
   }
 
-  // Re-sample when spacing changes
+  // Re-sample when spacing changes, keeping each path's switch and overrides.
+  const parsedRef = useRef(parsedSVG);
+  useEffect(() => { parsedRef.current = parsedSVG; }, [parsedSVG]);
   useEffect(() => {
-    const ref = lastRawRef.current;
-    if (ref && parsedSVG && ref.spacing !== params.sampleSpacing) {
-      doParse(ref.raw, params.sampleSpacing);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [params.sampleSpacing]);
+    const t = setTimeout(() => {
+      const ref = lastRawRef.current, parsed = parsedRef.current;
+      if (ref && parsed && ref.spacing !== params.sampleSpacing) {
+        doParse(ref.raw, params.sampleSpacing, pathStates(parsed.paths));
+      }
+    }, RESAMPLE_MS);
+    return () => clearTimeout(t);
+  }, [params.sampleSpacing, doParse]);
 
   // Regenerate G-code with debounce — avoids freezing UI during slider/kf edits
   useEffect(() => {
@@ -703,7 +762,7 @@ export default function App() {
     setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
-      setProgram(generateGcode(toolpath, params));
+      setProgram(generateGcode(toolpath, params, keyframes));
       setGcodeBusy(false);
     }, 400);
     return () => {
@@ -712,7 +771,7 @@ export default function App() {
         gcodeTimerRef.current = null;
       }
     };
-  }, [toolpath, params]);
+  }, [toolpath, params, keyframes]);
 
   function togglePath(id: string) {
     setParsedSVG(prev => prev && {
@@ -733,16 +792,22 @@ export default function App() {
   }
 
   // Autosave so an accidental tab close doesn't lose the work.
+  const savedRawRef = useRef<string | null>(null);
   useEffect(() => {
     const raw = lastRawRef.current?.raw;
     if (!parsedSVG || !raw) return;
     const t = setTimeout(() => {
-      const session: SavedSession = {
-        raw, filename: gcodeFilename, params, keyframes,
-        paths: parsedSVG.paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
-          ({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride })),
+      const session: Omit<SavedSession, 'raw'> = {
+        filename: gcodeFilename, params, keyframes,
+        paths: pathStates(parsedSVG.paths),
       };
-      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* full or unavailable */ }
+      try {
+        if (savedRawRef.current !== raw) {
+          localStorage.setItem(SESSION_SVG_KEY, raw);
+          savedRawRef.current = raw;
+        }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      } catch { /* full or unavailable */ }
     }, 1000);
     return () => clearTimeout(t);
   }, [parsedSVG, params, keyframes, gcodeFilename]);
@@ -758,8 +823,21 @@ export default function App() {
   }, [machineKey]);
 
   const checks = useMemo(
-    () => workspace === 'maquina' ? checkMachine(params, toolpath, program?.stats ?? null) : [],
-    [workspace, params, toolpath, program],
+    () => workspace !== 'forma'
+      ? checkMachine(params, toolpath, program?.stats ?? null, Math.max(0, ...layers.map(l => l.maxGap)))
+      : [],
+    [workspace, params, toolpath, program, layers],
+  );
+  // Impresión shows the errors and the part's own warnings, as a way into
+  // the full review.
+  const machineIssues = workspace === 'impresion' ? checks.filter(c => c.level === 'err' || (c.part && c.level === 'warn')) : [];
+  const machineErr = machineIssues.some(c => c.level === 'err');
+  const machineAlert = machineIssues.length > 0 && (
+    <button className={`btn-small machine-alert${machineErr ? '' : ' machine-alert--warn'}`} onClick={() => setWorkspace('maquina')}
+      aria-label={`${machineIssues.length} ${machineErr ? 'problema' : 'aviso'}${machineIssues.length > 1 ? 's' : ''} antes de imprimir: abrir la revisión`}
+      title={[...machineIssues.map(c => wrapHint(c.title)), 'Abrir la revisión en Máquina'].join('\n')}>
+      <Icon name="aviso" />{machineIssues.length}
+    </button>
   );
   const bedOut = checks.some(c => c.level === 'err' && c.action === 'centre');
   // The bed in toolpath coordinates, which the preview draws in: the G-code's
@@ -801,12 +879,14 @@ export default function App() {
   }
 
   function discardSession() {
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    forgetSession();
+    savedRawRef.current = null;
     setSavedSession(null);
   }
 
   function clearSVG() {
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    forgetSession();
+    savedRawRef.current = null;
     setParsedSVG(null);
     setError(null);
     lastRawRef.current = null;
@@ -850,7 +930,10 @@ export default function App() {
     keepWaveOnly();
     const s = SAMPLES[sampleIndex];
     setGcodeFilename(s.name);
-    doParse(s.raw, params.sampleSpacing);
+    setParams(p => p.useNumLayers
+      ? { ...p, numLayers: Math.round(SAMPLE_MM / p.layerHeight) }
+      : { ...p, totalHeight: SAMPLE_MM });
+    doParse(s.raw, params.sampleSpacing, [], true);
   }
 
   const kfNav = keyframes.length > 0 && (
@@ -887,6 +970,17 @@ export default function App() {
           ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${keyframes.indexOf(kfAtCursor) + 1}`
           : <><KeyframeAddIcon />Keyframe</>}
       </button>
+      {kfToDuplicate && (
+        <button className="btn-icon" onClick={duplicateKeyframe}
+          title={`Copiar el keyframe ${keyframes.indexOf(kfToDuplicate) + 1} en el extrusor (D)`}
+          aria-label={`Duplicar el keyframe ${keyframes.indexOf(kfToDuplicate) + 1} en el extrusor`}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor"
+            strokeWidth="1.4" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="7" height="7" rx="1.2"/>
+            <path d="M8 2.2V2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h.2"/>
+          </svg>
+        </button>
+      )}
       {selectedKf && (
         <button className="btn-icon kf-del-btn" onClick={deleteKeyframe}
           title="Eliminar este keyframe (Supr)" aria-label="Eliminar keyframe seleccionado">
@@ -910,6 +1004,7 @@ export default function App() {
     </div>
   );
 
+  const kfDiff = selectedKf && selectedIdx > 0 ? keyframeChanges(keyframes[selectedIdx - 1], selectedKf, params) : [];
   const kfEditor = selectedKf && (
     <div className="kf-editor">
       <div className="kf-group">
@@ -996,6 +1091,19 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      <div className="kf-group kf-group-diff" title={wrapHint('Lo que cambia desde el keyframe anterior; entre los dos, cada valor pasa de uno a otro.')}>
+        <span className="kf-diff-head">
+          {selectedIdx === 0 ? 'Primer keyframe' : <>Desde el {selectedIdx}</>}
+        </span>
+        {selectedIdx > 0 && (kfDiff.length === 0
+          ? <span className="kf-diff-none">Sin cambios</span>
+          : <ul className="kf-diff">
+              {kfDiff.map(c => (
+                <li key={c.label}><span className="kf-diff-label">{c.label}</span> {c.from} → <strong>{c.to}</strong>{c.unit && <span className="kf-unit">{c.unit === '°' ? c.unit : ` ${c.unit}`}</span>}</li>
+              ))}
+            </ul>)}
+      </div>
     </div>
   );
 
@@ -1070,6 +1178,7 @@ export default function App() {
         timelineActions={kfActions}
         timelineEditor={kfEditor}
         bed={bed}
+        summaryLead={machineAlert || null}
         showTimeline={workspace === 'impresion'}
       />
 
@@ -1084,7 +1193,7 @@ export default function App() {
                   title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
               </span>
             </div>
-            {workspace === 'maquina' ? <MachineParams params={params} onChange={setParams} /> : <>
+            {workspace === 'maquina' ? <Suspense fallback={null}><MachineParams params={params} onChange={setParams} /></Suspense> : <>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
                 <span className="session-banner-text">
@@ -1181,12 +1290,14 @@ export default function App() {
         <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
             {workspace === 'maquina' ? (
-              <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
-                gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
-                headerExtra={
-                  <button className="btn-icon" onClick={() => togglePanel('right')}
-                    title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
-                } />
+              <Suspense fallback={null}>
+                <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
+                  gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
+                  headerExtra={
+                    <button className="btn-icon" onClick={() => togglePanel('right')}
+                      title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
+                  } />
+              </Suspense>
             ) : (
             <LissajousParams
               params={lissParams}

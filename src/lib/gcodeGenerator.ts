@@ -29,7 +29,7 @@
  *   crossing provides clearance without stopping extrusion.
  */
 
-import type { PrintParams } from '../types';
+import type { PrintParams, WaveKeyframe } from '../types';
 import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
 import { layerCount, wallPassCount, wallSpacingMM } from './waveGenerator';
@@ -61,6 +61,12 @@ function fmt(n: number, d = 3) { return n.toFixed(d); }
 
 function dist(ax: number, ay: number, bx: number, by: number) {
   return Math.hypot(bx - ax, by - ay);
+}
+
+// Extrusion follows the bead's length in space: the Z wave, the seam ramp
+// and z-hops all climb while printing.
+function dist3(ax: number, ay: number, az: number, bx: number, by: number, bz: number) {
+  return Math.hypot(bx - ax, by - ay, bz - az);
 }
 
 // ── Moves ───────────────────────────────────────────────────────────────────
@@ -122,7 +128,23 @@ function smoothstep(t: number) { return t * t * (3 - 2 * t); }
 
 // ── Header ──────────────────────────────────────────────────────────────────
 
-function buildHeader(params: PrintParams, box: GcodeBox): string {
+// With keyframes the wave listed above is only the base: each keyframe
+// overrides it from its position on.
+function keyframeLines(kfs: WaveKeyframe[], params: PrintParams): string[] {
+  if (kfs.length === 0) return [];
+  const n = (v: number) => String(+v.toFixed(3));
+  const deg = (r: number) => (r * 180 / Math.PI).toFixed(1);
+  return [
+    `; Keyframes              : ${kfs.length} (they override the wave above along the print)`,
+    ...kfs.map((k, i) => `;   ${i + 1} at ${(k.t * 100).toFixed(1)} %`
+      + ` · N ${n(k.ampN)} / ${n(k.wlN)} · T ${n(k.ampT)} / ${n(k.wlT)}`
+      + ` · Z ${n(k.ampZ ?? params.lissAmpZ)} / ${n(k.wlZ ?? params.lissWlZ)} mm · delta ${deg(k.delta)}°`
+      + ` · scale ${n(k.scaleX ?? params.scaleX)} / ${n(k.scaleY ?? params.scaleY)} · rotation ${n(k.rotation ?? params.rotation)}°`
+      + (k.smooth ? ' · smooth' : '')),
+  ];
+}
+
+function buildHeader(params: PrintParams, box: GcodeBox, keyframes: WaveKeyframe[]): string {
   const deg = (r: number) => (r * 180 / Math.PI).toFixed(1);
   const filament = params.material === 'filament';
   return [
@@ -139,6 +161,7 @@ function buildHeader(params: PrintParams, box: GcodeBox): string {
     `; Lissajous delta        : ${(params.lissDelta * 180 / Math.PI).toFixed(1)}°`,
     `; Phase offset           : ${(params.lissPhaseOffset * 180 / Math.PI).toFixed(1)}°`,
     `; Phase shift / layer    : ${(params.phaseShiftPerLayer * 180 / Math.PI).toFixed(1)}°`,
+    ...keyframeLines(keyframes, params),
     `; Layer height           : ${params.layerHeight} mm`,
     `; Number of layers       : ${layerCount(params)}`,
     `; Nozzle Z offset        : ${params.nozzleHeightOffset} mm`,
@@ -204,7 +227,7 @@ function buildTransition(
   const lines: string[] = [
     `; ↗ Soft transition Z ${fmt(zFrom)} → ${fmt(zTo)} mm`,
   ];
-  let prevX = from.x, prevY = from.y;
+  let prevX = from.x, prevY = from.y, prevZ = zFrom;
 
   for (let i = 1; i <= nSteps; i++) {
     const t = i / nSteps;
@@ -213,11 +236,11 @@ function buildTransition(
     const y = from.y + (to.y - from.y) * st;
     const z = zFrom + (zTo - zFrom) * t;
 
-    const segD = dist(prevX, prevY, x, y);
+    const segD = dist3(prevX, prevY, prevZ, x, y, z);
     eRef.value += segD * ePerMM(params);
     const e = params.generateE ? eRef.value : undefined;
     lines.push(move(m, { x, y, z, e }, feed));
-    prevX = x; prevY = y;
+    prevX = x; prevY = y; prevZ = z;
   }
   return lines;
 }
@@ -347,7 +370,7 @@ function pathToGcode(
   for (let i = 1; i < pts.length; i++) {
     const prev = pts[i - 1];
     const curr = pts[i];
-    const d = dist(prev.x, prev.y, curr.x, curr.y);
+    const d = dist3(prev.x, prev.y, prev.z, curr.x, curr.y, curr.z);
     if (d < 1e-6) continue;
 
     eRef.value += d * ePerMM(params);
@@ -387,7 +410,10 @@ function fillTemplate(tpl: string, vars: Record<string, string | number>): strin
 export function layerLength(layer: ToolpathLayer): number {
   let len = 0;
   for (const path of layer.paths) {
-    for (let i = 1; i < path.length; i++) len += dist(path[i - 1].x, path[i - 1].y, path[i].x, path[i].y);
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1], b = path[i];
+      len += dist3(a.x, a.y, a.z, b.x, b.y, b.z);
+    }
   }
   return len;
 }
@@ -428,6 +454,7 @@ export interface GcodeProgram {
 export function generateGcode(
   centred: ToolpathLayer[],
   params: PrintParams,
+  keyframes: WaveKeyframe[] = [],
 ): GcodeProgram {
   const m = newMachine();
   if (centred.length === 0) return { text: '; No layers to generate.\n', stats: statsOf(m) };
@@ -559,7 +586,7 @@ export function generateGcode(
   if (!filament) blocks.push(CLAY_SHUTDOWN);
   else if (!params.endGcode.trim()) blocks.push(FILAMENT_SHUTDOWN);
 
-  const head = [buildHeader(params, box)];
+  const head = [buildHeader(params, box, keyframes)];
   if (params.startGcode.trim()) head.push(`; --- Start G-code ---\n${fillTemplate(params.startGcode.trimEnd(), vars)}\n; --- End of start G-code ---`);
 
   return { text: [...head, ...blocks].join('\n'), stats: statsOf(m) };

@@ -1,6 +1,6 @@
 # Módulo *Forma* (shaper) — plan de trabajo
 
-Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F6 hechas (ver sección 6). Queda abierta D-S4.
+Fecha: 2026-10-28 · base: `main` @ `d5202be` · estado: F0–F6 hechas (ver sección 6). Todas las decisiones cerradas.
 
 ---
 
@@ -96,7 +96,7 @@ Cada pedido nuevo se compara con esta lista antes de entrar.
 | D-S1 | **Deshacer en el shaper.** El proyecto no tiene undo, pero editar puntos sin deshacer es frustrante. | **Cerrada: sí**, local al shaper: una pila de `ShapeDoc` (son pocos bytes). *Impresión* sigue sin undo. |
 | D-S2 | **`svg-path-editor-lib` o modelo propio.** El proyecto no tiene dependencias en runtime aparte de React. | **Cerrada: modelo propio** (F4). La librería (1.0.4, Apache-2.0, ESM, ≈4,8 kB gzip) pasaba el filtro de peso, pero su modelo son comandos mutables cuyas asas pertenecen a comandos distintos: mover un nodo no mueve sus asas, no parte una curva sin cambiarla y convertir a curva pone las asas en tercios. Habría que escribir igual el arrastre con asas, la partición y la simetría, más adaptadores. |
 | D-S3 | **Selector de espacio de trabajo o página aparte.** | **Cerrada:** selector, en el encabezado del panel izquierdo (F0). |
-| D-S4 | **Licencia de BarroCode.** No tiene. | MIT antes de copiar código de cualquier referente. Si solo se toman ideas, no es urgente. |
+| D-S4 | **Licencia de BarroCode.** | **Cerrada: MIT** (`LICENSE`, © 2026 Cristián Mella). Admite código de Method Draw (MIT) y de SvgPathEditor (Apache-2.0, conservando su aviso); SuperformulaSVG tiene una licencia propia que hay que leer antes de copiar. |
 | D-S5 | **Familias del MVP.** | **Cerrada:** superfórmula, polígono/estrella con radio de esquina, flor de lóbulos (F1). |
 | D-S6 | **Un contorno o varios en el MVP.** | **Cerrada: varios** (F5), porque las muestras 4, 7 y 8 los tienen. La simetría solo con un contorno. |
 | D-S7 | **Color del botón *Enviar a impresión*.** `--signal` está reservado a exportar el G-code y añadir keyframe. | **Cerrada:** `.btn-primary` (F0). |

@@ -1,189 +1,206 @@
-# Uso De BarroCode
+# Guía de uso
 
-Esta guía describe el flujo de uso de BarroCode desde la carga del SVG hasta la exportación del G-code.
-
-## Flujo General
+Cómo pasar de un dibujo a un archivo `.gcode` con BarroCode, y qué hace cada parámetro.
 
 ```mermaid
 flowchart TD
-  A["Cargar SVG"] --> B["Revisar trayectos detectados"]
-  F0["Crear la forma en Forma"] --> B
-  B --> C["Ajustar parámetros de impresión"]
-  C --> D["Ajustar Lissajous"]
-  D --> E["Crear keyframes si hace falta"]
-  E --> F["Previsualizar capas y viajes"]
-  F --> G["Exportar .gcode"]
+  A["Cargar un SVG o una muestra"] --> C["Elegir las rutas que se imprimen"]
+  B["Dibujar la forma en Forma"] --> C
+  C --> D["Pieza: capas, muro, escala"]
+  D --> E["Onda: N, T, Z"]
+  E --> K["Keyframes, si la pieza cambia con la altura"]
+  K --> M["Máquina: perfil y revisión"]
+  M --> G["Descargar el .gcode"]
 ```
 
-## 1. Cargar Un SVG
+La app tiene tres espacios de trabajo. Se cambian con el selector de arriba del panel izquierdo:
 
-Arrastra un archivo SVG sobre la ventana o usa **Cargar SVG** en el panel izquierdo.
-
-Elementos soportados:
-
-- `<path>`
-- `<polyline>`
-- `<polygon>`
-- `<line>`
-- `<circle>`
-- `<ellipse>`
-- `<rect>`
-
-Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
-
-### O crear la forma en *Forma*
-
-El selector **Forma · Impresión**, arriba del panel izquierdo, cambia de espacio de trabajo. *Forma* dibuja la línea central de la pieza ya en milímetros, sin pasar por otro programa:
-
-- **Lienzo**: la rueda acerca o aleja alrededor del cursor; arrastrar el fondo (o con el botón central) desplaza la vista. El botón de encuadre, a la izquierda de la barra superior, vuelve a la vista inicial. La cuadrícula pasa de 1 a 10, 50 o 250 mm según el zoom.
-
-- **Familias**: *Lóbulos* (número, profundidad, agudeza), *Polígono* (lados, estrella, radio de esquina en mm) y *Superfórmula* (m, n1, n2, n3). Debajo, **Diámetro exterior** (dos veces la distancia del centro al punto más lejano), **Giro**, **Costura** (el ángulo donde empieza y termina cada capa) y **Sentido horario**.
-- **Descubrir** (barra superior): nueve variaciones de la familia. Clic adopta una; **Más como esta** sortea cerca de la forma actual; **Otra tanda**, en todo el rango. Con nodos (editados o importados), deja los nodos y vuelve a la familia; `Ctrl+Z` los recupera.
-- **Imprimibilidad**: marca en rojo los tramos más cerrados de lo que la onda de *Impresión* puede seguir y propone cómo arreglarlo. **Onda** (barra superior) dibuja la franja que barre la onda: donde dos franjas se tocan, las paredes chocarán.
-- **Editar puntos**: convierte la forma en nodos. Arrastra un nodo o las asas del elegido; doble clic en la línea añade un nodo; `Supr` lo borra. Con **Simetría**, cada cambio se repite en todas las repeticiones. El panel muestra el nodo elegido y la lista de comandos del trazado. **Volver a la familia**, arriba del panel, deja los nodos.
-- **Importar**: **Abrir en Forma** (junto al nombre del archivo, en *Impresión*) o **Abrir SVG…** traen los contornos cerrados de un SVG como nodos, al tamaño que se imprimen. Los trazados abiertos quedan fuera.
-- **Enviar a impresión** carga la forma en *Impresión* con el factor de escala en 1; **Editar forma** vuelve a ella.
-
-**Restablecer**, junto al selector *Forma · Impresión*, vuelve a la forma inicial (lóbulos, sin nodos). En *Forma*, `Ctrl+Z` deshace y `Ctrl+Shift+Z` rehace (en *Impresión* no hay deshacer). La forma se guarda en el navegador y vuelve al abrir la app.
-
-## 2. Revisar Trayectos
-
-Cada elemento geométrico detectado aparece en **Trayectos SVG**. Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) aparece como un trayecto por subtrazado, con el nombre del original seguido de `-1`, `-2`…
-
-Puedes:
-
-- activar o desactivar trayectos individuales;
-- sobrescribir amplitud normal/tangente por trayecto;
-- sobrescribir longitud de onda normal/tangente por trayecto.
-
-Si un override queda vacío, BarroCode usa el valor global.
-
-## 3. Parámetros De Impresión
-
-El panel izquierdo agrupa los parámetros de la pieza en dos pestañas: **Pieza** (capas, muro, resolución, escala, centro, escala y giro) y **Trayecto** (dirección, unión de capas, z-hop, desplazamientos). Lo que depende de la impresora está en el espacio **Máquina** (ver *3b*). La pestaña activa se recuerda entre sesiones. Ambos paneles laterales se pueden plegar; con menos de 1280 px de ancho solo queda uno abierto.
-
-| Parámetro | Efecto |
+| Espacio | Para qué |
 |---|---|
-| **Espaciado de muestra** (Pieza › Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm cuando la escala es 1). Lo justo son unos 10 puntos por ciclo de la onda más corta: menos y la onda sale quebrada, más y el G-code pesa más y cada cambio tarda en recalcularse. Debajo, el panel muestra los puntos por ciclo y sugiere un valor (entre 0,25 y 2,5 mm). |
-| **Altura de capa** | Incremento Z entre capas apiladas. |
-| **Número de capas / Altura total** | Define cuántas capas generar, directamente o derivadas desde altura total. |
-| **Pasadas por capa** (Pieza › Muro) | Cuántos cordones, uno al lado del otro, forman la pared (1–4). Todos repiten la onda con las crestas alineadas y a la misma altura. En un contorno cerrado se imprimen uno tras otro, unidos en la costura, y solo el último sube a la capa siguiente; en un trazo abierto van de ida y vuelta. Las esquinas se redondean 1,5 veces la distancia al cordón más alejado, para que el interior no se pliegue. |
-| **Separación** | Distancia entre cordones vecinos, en % del ancho de línea de *Máquina*. Al 100 % se tocan; por debajo se montan. En los flancos de la onda quedan más juntos que en las crestas (con N 3 mm y λ 20 mm, al 74 %). Si la última pasada queda más lejos de la primera que el *Arco de transición*, el cambio de capa levanta la boquilla. |
-| **Afuera / Adentro / Centrado** | Hacia dónde crece la pared desde la línea dibujada. Afuera y adentro dejan el primer cordón sobre la línea; centrado deja la línea en el medio de la pared. Se mide en cada contorno respecto de su propio interior; en un trazo abierto, afuera es el lado convexo. |
-| **Factor de escala** | Convierte unidades SVG a mm. Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `pt`, `in`…), se ajusta solo al cargarlo para imprimir a tamaño real, y el botón *Usar tamaño real* lo restablece. Si no tiene unidades, usa `1` cuando las coordenadas estén en mm o `0.2645` para píxeles a 96 dpi. |
-| **Invertir Y** | Espeja el eje Y para convertir coordenadas SVG, que crecen hacia abajo, a coordenadas de impresora. |
-| **Transición Z suave** | Conecta una capa con la siguiente con movimiento continuo, sin retracción ni levantamiento. En rutas cerradas la boquilla sube a la capa siguiente mientras recorre el final de la vuelta, en vez de subir en vertical en la costura. |
-| **Arco de transición** | Largo en mm del tramo final de cada ruta cerrada en el que se sube a la capa siguiente. Si es mayor que el perímetro, la subida ocupa toda la vuelta. No se aplica con *Dirección alternada*. |
-| **Dirección alternada** | Invierte capas impares para reducir deriva direccional. |
-| **Cerrar trayecto** | Agrega retorno al inicio de cada trayecto. |
+| **1 · Forma** | Dibujar la línea central de la pieza, en mm. Es opcional. |
+| **2 · Impresión** | Rutas, capas, onda y keyframes. Es donde se diseña la pieza. |
+| **3 · Máquina** | La impresora: cama, boquilla, velocidades, plantillas. Muestra la revisión antes de exportar. |
 
-## 3b. Máquina
+## 1. Cargar la pieza
 
-El tercer espacio, **Máquina** (selector de arriba del panel izquierdo), reúne lo que depende de la impresora. Se guarda aparte (`barrocode.machine`) y se conserva al cargar otro SVG o restaurar una sesión. La vista 3D dibuja la cama bajo la pieza, con su origen X0 Y0; el borde se pone en rojo y discontinuo si algo se sale. El panel derecho es la **Revisión previa**: errores, avisos y lo que está bien, con un resumen de tiempo, material, caja y tamaño del archivo.
+Arrastra un archivo SVG sobre la ventana o pulsa **Cargar SVG** en el panel izquierdo. BarroCode lee estos elementos: `<path>`, `<polyline>`, `<polygon>`, `<line>`, `<circle>`, `<ellipse>` y `<rect>`.
 
-| Parámetro | Efecto |
+No se imprime lo que el SVG no dibuja: el contenido de `<defs>`, `<clipPath>`, `<mask>`, `<symbol>`, `<marker>` y `<pattern>`, ni los elementos con `display:none`. Los elementos con `visibility:hidden` sí se imprimen; bórralos antes de exportar el SVG.
+
+Sin archivo a mano, usa las muestras: ocho dibujos y cinco polígonos básicos. Las flechas `‹` `›` cambian de muestra y un clic en la miniatura la carga. Cada muestra mide 15 cm en su lado mayor y se carga con 15 cm de alto (el número de capas se ajusta a tu altura de capa).
+
+**Tamaño.** Si el SVG declara su tamaño en unidades físicas (`width="100mm"`, `cm`, `in`, `pt`…), se imprime a ese tamaño. Si no, 1 unidad SVG = 1 mm.
+
+## 2. Forma
+
+*Forma* dibuja la línea central de la pieza directamente en mm, con curvas que la onda puede seguir.
+
+- **Familias.** *Lóbulos* (número, profundidad, agudeza), *Polígono* (lados, estrella, radio de esquina en mm) y *Superfórmula* (m, n1, n2, n3).
+- **Tamaño y orientación.** *Diámetro exterior* es dos veces la distancia del centro al punto más lejano. *Giro* rota la forma. *Costura* es el ángulo donde empieza y termina cada capa. *Sentido horario* invierte el recorrido.
+- **Descubrir** (barra superior) muestra nueve variaciones de la familia. Un clic adopta una. *Más como esta* busca cerca de la forma actual; *Otra tanda*, en todo el rango.
+- **Imprimibilidad** marca en rojo los tramos más cerrados de lo que la onda puede seguir y propone cómo corregirlos. **Onda** (barra superior) dibuja la franja que ocupa la onda: donde dos franjas se tocan, las paredes chocarán.
+- **Editar puntos** convierte la forma en nodos. Arrastra un nodo o las asas del nodo elegido. Doble clic en la línea agrega un nodo; `Supr` lo borra. Con *Simetría*, cada cambio se repite en todas las repeticiones. *Volver a la familia*, arriba del panel, descarta los nodos.
+- **Importar.** *Abrir SVG…* en *Forma*, o *Abrir en Forma* junto al nombre del archivo en *Impresión*, traen los contornos cerrados de un SVG como nodos, a su tamaño de impresión. Los trazos abiertos no se importan.
+- **Enviar a impresión** carga la forma en *Impresión* con factor de escala 1. **Editar forma** vuelve a ella.
+
+En el lienzo, la rueda acerca o aleja alrededor del cursor, y arrastrar el fondo (o con el botón central) desplaza la vista. El botón de encuadre vuelve a la vista inicial.
+
+`Ctrl+Z` deshace y `Ctrl+Shift+Z` rehace. **Restablecer** vuelve a la forma inicial. La forma se guarda en el navegador.
+
+## 3. Rutas SVG
+
+Cada elemento que BarroCode encuentra aparece en **Rutas SVG**, con su largo. Un `<path>` con varios subtrazados (un contorno con agujero, por ejemplo) se separa en una ruta por subtrazado: `nombre-1`, `nombre-2`…
+
+En cada ruta puedes:
+
+- desactivarla para que no se imprima (la pieza se vuelve a centrar con las demás);
+- cambiar su amplitud y longitud de onda N y T. Un campo vacío usa el valor de la onda global.
+
+Con keyframes, los valores por ruta no se aplican y quedan desactivados.
+
+## 4. Pieza
+
+Pestaña **Pieza** del panel izquierdo.
+
+| Parámetro | Qué hace |
 |---|---|
-| **Perfil** | Rellena la máquina de una vez y centra la pieza en la cama. Arcilla: origen al centro, origen en esquina, Delta WASP 2040 Clay. Filamento: Creality K1 / K1C, K1 Max, Ender-3 V3, V3 KE, V3 SE, Ender-3 S1; Bambu Lab A1 mini, A1, P1S / X1C; Prusa MK4S, CORE One, MINI+; Elegoo Neptune 4 Pro; Anycubic Kobra 3; Sovol SV06; Voron 2.4 (350). Son cifras de catálogo y perfiles de la comunidad, sin verificar en máquina. Cambiar un valor pasa a *Personalizado*. |
-| **Material** | *Arcilla*: E es el multiplicador de la bomba y nunca hay retracción. *Filamento*: E es el volumen del cordón sobre la sección del filamento, con retracción, ventilador y temperaturas; las velocidades se muestran en mm/s. |
-| **Firmware** | Marlin, Klipper, Prusa, Bambu Lab o RepRap. Decide cómo se escribe la aceleración (`M204` o `SET_VELOCITY_LIMIT`) y qué avisos da la revisión. |
-| **Cama** | Rectangular (ancho X, fondo Y) o redonda (diámetro), y altura Z. La subida final no pasa de esa altura. |
+| **Altura de capa** | Distancia en Z entre una capa y la siguiente. |
+| **Núm. de capas** / **Altura total** | Cuántas capas se apilan, o la altura de la pieza (el número de capas sale de dividirla por la altura de capa). Máximo 500 capas. |
+| **Pasadas por capa** (Muro) | Cuántos cordones, uno al lado del otro, forman la pared (1 a 4). Todos repiten la onda con las crestas alineadas. En un contorno cerrado se imprimen uno tras otro y solo el último sube a la capa siguiente; en un trazo abierto van de ida y vuelta. |
+| **Separación** | Distancia entre cordones vecinos, en % del ancho de cordón de *Máquina*. Al 100 % se tocan. En los flancos de la onda quedan más juntos que en las crestas. |
+| **Afuera / Adentro / Centrado** | Hacia dónde crece la pared desde la línea dibujada. Afuera y adentro dejan el primer cordón sobre la línea; centrado la deja en el medio de la pared. |
+| **Espaciado de muestra** (Resolución) | Distancia entre los puntos que se toman del trazo, en unidades SVG (mm con escala 1). Conviene tener unos 10 puntos por ciclo de la onda más corta. Debajo, el panel cuenta los puntos por ciclo y sugiere un valor. |
+| **Factor de escala** | Convierte unidades SVG a mm. Se ajusta solo con un SVG que declara su tamaño; *Usar tamaño real* lo restablece. Sin unidades, usa `1` si el dibujo está en mm o `0.2645` si está en píxeles a 96 dpi. |
+| **Invertir eje Y** | El SVG cuenta Y hacia abajo y casi todas las impresoras hacia arriba. Activado, la pieza sale en la cama como se ve en el dibujo. |
+| **Centro** | Punto alrededor del que se escala y gira la pieza, medido desde el centro de la pieza (0, 0 es el centro). Se mueve con los campos o en el recuadro pequeño. *Centrar en la pieza* lo devuelve a 0, 0. |
+| **Escala** | Escala de la forma alrededor del centro, igual o distinta en X e Y. No cambia el factor de escala del SVG. |
+| **Giro** | Giro de la forma alrededor del centro, en grados, antihorario visto desde arriba. |
+
+## 5. Trayecto
+
+Pestaña **Trayecto** del panel izquierdo.
+
+| Parámetro | Qué hace |
+|---|---|
+| **Invertir dirección** | La boquilla recorre cada ruta en sentido contrario. |
+| **Alternar por capa** | Una capa en un sentido y la siguiente en el otro, así cada capa empieza donde terminó la anterior. La subida a la capa siguiente es vertical. |
+| **Cerrar trayecto** | Si una ruta no termina donde empezó, agrega el tramo que la cierra. |
+| **Transición Z suave** | La boquilla sigue extruyendo al pasar a la capa siguiente. En un contorno cerrado sube como una rampa al final de la vuelta; en un trazo abierto, solo si la capa siguiente empieza cerca. Desactivada, la boquilla se levanta 2 mm en cada cambio de capa. |
+| **Arco de transición** | Largo del tramo final de la vuelta en que la boquilla sube a la capa siguiente. Más largo, rampa más suave. En un trazo abierto, es la distancia máxima a la que puede empezar la capa siguiente para unirlas sin levantar. |
+| **Altura de salto** (Z-hop en cruces) | Cuánto sube la boquilla donde la ruta se cruza a sí misma, para no aplastar el cordón que ya está. Solo salta la segunda pasada. 0 = sin saltos. |
+| **Radio de cruce** | Distancia a cada lado del cruce en que la boquilla sube y vuelve a bajar, en parábola. |
+| **Umbral arco desvío** | Los desplazamientos entre rutas más largos que esto rodean la pieza en arco en vez de cruzarla. Siempre van 2 mm por encima de lo más alto ya impreso. |
+
+## 6. Onda
+
+El panel derecho. Arriba, una figura pequeña muestra la onda que recorre la boquilla, y una línea dice qué se está editando: la onda global, la de un keyframe o la interpolada en el extrusor.
+
+![La onda N oscila a los lados de la línea central; la longitud de onda se mide sobre el trazo](img/onda.svg)
+
+| Parámetro | Qué hace |
+|---|---|
+| **Preajustes** | Combinaciones listas: Sinusoide, Elipse, Figura 8, Espiral, Trébol y Plano. |
+| **Amplitud N** | Cuánto se separa la boquilla de la línea, hacia los lados. Las curvas más cerradas de lo que la onda puede seguir se redondean con un radio de unas 1,25 veces esta amplitud. Con 0, la línea queda tal cual. |
+| **Longitud de onda N** | Largo de un ciclo, medido sobre el trazo. En un contorno cerrado se ajusta un poco para que entre un número entero de ciclos y la onda cierre en la costura. |
+| **Amplitud T** / **Longitud de onda T** | Lo mismo hacia adelante y atrás, sobre el sentido de avance. |
+| **Amplitud Z** / **Longitud de onda Z** / **Fase Z** | Oscilación en altura. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa de abajo. Si una cresta queda muy por encima de la capa de abajo, la revisión avisa que el cordón puede caer al aire. |
+| **Delta (N respecto a T)** | Desfase entre N y T. Con longitudes iguales, 0° da una línea y 90° una elipse. |
+| **Desfase inicial** | Dónde empieza la onda en la primera capa. |
+| **Desfase por capa** | Cuánto se corre la onda en cada capa. Produce torsiones y espirales. |
+
+*Restablecer* (arriba del panel) vuelve los valores de la onda a los iniciales. Con un keyframe elegido, solo los de ese keyframe.
+
+## 7. Keyframes
+
+Un keyframe fija la onda, la escala, el giro y el centro en un punto de la impresión. Entre dos keyframes, cada valor pasa de uno a otro.
+
+1. Mueve el extrusor de la línea de tiempo (abajo) al punto que quieras.
+2. Pulsa **Keyframe** o `K`. El keyframe toma la onda que se ve en ese punto y queda elegido.
+3. Con un keyframe elegido, el panel derecho edita su onda (dice *Editando Keyframe N · %*). La franja de abajo edita su posición, giro, escala, centro y transición, y la columna *Desde el N* lista lo que cambia respecto al keyframe anterior ("N 3 → 6 mm").
+4. Pulsa **✓ Listo** o `Esc` para terminar. `Supr` borra el keyframe elegido.
+
+Más:
+
+- `←` `→`, los botones `‹` `›` o un clic en un rombo cambian de keyframe. Para mover uno, arrástralo: se ajusta al inicio de la capa más cercana; con `Alt` se mueve libre.
+- `D` (o el botón de copia junto a *Keyframe*) copia el keyframe anterior en el extrusor. Sirve para sostener o repetir una onda más arriba.
+- Con keyframes y ninguno elegido, el panel derecho muestra la onda en el extrusor. Si cambias un valor, se crea un keyframe ahí.
+- *Transición · Suave* hace que los valores lleguen al keyframe y salgan de él sin quiebre en la pared. Un keyframe suave se dibuja redondo.
+- La línea de tiempo indica la capa y la altura bajo el extrusor ("capa 23 · 57.5 mm").
+- *Borrar todos* pide un segundo clic. Al borrar el último keyframe, sus valores pasan a la onda global y la pieza no cambia.
+- Al cargar otro SVG, los keyframes conservan la onda y pierden el centro, la escala y el giro.
+
+**Giro con keyframes.** De 0° a 360°, la pieza da una vuelta completa a lo largo de su altura. Una torsión fuerte desplaza cada capa respecto a la de abajo, más cuanto más lejos del centro, y el cordón puede quedar en voladizo. BarroCode no lo limita: revísalo en la vista 3D.
+
+## 8. Máquina
+
+El tercer espacio de trabajo. Lo que pongas aquí se guarda aparte y se mantiene al cargar otro SVG.
+
+La vista 3D dibuja la cama bajo la pieza, con su origen X0 Y0; el borde se pone rojo y punteado si algo se sale. El panel derecho es la **Revisión previa**: errores, avisos y lo que está bien, con el tiempo, el material, la caja y el tamaño del archivo. Dos botones corrigen lo más común: *Centrar en la cama* y *Adaptar a la boquilla*.
+
+En *Impresión*, una marca en la barra superior avisa de los mismos errores (en rojo) y de los avisos sobre la pieza (en gris). Un clic abre la revisión.
+
+| Parámetro | Qué hace |
+|---|---|
+| **Perfil** | Rellena la máquina de una vez y centra la pieza en la cama. Arcilla: origen al centro, origen en esquina, Delta WASP 2040 Clay. Filamento: Creality, Bambu Lab, Prusa, Elegoo, Anycubic, Sovol y Voron. Son cifras de catálogo, sin probar en cada máquina. Cambiar un valor pasa a *Personalizado*. |
+| **Material** | *Arcilla*: `E` es un multiplicador de la bomba y nunca hay retracción. *Filamento*: `E` es el volumen del cordón sobre la sección del filamento, con retracción, ventilador y temperaturas. |
+| **Firmware** | Marlin, Klipper, Prusa, Bambu Lab o RepRap. Define cómo se escribe la aceleración y qué avisos da la revisión. |
+| **Cama** | Rectangular (ancho y fondo) o redonda (diámetro), y altura. La subida final no pasa de esa altura. |
 | **Origen de la máquina** | Dónde está X0 Y0: en la esquina delantera izquierda (casi todas las cartesianas) o en el centro (deltas). |
-| **Colocar la pieza por** | *Su centro* pone el centro de la pieza en *Posición X / Y*. *Su esquina inf. izq.* pone la esquina inferior izquierda del rectángulo que ocupa la pieza a *Margen X / Y* del origen. *Centrar en la cama* usa *Su centro* con el centro de la cama. |
-| **Boquilla / Ancho de cordón** | Con la altura de capa dan el volumen extruido (filamento) y la revisión de la capa: en filamento, más del 80 % de la boquilla es un error; en arcilla, un aviso. Menos del 25 % avisa en los dos. |
-| **Diámetro de filamento / Flujo / Caudal máximo** | Filamento. El caudal máximo es lo que el fusor alcanza a fundir (mm³/s); la revisión avisa si ancho × capa × velocidad lo supera. |
-| **Generar valores E / Multiplicador** | Incluye la columna `E`. El multiplicador (arcilla) son unidades `E` por mm; ajústalo a la bomba, la presión o el tornillo. |
-| **Temperaturas / Ventilador** | Filamento. Las temperaturas entran en la plantilla de inicio (`{nozzleTemp}`, `{bedTemp}`); el ventilador se apaga al empezar (`M107`) y se enciende en la capa indicada (`M106`). |
+| **Colocar la pieza por** | *Su centro* lo pone en *Posición X / Y*. *Su esquina inf. izq.* pone la esquina inferior izquierda de la pieza a *Margen X / Y* del origen. |
+| **Boquilla** / **Ancho de cordón** | Con la altura de capa, definen el volumen extruido (filamento) y la revisión de la capa. |
+| **Generar valores E** / **Multiplicador** | Incluye la columna `E`. En arcilla, el multiplicador son unidades `E` por mm recorrido: ajústalo a tu bomba, pistón o tornillo. `E` sigue el largo real de cada movimiento, subidas incluidas. |
+| **Temperaturas** / **Ventilador** | Filamento. Las temperaturas entran en la plantilla de inicio; el ventilador se enciende en la capa indicada. |
 | **Velocidades** | Impresión, primera capa (0 = la de impresión) y desplazamiento. |
-| **Tiempo mín. por capa** | Las capas que tardarían menos se imprimen más despacio, para enfriar (filamento) o asentarse (arcilla). 0 = desactivado. |
-| **Aceleración** | 0 deja la de la máquina. |
-| **Retracción** | Filamento: mm que se recogen antes de cada desplazamiento entre trayectos y se devuelven al llegar. |
-| **Desplazamiento Z** | Altura de la primera capa: se suma al Z de cada capa. En filamento suele ser una altura de capa; la revisión da error si queda en Z 0. |
-| **Z de seguridad** | Altura de desplazamiento al inicio y tras el cebado. Al terminar, la boquilla sube 10 mm sobre esta altura o sobre la pieza, sin pasar la altura de la máquina. |
-| **Pausa al inicio / Cebado** | Arcilla. `G4` en la primera posición, y una línea corta paralela a X a 10 mm de la primera capa (debajo, o encima si debajo quedaría en Y negativa). |
-| **Inicio y fin** | G-code antes y después del programa. Variables: `{nozzleTemp}`, `{bedTemp}`, `{bedX}`, `{bedY}`, `{bedZ}`, `{firstLayerZ}`, `{topZ}`, `{parkZ}` (la altura del levantamiento final), `{clearZ}` (50 mm por encima de la pieza, sin pasar de `{bedZ}`; para dejarla fácil de sacar), `{minX}`, `{maxX}`, `{minY}`, `{maxY}`. Una variable desconocida queda tal cual y la revisión lo marca como error. Con arcilla el programa acaba siempre, después de la plantilla, con `M400` (espera al último movimiento), `M107` (apaga la salida auxiliar, por si el tornillo o la válvula de aire cuelgan de ella) y `M84` (apaga los motores, extrusor incluido). Con filamento y sin plantilla de fin, acaba con `M104 S0`, `M140 S0`, `M107` y `M84`. Los perfiles Creality OS (K1, K1 Max, Ender-3 V3 y V3 KE) apagan el extrusor y la cama, bajan la cama a `{clearZ}` y llaman a `END_PRINT`, que enfría la boquilla con el ventilador hasta 40 °C y aparca el cabezal. |
-| **Adaptar a la boquilla** | En la revisión: ajusta altura de capa, ancho de cordón, onda N (si no hay keyframes), espaciado de muestra y, con filamento, el desplazamiento Z a la boquilla. |
+| **Tiempo mín. por capa** | Las capas más rápidas que esto se imprimen más despacio, para enfriar o asentarse. 0 = desactivado. |
+| **Desplazamiento Z** | Altura de la primera capa. La revisión da error si queda en Z 0. |
+| **Z de seguridad** | Altura de los desplazamientos al inicio y después del cebado. |
+| **Pausa al inicio** / **Cebado** | Arcilla. Una pausa (`G4`) en la primera posición y una línea corta a 10 mm de la primera capa. |
+| **Inicio y fin** | G-code antes y después del programa, con variables: `{nozzleTemp}`, `{bedTemp}`, `{bedX}`, `{bedY}`, `{bedZ}`, `{firstLayerZ}`, `{topZ}`, `{parkZ}`, `{clearZ}`, `{minX}`, `{maxX}`, `{minY}`, `{maxY}`. Una variable desconocida es un error en la revisión. |
 
-## 4. Parámetros De Lissajous
+Al final del programa, con arcilla, BarroCode siempre agrega `M400` (espera el último movimiento), `M107` (apaga la salida auxiliar, por si el tornillo o la válvula de aire cuelgan de ella) y `M84` (apaga los motores, extrusor incluido).
 
-| Parámetro | Efecto |
+## 9. Vista 3D
+
+La vista dibuja la misma trayectoria que se escribe en el G-code: las capas, las subidas entre capas, los saltos sobre los cruces, los desplazamientos, el extrusor y los keyframes.
+
+La barra superior resume la impresión: tiempo estimado (a la velocidad programada, sin aceleraciones) y tamaño de la pieza. Al pasar el cursor muestra los largos de impresión y desplazamiento, la `E` total y el número de puntos. Si la ventana es angosta, el resumen pasa a dos líneas y algunos botones quedan solo con su ícono.
+
+| Control | Qué hace |
 |---|---|
-| **Amplitud N** | Semi-amplitud lateral, sobre la normal del trayecto. Las esquinas y curvas más cerradas de lo que la onda puede seguir se redondean con un radio de 1,25 × la amplitud N (más si la onda T es grande), para que la onda no forme bucles hacia dentro ni saltos hacia fuera. Con amplitud 0 la trayectoria conserva las esquinas tal como están. |
-| **Amplitud T** | Semi-amplitud adelante/atrás, sobre la tangente. |
-| **Longitud de onda N / T** | Longitud de arco de un ciclo completo de onda. En un trayecto cerrado se ajusta levemente para que entre un número entero de ciclos y la onda cierre sin escalón en la costura (de 20 a 19,97 mm en un contorno de 3,5 m). |
-| **Delta** | Diferencia de fase entre N y T. `0°` tiende a línea; `90°` tiende a elipse cuando las longitudes de onda coinciden. |
-| **Offset de fase** | Fase inicial de la onda. |
-| **Amplitud Z** | Oscilación vertical de la boquilla. La primera capa no baja de su altura y cada punto queda al menos media altura de capa sobre la capa anterior: con amplitudes grandes o desfase por capa, los valles se aplanan en vez de chocar. |
-| **Desfase por capa** | Fase extra aplicada por capa para crear torsión o comportamiento helicoidal. |
+| Arrastrar | Desplaza la vista. |
+| Arrastrar con el botón derecho | Gira la cámara. |
+| Rueda | Acerca o aleja. |
+| Botón de encuadre | Encuadra la pieza. |
+| **Isométrica / Planta / Frente** | Vistas fijas. |
+| **Color** | Colorea cada capa o usa un solo color. |
+| **Cotas** | Muestra el largo, el ancho y el alto de la pieza. |
+| Barra de capas (derecha) | Muestra hasta la capa elegida. *Aislar capa*, debajo, deja solo esa capa en color. |
 
-Los preajustes aplican combinaciones de amplitud, longitud de onda y fase con una miniatura de la figura local resultante.
+## 10. Exportar
 
-## 5. Keyframes
+Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo sale del SVG: `mi-vasija.svg` da `mi-vasija.gcode`.
 
-La línea de tiempo permite anclar parámetros de Lissajous en posiciones específicas de la trayectoria.
+## Campos numéricos
 
-1. Mueve el extrusor de la línea de tiempo al punto deseado.
-2. Haz clic en **⊕ Añadir**, en el **+** punteado de la línea de tiempo o pulsa `K`. El keyframe toma la onda que se ve en ese punto y queda seleccionado.
-3. Con un keyframe seleccionado, el panel derecho edita **su** onda (amplitudes, longitudes de onda, delta, Z y fase); el encabezado *Editando Keyframe N %* lo indica. La franja inferior edita su posición, giro, escala, centro y transición.
-4. Pulsa **OK** o `Esc` para terminar; `Supr` elimina el keyframe seleccionado. Cambia de keyframe con **‹ ›**, con `←` / `→` o haciendo clic en su rombo; arrástralo para moverlo. Al arrastrar se ajusta al inicio de capa (la costura); con `Alt` se mueve libre.
-
-Con keyframes y ninguno seleccionado, el panel derecho muestra la onda interpolada en el extrusor. Si cambias un valor de la onda, se crea un keyframe ahí con ese cambio (o se edita el que ya está bajo el extrusor).
-
-Cada keyframe se muestra como un rombo numerado de color, con el mismo número y color en la línea de tiempo, la vista 3D y los paneles. La línea de tiempo indica la capa y la altura bajo el extrusor ("capa 23 · 34.5 mm"). Entre keyframes, BarroCode interpola en línea recta; un keyframe con *Transición · Suave* se dibuja redondo y sus valores llegan y salen sin quiebre en la pared.
-
-*Borrar todos* pide un segundo clic. Al borrar el último keyframe, su onda, centro, escala y giro pasan a ser los valores globales, así que la pieza no cambia. Al cargar otro SVG, los keyframes conservan la onda y pierden centro, escala y giro.
-
-**Giro:** cada keyframe puede girar la pieza alrededor de su centro, en grados, antihorario visto desde arriba. El giro se aplica después de la escala y se interpola sin atajos: de 0° a 360° la pieza da una vuelta completa a lo largo de su altura (torsión). Una torsión fuerte desplaza cada capa respecto a la de abajo, más cuanto más lejos del centro, y el cordón puede quedar en voladizo; BarroCode no lo limita, así que conviene revisarlo en la vista 3D.
-
-## 6. Previsualización
-
-La vista global muestra:
-
-- líneas coloreadas por capa;
-- transiciones entre capas;
-- Z-hop sobre cruces;
-- viajes concéntricos cuando no hay soft join;
-- posición virtual del extrusor;
-- cubo de orientación X/Y/Z.
-
-El encabezado resume la impresión: tiempo estimado (a velocidad programada, sin aceleraciones, incluyendo desplazamientos, cebado y pausas) y tamaño de la pieza en mm. Al pasar el cursor muestra longitudes de impresión y desplazamiento, E total y número de puntos.
-
-| Control | Acción |
+| Gesto | Qué hace |
 |---|---|
-| Arrastrar con botón izquierdo | Pan |
-| Arrastrar con botón derecho | Rotar azimut/elevación |
-| Rueda del mouse | Zoom |
-| **Ajustar** | Encuadre automático |
-| **Iso / Planta / Frente** | Vistas predefinidas, con encuadre |
-| Slider de capas (borde derecho) | Muestra hasta la capa elegida; el botón *Aislar capa* (icono de capas, debajo) deja solo esa capa en color y las inferiores en gris |
+| Rueda sobre un número | Sube o baja un paso. Con `Shift`, un paso fino. |
+| Arrastrar la etiqueta de un número | Cambia el valor hacia la izquierda o la derecha. Con `Shift`, en pasos finos. |
+| Arrastrar un deslizador de la onda | Se pega al valor inicial (la marca en la pista) y muestra el valor encima. |
 
-Las vistas y el encuadre se animan; al soltar una rotación la cámara sigue un instante por inercia. El azimut y la elevación aparecen junto al cubo de orientación solo mientras la cámara gira.
+## Atajos de teclado
 
-### Campos numéricos y sliders
-
-| Gesto | Acción |
+| Tecla | Qué hace |
 |---|---|
-| Rueda sobre un número | Sube o baja un paso (con `Shift`, un paso fino) |
-| Arrastrar la etiqueta de un número | Desliza el valor a izquierda o derecha (con `Shift`, en pasos finos) |
-| Arrastrar un slider de la onda | Se pega al valor por defecto (la marca en la pista) y muestra el valor sobre el control |
+| `←` `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %). Con un keyframe elegido, salta al vecino. |
+| `K` | Agrega un keyframe en el extrusor, o elige el que ya está ahí. |
+| `D` | Copia el keyframe anterior en el extrusor. |
+| `Esc` / `Supr` | Suelta / borra el keyframe elegido. |
+| `G` | Abre o cierra el G-code. |
+| `?` | Abre la ayuda. |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | En *Forma*: deshace / rehace. |
+| `Supr` / `Esc` | En *Forma*: borra / suelta el nodo elegido. |
 
-El centro de pivote (de la escala y el giro) se mide desde el centro geométrico de la pieza: 0, 0 es el centro de la pieza. El icono de restablecer junto al título (*Centrar en la pieza*) lo devuelve ahí; *Escala* y *Giro* tienen el mismo icono para volver a 1× y 0°. Los campos del centro de pivote avanzan de 5 en 5 mm (1 mm con `Shift`). La vista 3D gira alrededor del centro de la pieza.
+## Sesión
 
-### Atajos de teclado
-
-| Tecla | Acción |
-|---|---|
-| `←` / `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %) |
-| `K` | Añade un keyframe en el extrusor, o selecciona el que ya está ahí |
-| `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
-| `G` | Abre o cierra el panel de G-code |
-| `?` | Abre la ayuda |
-| `Ctrl+Z` / `Ctrl+Shift+Z` | En *Forma*: deshace / rehace |
-| `Supr` / `Esc` | En *Forma*: borra / suelta el nodo elegido (o cierra *Descubrir*) |
-
-### Sesión
-
-BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y estado de cada trayecto) un segundo después de cada cambio. Al volver a abrir la app aparece **Sesión anterior** con *Restaurar* o *Descartar*. Descartar el SVG con la ✕ también borra la sesión guardada. La forma de *Forma* se guarda aparte y vuelve sola.
-
-## 7. Exportar
-
-Haz clic en **Descargar** en la barra superior. El panel **G-code** de la misma barra muestra el archivo (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo se deriva del SVG cargado, por ejemplo `mi-vasija.gcode`.
+BarroCode guarda la sesión en el navegador (SVG, parámetros, keyframes y rutas) un segundo después de cada cambio. Al volver aparece **Sesión anterior**, con *Restaurar* o *Descartar*. Cerrar el SVG con la ✕ también borra la sesión guardada. La máquina y la forma de *Forma* se guardan aparte y vuelven solas.

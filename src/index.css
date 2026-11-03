@@ -284,6 +284,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   pointer-events: auto;
 }
 .bar-group:first-child { flex-shrink: 0; }
+.stage-bar--tight { gap: var(--sp-2); }
+.stage-bar--tight .bar-group { gap: var(--sp-1); padding: 0 4px; }
+.stage-bar--tight .view-preset { padding: 0 8px; }
 .bar-group--end { flex-shrink: 1; }
 .stage-summary {
   min-width: 0;
@@ -295,6 +298,18 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .stage-summary-sep { color: var(--faint); }
+.stage-summary--stacked {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+}
+.stage-summary--stacked > span { overflow: hidden; text-overflow: ellipsis; }
+.stage-summary--stacked .stage-summary-sep { display: none; }
+.btn-small.machine-alert { flex: none; gap: 4px; padding: 0 var(--sp-2); color: var(--err); border-color: var(--err); background: var(--err-bg); }
+.btn-small.machine-alert:hover:not(:disabled) { background: var(--err-bg); border-color: var(--err); color: var(--err); text-decoration: underline; }
+.btn-small.machine-alert--warn,
+.btn-small.machine-alert--warn:hover:not(:disabled) { color: var(--ink-2); border-color: var(--control-edge); background: var(--surface-2); }
 .stage-summary { transition: opacity var(--dur) var(--ease); }
 .stage-summary--stale { opacity: 0.55; }
 
@@ -403,6 +418,19 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   position: absolute;
   z-index: 1;
   pointer-events: none;
+}
+/* The favicon above the "barrocode" the canvas draws 30 px over the centre,
+   tinted like that text. */
+.stage-empty-logo {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 98px);
+  width: 32px;
+  height: 32px;
+  transform: translateX(-50%);
+  background: var(--ink-2);
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
 }
 .stage-empty-flow {
   position: absolute;
@@ -1937,6 +1965,21 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-group:last-child { border-right: none; }
 .kf-group-ease { flex: 0 0 auto; }
+.kf-group-diff {
+  flex: 1.2;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  overflow-y: auto;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.kf-diff-head { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
+.kf-diff-none { color: var(--muted); }
+.kf-diff { margin: 0; padding: 0; list-style: none; }
+.kf-diff li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kf-diff-label { color: var(--muted); }
+.kf-diff strong { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
 .kf-group-ease .kf-field { align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
 .kf-ease-glyph path:first-child { transition: d var(--dur) var(--ease); }
 .kf-group .kf-field {
