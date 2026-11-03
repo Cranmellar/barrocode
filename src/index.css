@@ -1465,8 +1465,8 @@ input[type="range"]::-moz-range-thumb {
 .workspace-num {
   display: grid;
   place-items: center;
-  width: 16px;
-  height: 16px;
+  width: 13px;
+  height: 13px;
   border-radius: 50%;
   border: 1px solid var(--control-edge);
   font-size: var(--fs-xs);
