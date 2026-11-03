@@ -45,20 +45,36 @@ const _P4 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path
 const _P5 = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480"><path d="m240 0 207.8 120v240L240 480 32.2 360V120Z" fill="#55555D"/></svg>`;
 const svgUri = (s: string) => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
 
+// The samples are drawn on a 480-unit canvas. Each prints SAMPLE_MM across
+// and as tall: the square (x, y, size) around the drawing maps onto it, and
+// the root's size in mm makes loading it set scaleFactor to 1.
+const SAMPLE_MM = 150;
+function sizedSample(svg: string, x = 0, y = 0, size = 480): string {
+  return svg
+    .replace('viewBox="0 0 480 480">',
+      `width="${SAMPLE_MM}mm" height="${SAMPLE_MM}mm" viewBox="0 0 ${SAMPLE_MM} ${SAMPLE_MM}">`
+      + `<g transform="scale(${SAMPLE_MM / size}) translate(${-x} ${-y})">`)
+    .replace('</svg>', '</g></svg>');
+}
+const sample = (svg: string, name: string, x?: number, y?: number, size?: number) => {
+  const raw = sizedSample(svg, x, y, size);
+  return { uri: svgUri(raw), raw, name };
+};
+
 const SAMPLES = [
-  { uri: svgUri(_S1), raw: _S1, name: 'muestra-1.gcode' },
-  { uri: svgUri(_S2), raw: _S2, name: 'muestra-2.gcode' },
-  { uri: svgUri(_S3), raw: _S3, name: 'muestra-3.gcode' },
-  { uri: svgUri(_S4), raw: _S4, name: 'muestra-4.gcode' },
-  { uri: svgUri(_S5), raw: _S5, name: 'muestra-5.gcode' },
-  { uri: svgUri(_S6), raw: _S6, name: 'muestra-6.gcode' },
-  { uri: svgUri(_S7), raw: _S7, name: 'muestra-7.gcode' },
-  { uri: svgUri(_S8), raw: _S8, name: 'muestra-8.gcode' },
-  { uri: svgUri(_P1), raw: _P1, name: 'cuadrado.gcode' },
-  { uri: svgUri(_P2), raw: _P2, name: 'triangulo.gcode' },
-  { uri: svgUri(_P3), raw: _P3, name: 'circulo.gcode' },
-  { uri: svgUri(_P4), raw: _P4, name: 'pentagono.gcode' },
-  { uri: svgUri(_P5), raw: _P5, name: 'hexagono.gcode' },
+  sample(_S1, 'muestra-1.gcode'),
+  sample(_S2, 'muestra-2.gcode'),
+  sample(_S3, 'muestra-3.gcode'),
+  sample(_S4, 'muestra-4.gcode'),
+  sample(_S5, 'muestra-5.gcode'),
+  sample(_S6, 'muestra-6.gcode', 50.2, 50.2, 379.6),
+  sample(_S7, 'muestra-7.gcode'),
+  sample(_S8, 'muestra-8.gcode', 46.8, 46.8, 386.5),
+  sample(_P1, 'cuadrado.gcode'),
+  sample(_P2, 'triangulo.gcode'),
+  sample(_P3, 'circulo.gcode'),
+  sample(_P4, 'pentagono.gcode'),
+  sample(_P5, 'hexagono.gcode'),
 ];
 
 const DEFAULT_PARAMS: PrintParams = {
@@ -914,7 +930,10 @@ export default function App() {
     keepWaveOnly();
     const s = SAMPLES[sampleIndex];
     setGcodeFilename(s.name);
-    doParse(s.raw, params.sampleSpacing);
+    setParams(p => p.useNumLayers
+      ? { ...p, numLayers: Math.round(SAMPLE_MM / p.layerHeight) }
+      : { ...p, totalHeight: SAMPLE_MM });
+    doParse(s.raw, params.sampleSpacing, [], true);
   }
 
   const kfNav = keyframes.length > 0 && (

@@ -29,7 +29,7 @@ Elementos soportados:
 - `<ellipse>`
 - `<rect>`
 
-Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVGs geométricos están embebidos directamente en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga.
+Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVGs geométricos y cinco polígonos básicos están embebidos en la aplicación. Las flechas `‹` / `›` cambian de muestra y el clic en la miniatura la carga. Cada muestra mide 15 cm en su lado mayor y se carga con 15 cm de alto: la escala pasa a 1 y el número de capas (o la altura total) se ajusta a tu altura de capa.
 
 ### O crear la forma en *Forma*
 
