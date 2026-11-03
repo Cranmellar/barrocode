@@ -155,6 +155,25 @@ describe('checkMachine', () => {
     return checkMachine({ ...p, numLayers: 3 }, toolpath, stats);
   };
 
+  it('warns when the Z wave lifts a bead off the layer below', () => {
+    const wave = { lissAmpZ: 1, lissWlZ: 20, layerHeight: 1.5, numLayers: 3 };
+    const gap = (o: Partial<PrintParams>) => {
+      const params = { ...PARAMS, ...wave, ...o };
+      const layers = generateWaveLayers(square(), params, []);
+      const maxGap = Math.max(...layers.map(l => l.maxGap));
+      const toolpath = buildToolpath(layers, params, centred);
+      return { maxGap, check: checkMachine(params, toolpath, null, maxGap).find(c => c.title.startsWith('Cordones')) };
+    };
+    const inPhase = gap({});
+    expect(inPhase.maxGap).toBeCloseTo(1.5, 6);
+    expect(inPhase.check).toBeUndefined();
+
+    const opposed = gap({ phaseShiftPerLayer: Math.PI });
+    // Layer 0 never dips below its height, so the worst crest sits 1 mm over it.
+    expect(opposed.maxGap).toBeCloseTo(2.5, 2);
+    expect(opposed.check).toMatchObject({ level: 'warn', part: true });
+  });
+
   it('passes a part centred on the bed', () => {
     const c = levels({ ...k1, layerHeight: 0.2 });
     expect(c.filter(x => x.level === 'err')).toEqual([]);

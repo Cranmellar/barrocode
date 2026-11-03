@@ -36,6 +36,9 @@ const TWO_PI = 2 * Math.PI;
 
 // Thinnest bead the Z wave may leave, as a fraction of layerHeight.
 const MIN_LAYER_GAP = 0.5;
+// Past this many layer heights over the bead below, a bead is likely laid
+// in the air: with a per-layer phase shift a Z crest can sit over a trough.
+export const MAX_LAYER_GAP = 1.5;
 
 // ── Local params struct ─────────────────────────────────────────────────────
 
@@ -829,6 +832,7 @@ export function generateWaveLayers(
     }
 
     const layerZ: number[][] = [];
+    let maxGap = 0;
     const cached = reuse ? waveCache.get(reverse) : undefined;
     const computed: PathWave[] = [];
 
@@ -848,6 +852,7 @@ export function generateWaveLayers(
         const floor = below ? below[si] + params.layerHeight * MIN_LAYER_GAP : z;
         wave[i].zOffset = Math.max(wave[i].zOffset, floor - z);
         pathZ[si] = z + wave[i].zOffset;
+        if (below) maxGap = Math.max(maxGap, pathZ[si] - below[si]);
       }
       if (wave.length > n) wave[n].zOffset = wave[0].zOffset;
 
@@ -864,7 +869,7 @@ export function generateWaveLayers(
     });
     if (reuse && !cached) waveCache.set(reverse, computed);
 
-    layers.push({ index: li, z, paths: pathPoints, closed });
+    layers.push({ index: li, z, paths: pathPoints, closed, maxGap });
     prevZ = layerZ;
   }
 

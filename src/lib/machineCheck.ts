@@ -8,7 +8,7 @@ import type { ToolpathLayer } from './toolpath';
 import type { GcodeStats } from './gcodeStats';
 import { gcodeOffset, layerFeeds, unknownTemplateVars } from './gcodeGenerator';
 import { bedCentre } from './machineProfiles';
-import { MAX_LAYERS } from './waveGenerator';
+import { MAX_LAYERS, MAX_LAYER_GAP } from './waveGenerator';
 
 export type CheckLevel = 'err' | 'warn' | 'ok';
 
@@ -18,6 +18,8 @@ export interface MachineCheck {
   detail?: string;
   // A one-click fix the panel offers.
   action?: 'centre' | 'adapt';
+  // About the part rather than the machine: Impresión shows it too.
+  part?: boolean;
 }
 
 // Segments per second past which the firmware's planner starves and the
@@ -36,7 +38,11 @@ export function bedLimits(params: PrintParams) {
     : { minX: 0, maxX: w, minY: 0, maxY: d };
 }
 
-export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], stats: GcodeStats | null): MachineCheck[] {
+/**
+ * `beadGap` is the largest rise of a bead over the same point on the layer
+ * below, mm (`WaveLayer.maxGap`).
+ */
+export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], stats: GcodeStats | null, beadGap = 0): MachineCheck[] {
   const out: MachineCheck[] = [];
   if (toolpath.length === 0) return out;
   const filament = params.material === 'filament';
@@ -128,6 +134,11 @@ export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], sta
   if (rate > limit) {
     out.push({ level: 'warn', title: `${Math.round(rate)} segmentos por segundo`,
       detail: `Por encima de ≈ ${limit} el movimiento tartamudea con este firmware. Baja la velocidad o aumenta el espaciado de muestra.` });
+  }
+
+  if (beadGap > params.layerHeight * MAX_LAYER_GAP + 1e-6) {
+    out.push({ level: 'warn', part: true, title: `Cordones a ${n(beadGap, 2)} mm de la capa de abajo`,
+      detail: `Con capas de ${n(params.layerHeight, 2)} mm, la cresta de la onda Z queda sobre un valle de la capa inferior y el cordón puede caer al aire. Baja la amplitud Z o el desfase por capa.` });
   }
 
   if (!params.useNumLayers && params.totalHeight / params.layerHeight > MAX_LAYERS) {

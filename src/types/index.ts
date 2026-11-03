@@ -69,6 +69,7 @@ export interface WaveLayer {
   z: number;           // Z in mm
   paths: WavePoint[][];  // [pathIndex][pointIndex], SVG units
   closed: boolean[];     // per path: the source ends where it starts
+  maxGap: number;        // mm, largest rise over the same sample on the layer below (0 on layer 0)
 }
 
 // ── Keyframes ───────────────────────────────────────────────────────────────

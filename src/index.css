@@ -297,6 +297,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .stage-summary-sep { color: var(--faint); }
 .btn-small.machine-alert { flex: none; gap: 4px; padding: 0 var(--sp-2); color: var(--err); border-color: var(--err); background: var(--err-bg); }
 .btn-small.machine-alert:hover:not(:disabled) { background: var(--err-bg); border-color: var(--err); color: var(--err); text-decoration: underline; }
+.btn-small.machine-alert--warn,
+.btn-small.machine-alert--warn:hover:not(:disabled) { color: var(--ink-2); border-color: var(--control-edge); background: var(--surface-2); }
 .stage-summary { transition: opacity var(--dur) var(--ease); }
 .stage-summary--stale { opacity: 0.55; }
 

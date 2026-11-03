@@ -787,16 +787,20 @@ export default function App() {
   }, [machineKey]);
 
   const checks = useMemo(
-    () => workspace !== 'forma' ? checkMachine(params, toolpath, program?.stats ?? null) : [],
-    [workspace, params, toolpath, program],
+    () => workspace !== 'forma'
+      ? checkMachine(params, toolpath, program?.stats ?? null, Math.max(0, ...layers.map(l => l.maxGap)))
+      : [],
+    [workspace, params, toolpath, program, layers],
   );
-  // Impresión shows only the errors, as a way into the full review.
-  const machineErrs = workspace === 'impresion' ? checks.filter(c => c.level === 'err') : [];
-  const machineAlert = machineErrs.length > 0 && (
-    <button className="btn-small machine-alert" onClick={() => setWorkspace('maquina')}
-      aria-label={`${machineErrs.length} error${machineErrs.length > 1 ? 'es' : ''} de máquina: abrir la revisión`}
-      title={[...machineErrs.map(c => wrapHint(c.title)), 'Abrir la revisión en Máquina'].join('\n')}>
-      <Icon name="aviso" />{machineErrs.length}
+  // Impresión shows the errors and the part's own warnings, as a way into
+  // the full review.
+  const machineIssues = workspace === 'impresion' ? checks.filter(c => c.level === 'err' || (c.part && c.level === 'warn')) : [];
+  const machineErr = machineIssues.some(c => c.level === 'err');
+  const machineAlert = machineIssues.length > 0 && (
+    <button className={`btn-small machine-alert${machineErr ? '' : ' machine-alert--warn'}`} onClick={() => setWorkspace('maquina')}
+      aria-label={`${machineIssues.length} ${machineErr ? 'problema' : 'aviso'}${machineIssues.length > 1 ? 's' : ''} antes de imprimir: abrir la revisión`}
+      title={[...machineIssues.map(c => wrapHint(c.title)), 'Abrir la revisión en Máquina'].join('\n')}>
+      <Icon name="aviso" />{machineIssues.length}
     </button>
   );
   const bedOut = checks.some(c => c.level === 'err' && c.action === 'centre');
