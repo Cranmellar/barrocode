@@ -476,6 +476,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - On/off options in `.param-check` rows are native checkboxes styled as switches (`appearance: none`).
 
 - Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost). Segmented controls (`.seg-switch`, `.view-presets`) share one pill style.
+- The top bar compacts itself while the summary doesn't fit between the side panels (`compact` in `Preview2D`, measured in a layout effect, up to `BAR_COMPACT_MAX`): summary on two lines, *Iso* for *Isométrica*, *Descargar* and *G-code* as icons (with `aria-label`), tighter gaps. It starts over when the bar's width or its content changes. Checked at 1280–1920 px with both panels open, with and without the machine mark.
 - Floating containers (`.float-panel`, top bar groups, `.layer-slider`, `.dock`, `.gcode-drawer`) share one surface: white, `--border`, `--radius-lg`, `--shadow-float`. Opaque on purpose: a translucent or blurred panel would make the browser recomposite it on every canvas frame.
 
 

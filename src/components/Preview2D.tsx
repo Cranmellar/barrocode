@@ -129,10 +129,16 @@ const reducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)'
 
 
 const VIEW_PRESETS = [
-  { label: 'Isométrica', azimuth: 325, elevation: 28, title: 'Vista isométrica' },
-  { label: 'Planta', azimuth: 0,   elevation: 90, title: 'Vista superior (X → derecha, Y ↑)' },
-  { label: 'Frente', azimuth: 0,   elevation: 0,  title: 'Vista frontal (X → derecha, Z ↑)' },
+  { label: 'Isométrica', short: 'Iso', azimuth: 325, elevation: 28, title: 'Vista isométrica' },
+  { label: 'Planta', short: 'Planta', azimuth: 0,   elevation: 90, title: 'Vista superior (X → derecha, Y ↑)' },
+  { label: 'Frente', short: 'Frente', azimuth: 0,   elevation: 0,  title: 'Vista frontal (X → derecha, Z ↑)' },
 ];
+
+// Steps the top bar takes, one at a time, while the summary doesn't fit
+// between the side panels: summary on two lines, short view names, the
+// download button as its icon alone, tighter gaps, the G-code button as an
+// icon too.
+const BAR_COMPACT_MAX = 5;
 
 function formatDuration(sec: number): string {
   if (sec < 60) return `${Math.round(sec)} s`;
@@ -681,14 +687,6 @@ export function Preview2D({
   const activePreset = presetTarget !== null && presetTarget >= 0 ? presetTarget : exactPreset;
   const presetRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const [presetInd, setPresetInd] = useState({ x: 0, w: 0 });
-  useLayoutEffect(() => {
-    const measure = () => {
-      const b = presetRefs.current[activePreset];
-      if (b) setPresetInd({ x: b.offsetLeft, w: b.offsetWidth });
-    };
-    measure();
-    document.fonts?.ready.then(measure);
-  }, [activePreset]);
 
   const numLayers = toolpath.length;
   const totalPts = flatPoints.length;
@@ -696,6 +694,44 @@ export function Preview2D({
 
   const shownTime = useCountUp(stats ? stats.timeSec : null);
   const crossings = toolpath.reduce((n, l) => n + l.crossings, 0);
+  const sizeText = modelBounds
+    ? `${fmtMM(modelBounds.maxX - modelBounds.minX)}×${fmtMM(modelBounds.maxY - modelBounds.minY)}×${fmtMM(numLayers * params.layerHeight)} mm`
+    : '';
+
+  // Compacts the top bar until the summary fits. It starts over when the bar
+  // or what it holds changes (the final time standing in for the counting
+  // one), and only tightens while the time counts.
+  const barRef = useRef<HTMLDivElement>(null);
+  const summaryRef = useRef<HTMLSpanElement>(null);
+  const [barW, setBarW] = useState(0);
+  useEffect(() => {
+    const bar = barRef.current;
+    if (!bar) return;
+    const ro = new ResizeObserver(([entry]) => setBarW(Math.round(entry.contentRect.width)));
+    ro.observe(bar);
+    return () => ro.disconnect();
+  }, []);
+  const [compact, setCompact] = useState(0);
+  const fitKey = [barW, sizeText, stats ? formatDuration(stats.timeSec) : '', Boolean(summaryLead), numLayers > 0].join('|');
+  const fittedKey = useRef('');
+  useLayoutEffect(() => {
+    if (fittedKey.current !== fitKey) {
+      fittedKey.current = fitKey;
+      if (compact !== 0) { setCompact(0); return; }
+    }
+    const el = summaryRef.current;
+    const cut = (e: Element) => e.scrollWidth > e.clientWidth + 1;
+    if (el && (cut(el) || [...el.children].some(cut)) && compact < BAR_COMPACT_MAX) setCompact(compact + 1);
+  }, [fitKey, compact, shownTime === null ? '' : formatDuration(shownTime)]);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const b = presetRefs.current[activePreset];
+      if (b) setPresetInd({ x: b.offsetLeft, w: b.offsetWidth });
+    };
+    measure();
+    document.fonts?.ready.then(measure);
+  }, [activePreset, compact]);
 
   return (
     <div className="stage-view">
@@ -712,7 +748,7 @@ export function Preview2D({
         onWheel={onWheel}
       />
 
-      <div className="stage-bar" style={{ left: insets.left, right: insets.right, top: STAGE_GAP }}>
+      <div ref={barRef} className={`stage-bar${compact >= 4 ? ' stage-bar--tight' : ''}`} style={{ left: insets.left, right: insets.right, top: STAGE_GAP }}>
         <div className="bar-group">
           <button className="btn-icon" onClick={() => fitView(undefined, undefined, true)} aria-label="Encuadrar la pieza"
             title={wrapHint('Encuadrar la pieza. En la vista: arrastrar = desplazar · clic derecho = rotar · rueda = zoom')}>
@@ -734,7 +770,7 @@ export function Preview2D({
                 className={`view-preset${i === activePreset ? ' view-preset--on' : ''}`}
                 onClick={() => fitView(v.azimuth, v.elevation, true)}
                 title={v.title}>
-                {v.label}
+                {compact >= 2 ? v.short : v.label}
               </button>
             ))}
           </div>
@@ -753,27 +789,36 @@ export function Preview2D({
         <div className="bar-group bar-group--end">
           {summaryLead}
           {toolpath.length > 0 && modelBounds && (
-            <span className={`stage-summary${gcodeBusy ? ' stage-summary--stale' : ''}`} title={[
+            <span ref={summaryRef} className={`stage-summary${compact >= 1 ? ' stage-summary--stacked' : ''}${gcodeBusy ? ' stage-summary--stale' : ''}`} title={[
               stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
               stats && params.generateE && `E total ${stats.eTotal.toFixed(1)}`,
               `${numLayers} capas · ${totalPts.toLocaleString()} pts`,
               crossings > 0 && `${crossings} cruce${crossings !== 1 ? 's' : ''} con z-hop`,
               `Tiempo estimado a ${params.printSpeed} mm/min, sin aceleraciones`,
             ].filter(Boolean).map(l => wrapHint(l as string)).join('\n')}>
-              {shownTime !== null && <>{formatDuration(shownTime)}<span className="stage-summary-sep"> · </span></>}
-              {fmtMM(modelBounds.maxX - modelBounds.minX)}×{fmtMM(modelBounds.maxY - modelBounds.minY)}×{fmtMM(numLayers * params.layerHeight)} mm
+              {shownTime !== null && <span>{formatDuration(shownTime)}<span className="stage-summary-sep"> · </span></span>}
+              <span>{sizeText}</span>
             </span>
           )}
           <button className={`btn-small${centerTab === 'gcode' ? ' btn-small--on' : ''}`}
             aria-pressed={centerTab === 'gcode'} disabled={!gcode}
             onClick={() => onTabChange(centerTab === 'gcode' ? 'preview' : 'gcode')}
-            title="Ver el G-code (G)">G-code</button>
+            aria-label={compact >= 5 ? 'Ver el G-code' : undefined}
+            title="Ver el G-code (G)">
+            {compact >= 5
+              ? <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.4"
+                  strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M4.5 3.5 1.5 7l3 3.5M9.5 3.5l3 3.5-3 3.5M8 2.5 6 11.5" />
+                </svg>
+              : 'G-code'}
+          </button>
           <button className="btn-primary btn-signal" disabled={!gcode}
             onClick={() => {
               downloadGcode(gcode, gcodeFilename);
               onToast(`${gcodeFilename} descargado · ${formatSize(new Blob([gcode]).size)}`);
             }}
-            title={`Descargar ${gcodeFilename}`}><Icon name="descargar" />Descargar</button>
+            aria-label={compact >= 3 ? `Descargar ${gcodeFilename}` : undefined}
+            title={`Descargar ${gcodeFilename}`}><Icon name="descargar" />{compact < 3 && 'Descargar'}</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
             aria-label="Ayuda: cómo usar BarroCode" title="Ayuda (?)">?</button>
           {gcodeBusy && gcode && <span className="gcode-progress" role="progressbar" aria-label="Generando G-code" />}

@@ -284,6 +284,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   pointer-events: auto;
 }
 .bar-group:first-child { flex-shrink: 0; }
+.stage-bar--tight { gap: var(--sp-2); }
+.stage-bar--tight .bar-group { gap: var(--sp-1); padding: 0 4px; }
+.stage-bar--tight .view-preset { padding: 0 8px; }
 .bar-group--end { flex-shrink: 1; }
 .stage-summary {
   min-width: 0;
@@ -295,6 +298,14 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .stage-summary-sep { color: var(--faint); }
+.stage-summary--stacked {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--fs-xs);
+  line-height: 1.25;
+}
+.stage-summary--stacked > span { overflow: hidden; text-overflow: ellipsis; }
+.stage-summary--stacked .stage-summary-sep { display: none; }
 .btn-small.machine-alert { flex: none; gap: 4px; padding: 0 var(--sp-2); color: var(--err); border-color: var(--err); background: var(--err-bg); }
 .btn-small.machine-alert:hover:not(:disabled) { background: var(--err-bg); border-color: var(--err); color: var(--err); text-decoration: underline; }
 .btn-small.machine-alert--warn,
