@@ -36,7 +36,7 @@ Tests cover `lib/` only (no DOM, so `svgParser` is untested apart from the pure 
 
 GitHub Pages via [.github/workflows/deploy.yml](.github/workflows/deploy.yml). On push to `main`: `npm install`, `npm test`, `npm run build`, upload `dist/` artifact, deploy. A failing test blocks the deploy. [.github/workflows/ci.yml](.github/workflows/ci.yml) runs the same test and build on pull requests, without deploying.
 
-`vite.config.ts` uses `base: './'` so the build also works opened directly from `file://` or a USB sub-path.
+`vite.config.ts` uses `base: './'` so the build works from any sub-path. It does **not** run from `file://` in Chromium (checked Nov 2026): the module script and stylesheet carry `crossorigin` and are blocked from origin `null`. Use `npm run preview` or any static server.
 
 There is **no** desktop / Electron / portable distribution. It was removed; don't re-introduce it without explicit request.
 
@@ -101,7 +101,7 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ### Hygiene (only when touching the area)
 
-10. ~~Unused files.~~ **Removed** (`src/assets/`, old icons, `isotype.png`, `make_ico.py`, `public/sample.svg`). `public/logo-43n-editable.svg` is a source asset — keep.
+10. ~~Unused files.~~ **Removed** (`src/assets/`, old icons, `isotype.png`, `make_ico.py`, `public/sample.svg`). `public/logo-43n-editable.svg` is an outdated wordmark (the owner's word); the logo is the favicon (`favicon.black.ico` / `favicon.white.ico`), shown in the README and above "barrocode" in the empty 3D view (`.stage-empty-logo`, a CSS mask tinted `--ink-2`).
 11. ~~**No licence.**~~ **Done**: MIT, © 2026 Cristián Mella (`LICENSE`, `package.json`); closes the shaper plan's D-S4.
 
 ### Lower priority / needs a decision

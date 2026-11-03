@@ -1,4 +1,11 @@
-<p align="center"><img src="public/logo-43n-editable.svg" alt="BarroCode" width="420"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="public/favicon.white.ico">
+    <img src="public/favicon.black.ico" alt="" width="96" height="96">
+  </picture>
+</p>
+
+<h1 align="center">BarroCode</h1>
 
 BarroCode convierte un dibujo SVG en G-code para impresoras 3D de arcilla. El trazo del dibujo es la línea central de la pared; BarroCode lo ondula, apila las capas y escribe el archivo que lee la impresora. Se pronuncia como *barroco*.
 
@@ -153,7 +160,7 @@ Abre la dirección que muestra la terminal, normalmente `http://localhost:5173`.
 | `npm run build` | Revisa los tipos con `tsc` y genera la app estática en `dist/`. |
 | `npm run preview` | Sirve `dist/` en local. |
 
-`dist/` usa rutas relativas: funciona en cualquier servidor estático, en una subcarpeta o abierto desde el disco.
+`dist/` usa rutas relativas: funciona en cualquier servidor estático y en una subcarpeta. Abierto directamente desde el disco (`file://`) no funciona en Chromium, que bloquea los scripts de tipo módulo; sírvelo con `npm run preview` o cualquier servidor local.
 
 Cada pull request corre las pruebas y el build ([ci.yml](.github/workflows/ci.yml)). Cada push a `main` los repite y publica la app en GitHub Pages ([deploy.yml](.github/workflows/deploy.yml)). Si una prueba falla, no se publica.
 
