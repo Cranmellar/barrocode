@@ -1,3 +1,5 @@
+export type WallSide = 'out' | 'in' | 'centre';
+
 // ── Core geometry ──────────────────────────────────────────────────────────
 
 export interface Point2D { x: number; y: number }
@@ -166,6 +168,11 @@ export interface PrintParams {
   reversePath: boolean;
   alternateDirection: boolean;
   closePath: boolean;
+
+  // ── Wall ──
+  wallPasses: number;            // side-by-side passes per layer, 1–4
+  wallSpacing: number;           // % of lineWidth between neighbouring passes
+  wallSide: WallSide;            // where the extra passes go from the drawn line
 
   // ── Clay-specific ──
   dwellAtStart: number;          // ms
