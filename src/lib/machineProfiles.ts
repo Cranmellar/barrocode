@@ -25,7 +25,13 @@ export type MachineFields = Pick<PrintParams, typeof MACHINE_FIELDS[number]>;
 
 const T = {
   creality: 'M140 S0\nM104 S0\nSTART_PRINT EXTRUDER_TEMP={nozzleTemp} BED_TEMP={bedTemp}',
-  crealityEnd: 'END_PRINT',
+  // END_PRINT turns the heaters off, cools the nozzle with the part fan and
+  // lowers the bed to half its travel, but only 2 mm more when the part is
+  // taller than that; the heaters go off first in case the macro was edited.
+  crealityEnd: [
+    'M104 S0 ; nozzle heater off', 'M140 S0 ; bed heater off',
+    'G1 Z{clearZ} F600 ; 50 mm between the part and the nozzle', 'END_PRINT',
+  ].join('\n'),
   voron: 'PRINT_START BED={bedTemp} EXTRUDER={nozzleTemp}',
   voronEnd: 'PRINT_END',
   marlin: [

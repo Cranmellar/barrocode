@@ -38,6 +38,7 @@ import { FIRMWARE_LABEL, profileName } from './machineProfiles';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
+const REMOVAL_CLEARANCE = 50; // mm between the part and the nozzle for {clearZ}
 
 // Clay always gets it, after any end template: a clay extruder keeps pushing
 // while its motor holds, and some rigs drive the auger or the air valve from
@@ -367,7 +368,7 @@ function pathToGcode(
 // ── Machine templates and pacing ─────────────────────────────────────────────
 
 export const TEMPLATE_VARS = [
-  'nozzleTemp', 'bedTemp', 'bedX', 'bedY', 'bedZ', 'firstLayerZ', 'topZ', 'parkZ',
+  'nozzleTemp', 'bedTemp', 'bedX', 'bedY', 'bedZ', 'firstLayerZ', 'topZ', 'parkZ', 'clearZ',
   'minX', 'maxX', 'minY', 'maxY',
 ] as const;
 
@@ -544,12 +545,14 @@ export function generateGcode(
   // A machine refuses moves past its Z travel; any lift above the part will do.
   const finalZ = params.bedZ > partTop ? Math.min(lift, params.bedZ) : lift;
   blocks.push(move(m, { z: finalZ }, params.travelSpeed, 'final lift'));
+  // Room to take the part off: well over its top, within the Z travel, never below the lift.
+  const clearZ = Math.max(finalZ, Math.min(partTop + REMOVAL_CLEARANCE, params.bedZ));
 
   const box = m.box;
   const vars: Record<string, string | number> = {
     nozzleTemp: params.nozzleTemp, bedTemp: params.bedTemp,
     bedX: params.bedX, bedY: params.bedShape === 'circle' ? params.bedX : params.bedY, bedZ: params.bedZ,
-    firstLayerZ: fmt(toolpath[0].z), topZ: fmt(partTop), parkZ: fmt(finalZ),
+    firstLayerZ: fmt(toolpath[0].z), topZ: fmt(partTop), parkZ: fmt(finalZ), clearZ: fmt(clearZ),
     minX: fmt(box.minX), maxX: fmt(box.maxX), minY: fmt(box.minY), maxY: fmt(box.maxY),
   };
   if (params.endGcode.trim()) blocks.push('; --- End G-code ---', fillTemplate(params.endGcode.trimEnd(), vars));
