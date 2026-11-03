@@ -31,6 +31,19 @@ function getHiddenContainer(): HTMLDivElement {
 const TURN_SPREAD = (1 * Math.PI) / 180;
 const MAX_TURN = (45 * Math.PI) / 180;
 
+function lengthScale(m: DOMMatrix | null): { k: number; uniform: boolean } {
+  if (!m) return { k: 1, uniform: true };
+  const { a, b, c, d } = m;
+  const det = Math.abs(a * d - b * c);
+  const sq = a * a + b * b + c * c + d * d;
+  const kMax = Math.sqrt((sq + Math.sqrt(Math.max(0, sq * sq - 4 * det * det))) / 2);
+  const tol = 1e-6 * kMax;
+  const uniform = (Math.abs(a - d) < tol && Math.abs(b + c) < tol) || (Math.abs(a + d) < tol && Math.abs(b - c) < tol);
+  const k = uniform ? Math.sqrt(det) : kMax;
+  // The viewport transform cancels out only to rounding: keep 1 exact.
+  return { k: !k || Math.abs(k - 1) < 1e-9 ? 1 : k, uniform };
+}
+
 /**
  * Sample one SVGGeometryElement at regular arc-length intervals.
  * Returns an array of SampledPoint with position, unit tangent, and unit normal.
@@ -60,9 +73,15 @@ function sampleElement(
     const p = el.getPointAtLength(t);
     return toRoot ? p.matrixTransform(toRoot) : p;
   };
+  // getTotalLength / getPointAtLength measure in the element's own units,
+  // so under a scale transform root lengths differ. A uniform scale (with any
+  // rotation or mirror) multiplies them by k; a non-uniform one stretches
+  // each direction differently, so samples are spaced for its largest
+  // stretch and arc length is summed from the transformed chords.
+  const { k, uniform } = lengthScale(toRoot);
 
   // Number of evenly-spaced samples along the arc.
-  const nSegments = Math.max(2, Math.ceil(totalLen / spacing));
+  const nSegments = Math.max(2, Math.ceil(totalLen * k / spacing));
   const step = totalLen / nSegments;
 
   // Epsilon for finite-difference tangent (must be small relative to spacing).
@@ -78,6 +97,11 @@ function sampleElement(
     const hi = Math.max(turns[i - 1], turns[i], turns[i + 1]);
     return hi <= MAX_TURN && hi - Math.min(turns[i - 1], turns[i], turns[i + 1]) <= TURN_SPREAD;
   };
+
+  const arcs = ts.map(t => t * k);
+  if (!uniform) {
+    for (let i = 1; i <= nSegments; i++) arcs[i] = arcs[i - 1] + Math.hypot(pos[i].x - pos[i - 1].x, pos[i].y - pos[i - 1].y);
+  }
 
   const points: SampledPoint[] = [];
   pos.forEach((p, i) => {
@@ -112,7 +136,7 @@ function sampleElement(
       tangentY: dy,
       normalX: -dy,
       normalY: dx,
-      arcLength: ts[i],
+      arcLength: arcs[i],
     });
   });
 
@@ -382,7 +406,7 @@ export function parseSVG(svgString: string, spacing: number, tangents = true): P
       paths.push({
         id: part.id,
         tagName: el.tagName.toLowerCase(),
-        totalLength: len,
+        totalLength: pts[pts.length - 1].arcLength,
         points: pts,
         enabled: true,
         ampNOverride: null,
