@@ -23,6 +23,7 @@ import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 import { wrapHint } from './lib/wrapHint';
+import { keyframeChanges } from './lib/keyframeDiff';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -502,6 +503,21 @@ export default function App() {
     setSelectedKfId(newKf.id);
   }
 
+  // Copies the keyframe before the extruder (or after it, at the start) to
+  // the extruder, so a wave can be held or repeated further up.
+  const kfToDuplicate = kfAtCursor ? null : prevKf ?? nextKf;
+  function duplicateKeyframe() {
+    if (!kfToDuplicate) {
+      if (kfAtCursor) showToast('Ya hay un keyframe aquí: mueve el extrusor a donde quieras la copia');
+      return;
+    }
+    const copy = { ...kfToDuplicate, id: uid(), t: timelineProgress };
+    const updated = [...keyframes, copy].sort((a, b) => a.t - b.t);
+    setKeyframes(updated);
+    setSelectedKfId(copy.id);
+    showToast(`Keyframe ${keyframes.indexOf(kfToDuplicate) + 1} copiado en el ${Math.round(copy.t * 100)} % como ${updated.indexOf(copy) + 1}`);
+  }
+
   // Once the last keyframe goes, the global values take over again; they
   // take that keyframe's values so the part doesn't change shape.
   function adoptAsGlobal(kf: WaveKeyframe) {
@@ -559,12 +575,14 @@ export default function App() {
   const helpOpenRef = useRef(helpOpen);
   const workspaceRef = useRef(workspace);
   const addKeyframeRef = useRef(addKeyframe);
+  const duplicateKeyframeRef = useRef(duplicateKeyframe);
   const deleteKeyframeRef = useRef(deleteKeyframe);
   const neighbourKfRef = useRef({ prev: prevKf, next: nextKf, select: selectKf });
   useEffect(() => { selectedKfIdRef.current = selectedKfId; }, [selectedKfId]);
   useEffect(() => { helpOpenRef.current = helpOpen; }, [helpOpen]);
   useEffect(() => { workspaceRef.current = workspace; }, [workspace]);
   useEffect(() => { addKeyframeRef.current = addKeyframe; }, [keyframes, timelineProgress, params, selectedKfId]);
+  useEffect(() => { duplicateKeyframeRef.current = duplicateKeyframe; }, [keyframes, timelineProgress, selectedKfId]);
   useEffect(() => { deleteKeyframeRef.current = deleteKeyframe; }, [keyframes, params, selectedKfId]);
   useEffect(() => { neighbourKfRef.current = { prev: prevKf, next: nextKf, select: selectKf }; }, [keyframes, timelineProgress, selectedKfId]);
 
@@ -591,6 +609,8 @@ export default function App() {
       const id = selectedKfIdRef.current;
       if (key === 'k') {
         addKeyframeRef.current();
+      } else if (key === 'd') {
+        duplicateKeyframeRef.current();
       } else if ((key === 'arrowleft' || key === 'arrowright') && !el.matches('input[type="range"]') && id) {
         // With a keyframe open the arrows walk between keyframes, so the
         // extruder never drifts away from the one being edited.
@@ -931,6 +951,17 @@ export default function App() {
           ? kfAtCursor.id === selectedKfId ? '✓ Listo' : `Editar ${keyframes.indexOf(kfAtCursor) + 1}`
           : <><KeyframeAddIcon />Keyframe</>}
       </button>
+      {kfToDuplicate && (
+        <button className="btn-icon" onClick={duplicateKeyframe}
+          title={`Copiar el keyframe ${keyframes.indexOf(kfToDuplicate) + 1} en el extrusor (D)`}
+          aria-label={`Duplicar el keyframe ${keyframes.indexOf(kfToDuplicate) + 1} en el extrusor`}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor"
+            strokeWidth="1.4" strokeLinejoin="round" aria-hidden="true">
+            <rect x="4" y="4" width="7" height="7" rx="1.2"/>
+            <path d="M8 2.2V2a1 1 0 0 0-1-1H2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h.2"/>
+          </svg>
+        </button>
+      )}
       {selectedKf && (
         <button className="btn-icon kf-del-btn" onClick={deleteKeyframe}
           title="Eliminar este keyframe (Supr)" aria-label="Eliminar keyframe seleccionado">
@@ -954,6 +985,7 @@ export default function App() {
     </div>
   );
 
+  const kfDiff = selectedKf && selectedIdx > 0 ? keyframeChanges(keyframes[selectedIdx - 1], selectedKf, params) : [];
   const kfEditor = selectedKf && (
     <div className="kf-editor">
       <div className="kf-group">
@@ -1039,6 +1071,19 @@ export default function App() {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className="kf-group kf-group-diff" title={wrapHint('Lo que cambia desde el keyframe anterior; entre los dos, cada valor pasa de uno a otro.')}>
+        <span className="kf-diff-head">
+          {selectedIdx === 0 ? 'Primer keyframe' : <>Desde el {selectedIdx}</>}
+        </span>
+        {selectedIdx > 0 && (kfDiff.length === 0
+          ? <span className="kf-diff-none">Sin cambios</span>
+          : <ul className="kf-diff">
+              {kfDiff.map(c => (
+                <li key={c.label}><span className="kf-diff-label">{c.label}</span> {c.from} → <strong>{c.to}</strong>{c.unit && <span className="kf-unit">{c.unit === '°' ? c.unit : ` ${c.unit}`}</span>}</li>
+              ))}
+            </ul>)}
       </div>
     </div>
   );

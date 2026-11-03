@@ -126,6 +126,8 @@ La línea de tiempo permite anclar parámetros de Lissajous en posiciones espec�
 3. Con un keyframe seleccionado, el panel derecho edita **su** onda (amplitudes, longitudes de onda, delta, Z y fase); el encabezado *Editando Keyframe N %* lo indica. La franja inferior edita su posición, giro, escala, centro y transición.
 4. Pulsa **OK** o `Esc` para terminar; `Supr` elimina el keyframe seleccionado. Cambia de keyframe con **‹ ›**, con `←` / `→` o haciendo clic en su rombo; arrástralo para moverlo. Al arrastrar se ajusta al inicio de capa (la costura); con `Alt` se mueve libre.
 
+Para repetir o sostener una onda más arriba, lleva el extrusor a donde la quieras y pulsa `D` o el botón de copia junto a *Keyframe*: se copia ahí el keyframe anterior (o el siguiente, si no hay anterior). La columna derecha del editor lista lo que cambia desde el keyframe anterior ("N 3 → 6 mm").
+
 Con keyframes y ninguno seleccionado, el panel derecho muestra la onda interpolada en el extrusor. Si cambias un valor de la onda, se crea un keyframe ahí con ese cambio (o se edita el que ya está bajo el extrusor).
 
 Cada keyframe se muestra como un rombo numerado de color, con el mismo número y color en la línea de tiempo, la vista 3D y los paneles. La línea de tiempo indica la capa y la altura bajo el extrusor ("capa 23 · 34.5 mm"). Entre keyframes, BarroCode interpola en línea recta; un keyframe con *Transición · Suave* se dibuja redondo y sus valores llegan y salen sin quiebre en la pared.
@@ -174,6 +176,7 @@ El centro de pivote (de la escala y el giro) se mide desde el centro geométrico
 |---|---|
 | `←` / `→` | Mueve el extrusor 1 % (con `Shift`, 0,1 %) |
 | `K` | Añade un keyframe en el extrusor, o selecciona el que ya está ahí |
+| `D` | Copia el keyframe anterior en el extrusor |
 | `Esc` / `Supr` | Suelta / elimina el keyframe seleccionado |
 | `G` | Abre o cierra el panel de G-code |
 | `?` | Abre la ayuda |

@@ -1941,6 +1941,21 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-group:last-child { border-right: none; }
 .kf-group-ease { flex: 0 0 auto; }
+.kf-group-diff {
+  flex: 1.2;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  overflow-y: auto;
+  font-size: var(--fs-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-2);
+}
+.kf-diff-head { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
+.kf-diff-none { color: var(--muted); }
+.kf-diff { margin: 0; padding: 0; list-style: none; }
+.kf-diff li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kf-diff-label { color: var(--muted); }
+.kf-diff strong { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
 .kf-group-ease .kf-field { align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
 .kf-ease-glyph path:first-child { transition: d var(--dur) var(--ease); }
 .kf-group .kf-field {

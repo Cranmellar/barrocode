@@ -163,6 +163,7 @@ const CONTROLS: [string, Row[]][][] = [[
   ['Línea de tiempo', [
     [<><K>←</K> <K>→</K></>, <>mover el extrusor 1 % (<K>Shift</K>: 0,1 %); con un keyframe elegido, saltar al vecino</>],
     [<K>K</K>, 'añadir keyframe en el extrusor'],
+    [<K>D</K>, 'copiar el keyframe anterior en el extrusor'],
     [<><K>Esc</K> · <K>Supr</K></>, 'soltar · borrar el keyframe elegido'],
     [<K>G</K>, 'mostrar u ocultar el G-code'],
   ]],
