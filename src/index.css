@@ -424,9 +424,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .stage-empty-logo {
   position: absolute;
   left: 50%;
-  top: calc(50% - 130px);
-  width: 64px;
-  height: 64px;
+  top: calc(50% - 98px);
+  width: 32px;
+  height: 32px;
   transform: translateX(-50%);
   background: var(--ink-2);
   -webkit-mask: var(--logo) center / contain no-repeat;
