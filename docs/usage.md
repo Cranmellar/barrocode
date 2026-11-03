@@ -35,6 +35,8 @@ Si no tienes un archivo a mano, usa el navegador de muestras integrado: ocho SVG
 
 El selector **Forma · Impresión**, arriba del panel izquierdo, cambia de espacio de trabajo. *Forma* dibuja la línea central de la pieza ya en milímetros, sin pasar por otro programa:
 
+- **Lienzo**: la rueda acerca o aleja alrededor del cursor; arrastrar el fondo (o con el botón central) desplaza la vista. El botón de encuadre, a la izquierda de la barra superior, vuelve a la vista inicial. La cuadrícula pasa de 1 a 10, 50 o 250 mm según el zoom.
+
 - **Familias**: *Lóbulos* (número, profundidad, agudeza), *Polígono* (lados, estrella, radio de esquina en mm) y *Superfórmula* (m, n1, n2, n3). Debajo, **Diámetro exterior** (dos veces la distancia del centro al punto más lejano), **Giro**, **Costura** (el ángulo donde empieza y termina cada capa) y **Sentido horario**.
 - **Descubrir** (barra superior): nueve variaciones de la familia. Clic adopta una; **Más como esta** sortea cerca de la forma actual; **Otra tanda**, en todo el rango. Con nodos (editados o importados), deja los nodos y vuelve a la familia; `Ctrl+Z` los recupera.
 - **Imprimibilidad**: marca en rojo los tramos más cerrados de lo que la onda de *Impresión* puede seguir y propone cómo arreglarlo. **Onda** (barra superior) dibuja la franja que barre la onda: donde dos franjas se tocan, las paredes chocarán.

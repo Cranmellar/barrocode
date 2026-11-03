@@ -167,6 +167,7 @@ const CONTROLS: [string, Row[]][][] = [[
     [<K>G</K>, 'mostrar u ocultar el G-code'],
   ]],
   ['Forma', [
+    ['Rueda · arrastrar el fondo', <>acercar o alejar · desplazar; el botón de encuadre vuelve a la vista inicial</>],
     [<><K>Ctrl</K> <K>Z</K> · <K>Ctrl</K> <K>Shift</K> <K>Z</K></>, 'deshacer · rehacer'],
     ['Doble clic en la línea', 'añadir un nodo'],
     [<><K>Supr</K> · <K>Esc</K></>, 'borrar · soltar el nodo elegido'],

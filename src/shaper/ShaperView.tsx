@@ -55,6 +55,14 @@ const HISTORY = 200;
 const loopD = (pts: Pt[]) => 'M' + pts.map(p => `${fmt(p.x, 2)} ${fmt(-p.y, 2)}`).join('L') + 'Z';
 
 type Drag = { kind: 'anchor' | 'in' | 'out'; c: number; i: number; moved: boolean; frame: number };
+// zoom multiplies the automatic frame; (cx, cy) is the view's centre in canvas units (y down).
+type View = { zoom: number; cx: number; cy: number };
+type Pan = { id: number; x: number; y: number; cx: number; cy: number; moved: boolean };
+const HOME: View = { zoom: 1, cx: 0, cy: 0 };
+const ZOOM_MIN = 0.2;
+const ZOOM_MAX = 40;
+// A press that moves less than this is a click (deselects), not a pan.
+const PAN_SLOP_PX = 3;
 
 export function ShaperView(props: Props) {
   const { doc: docIn, onChange, wave, switcher, onSend, onHelp, incoming, onIncomingDone } = props;
@@ -233,10 +241,65 @@ export function ShaperView(props: Props) {
   // The frame grows in steps, so changing the size visibly changes the
   // shape against the grid instead of rescaling the view; a drag keeps it.
   const frame = drag.current?.frame ?? Math.max(100, Math.ceil((diameter * 1.3) / 20) * 20);
-  const grid = frame <= 300 ? 10 : 50;
-  const reach = Math.ceil((frame * 2) / grid) * grid;
+  const [view, setView] = useState<View>(HOME);
+  const span = frame / view.zoom;
   // mm per screen pixel; the viewBox is square and fitted inside the canvas.
-  const mmPerPx = box.w && box.h ? frame / Math.min(box.w, box.h) : frame / 600;
+  const mmPerPx = box.w && box.h ? span / Math.min(box.w, box.h) : span / 600;
+  const grid = span <= 40 ? 1 : span <= 300 ? 10 : span <= 1500 ? 50 : 250;
+  // What the canvas shows: the square viewBox plus what "meet" adds on the long side.
+  const halfW = (span / 2) * (box.w && box.h ? box.w / Math.min(box.w, box.h) : 1);
+  const halfH = (span / 2) * (box.w && box.h ? box.h / Math.min(box.w, box.h) : 1);
+  const vis = { x0: view.cx - halfW, x1: view.cx + halfW, y0: view.cy - halfH, y1: view.cy + halfH };
+
+  const viewRef = useRef({ view, frame });
+  viewRef.current = { view, frame };
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const { view: v, frame: f } = viewRef.current;
+      const zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, v.zoom * Math.exp(-e.deltaY * (e.deltaMode === 1 ? 0.05 : 0.0015))));
+      if (zoom === v.zoom) return;
+      // Keep the point under the cursor where it is. Worked out from the view
+      // rather than the CTM, which lags when several wheel events land in one frame.
+      const r = el.getBoundingClientRect();
+      const unit = f / v.zoom / Math.min(r.width, r.height);
+      const px = v.cx + (e.clientX - r.left - r.width / 2) * unit;
+      const py = v.cy + (e.clientY - r.top - r.height / 2) * unit;
+      const k = v.zoom / zoom;
+      const next = { zoom, cx: px + (v.cx - px) * k, cy: py + (v.cy - py) * k };
+      viewRef.current = { view: next, frame: f };
+      setView(next);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const pan = useRef<Pan | null>(null);
+  const [panning, setPanning] = useState(false);
+  const startPan = (e: ReactPointerEvent) => {
+    if (e.button !== 0 && e.button !== 1) return;
+    if (e.button === 1) e.preventDefault();
+    svgRef.current!.setPointerCapture(e.pointerId);
+    pan.current = { id: e.pointerId, x: e.clientX, y: e.clientY, cx: view.cx, cy: view.cy, moved: false };
+  };
+  const movePan = (e: ReactPointerEvent) => {
+    const g = pan.current;
+    if (!g || g.id !== e.pointerId) return;
+    const dx = e.clientX - g.x, dy = e.clientY - g.y;
+    if (!g.moved && Math.hypot(dx, dy) < PAN_SLOP_PX) return;
+    if (!g.moved) { g.moved = true; setPanning(true); }
+    setView(v => ({ ...v, cx: g.cx - dx * mmPerPx, cy: g.cy - dy * mmPerPx }));
+  };
+  const endPan = () => {
+    const g = pan.current;
+    if (!g) return;
+    pan.current = null;
+    setPanning(false);
+    if (!g.moved && contours) setSel(null);
+  };
+  const isHome = view.zoom === 1 && view.cx === 0 && view.cy === 0;
 
   const toMM = (e: { clientX: number; clientY: number }) => {
     const m = svgRef.current!.getScreenCTM()!.inverse();
@@ -259,10 +322,19 @@ export function ShaperView(props: Props) {
     editContour(g.c, next, [g.i], g.moved);
     g.moved = true;
   };
-  const endDrag = () => { drag.current = null; };
+  const endDrag = () => { drag.current = null; endPan(); };
 
-  const lines: { v: number; major: boolean }[] = [];
-  for (let v = -reach; v <= reach; v += grid) lines.push({ v, major: Math.round(v / grid) % MAJOR_EVERY === 0 });
+  const gridLines = (a: number, b: number) => {
+    const out: { v: number; major: boolean }[] = [];
+    for (let v = Math.floor(a / grid) * grid; v <= b; v += grid) out.push({ v, major: Math.round(v / grid) % MAJOR_EVERY === 0 });
+    return out;
+  };
+  const xLines = gridLines(vis.x0, vis.x1);
+  const yLines = gridLines(vis.y0, vis.y1);
+  // Ruler numbers sit on the axes, or along the nearest edge once an axis is panned out of view.
+  const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+  const rulerY = clamp(-3 * mmPerPx, vis.y0 + (LABEL_PX + 3) * mmPerPx, vis.y1 - 3 * mmPerPx);
+  const rulerX = clamp(3 * mmPerPx, vis.x0 + 3 * mmPerPx, vis.x1 - 5 * LABEL_PX * mmPerPx);
 
   // Each outline's seam and, a little way along, an arrow for its direction.
   const seams = outlines.map(o => {
@@ -280,31 +352,31 @@ export function ShaperView(props: Props) {
 
   return (
     <div className="app-stage shaper-stage">
-      <svg ref={svgRef} className={`shaper-canvas${contours ? ' shaper-canvas--edit' : ''}`}
-        viewBox={`${-frame / 2} ${-frame / 2} ${frame} ${frame}`}
+      <svg ref={svgRef} className={`shaper-canvas${contours ? ' shaper-canvas--edit' : ''}${panning ? ' shaper-canvas--pan' : ''}`}
+        viewBox={`${view.cx - span / 2} ${view.cy - span / 2} ${span} ${span}`}
         preserveAspectRatio="xMidYMid meet" role="img" aria-label={label}
-        onPointerDown={() => { if (contours) setSel(null); }}
-        onPointerMove={onPointerMove} onPointerUp={endDrag} onPointerCancel={endDrag}>
+        onPointerDown={startPan}
+        onPointerMove={e => { movePan(e); onPointerMove(e); }} onPointerUp={endDrag} onPointerCancel={endDrag}>
         <g className="shaper-grid">
-          {lines.map(({ v, major }) => (
-            <g key={v} className={major ? 'shaper-grid-major' : undefined}>
-              <line x1={v} y1={-reach} x2={v} y2={reach} />
-              <line x1={-reach} y1={v} x2={reach} y2={v} />
-            </g>
+          {xLines.map(({ v, major }) => (
+            <line key={`x${v}`} className={major ? 'shaper-grid-major' : undefined} x1={v} y1={vis.y0} x2={v} y2={vis.y1} />
+          ))}
+          {yLines.map(({ v, major }) => (
+            <line key={`y${v}`} className={major ? 'shaper-grid-major' : undefined} x1={vis.x0} y1={v} x2={vis.x1} y2={v} />
           ))}
         </g>
         <g className="shaper-axes">
-          <line x1={-reach} y1={0} x2={reach} y2={0} />
-          <line x1={0} y1={-reach} x2={0} y2={reach} />
+          <line x1={vis.x0} y1={0} x2={vis.x1} y2={0} />
+          <line x1={0} y1={vis.y0} x2={0} y2={vis.y1} />
         </g>
         <g className="shaper-ruler" style={{ fontSize: LABEL_PX * mmPerPx }}>
-          {lines.filter(l => l.major && l.v !== 0).map(({ v }) => (
-            <g key={v}>
-              <text x={v + 3 * mmPerPx} y={-3 * mmPerPx}>{v}</text>
-              <text x={3 * mmPerPx} y={v - 3 * mmPerPx}>{-v}</text>
-            </g>
+          {xLines.filter(l => l.major && l.v !== 0).map(({ v }) => (
+            <text key={`x${v}`} x={v + 3 * mmPerPx} y={rulerY}>{v}</text>
           ))}
-          <text x={3 * mmPerPx} y={-3 * mmPerPx}>0 mm</text>
+          {yLines.filter(l => l.major && l.v !== 0).map(({ v }) => (
+            <text key={`y${v}`} x={rulerX} y={v - 3 * mmPerPx}>{-v}</text>
+          ))}
+          {rulerY === -3 * mmPerPx && rulerX === 3 * mmPerPx && <text x={rulerX} y={rulerY}>0 mm</text>}
         </g>
         <circle className="shaper-size" cx={0} cy={0} r={diameter / 2}>
           <title>Diámetro exterior: {fmt(diameter, 1)} mm</title>
@@ -436,6 +508,14 @@ export function ShaperView(props: Props) {
 
       <div className="stage-bar shaper-bar">
         <div className="bar-group bar-group--end">
+          <button className="btn-icon" onClick={() => setView(HOME)} disabled={isHome} aria-label="Encuadrar la forma"
+            title={wrapHint('Encuadrar la forma. En el lienzo: rueda = zoom · arrastrar el fondo (o con el botón central) = desplazar')}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4"
+              strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M1.5 5V1.5H5M11 1.5h3.5V5M14.5 11v3.5H11M5 14.5H1.5V11" />
+              <circle cx="8" cy="8" r="2.6" strokeWidth="1.2" />
+            </svg>
+          </button>
           <button className="btn-icon" onClick={undo} disabled={past.current.length === 0}
             aria-label="Deshacer" title="Deshacer (Ctrl+Z)">↶</button>
           <button className="btn-icon" onClick={redo} disabled={future.current.length === 0}

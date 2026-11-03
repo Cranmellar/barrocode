@@ -1583,7 +1583,9 @@ input[type="range"]::-moz-range-thumb {
 .shaper-canvas rect,
 .shaper-canvas circle { vector-effect: non-scaling-stroke; }
 .shaper-grid line { stroke: var(--border); stroke-width: 1; }
-.shaper-grid-major line { stroke: var(--border-strong); }
+.shaper-grid line.shaper-grid-major { stroke: var(--border-strong); }
+.shaper-canvas { cursor: grab; touch-action: none; }
+.shaper-canvas--pan, .shaper-canvas--pan * { cursor: grabbing; }
 .shaper-axes line { stroke: var(--faint); stroke-width: 1; }
 .shaper-shape { fill: none; stroke: var(--ink); stroke-width: 2; stroke-linejoin: round; }
 .shaper-seam { fill: var(--surface); stroke: var(--ink); stroke-width: 1.5; }
