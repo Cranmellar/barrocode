@@ -7,8 +7,6 @@ import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenera
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
 import type { BedOverlay } from './lib/draw3D';
-import { MachineParams } from './components/MachineParams';
-import { MachineReview } from './components/MachineReview';
 import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
@@ -27,6 +25,8 @@ import { keyframeChanges } from './lib/keyframeDiff';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
+const MachineParams = lazy(() => import('./components/MachineParams').then(m => ({ default: m.MachineParams })));
+const MachineReview = lazy(() => import('./components/MachineReview').then(m => ({ default: m.MachineReview })));
 
 type Workspace = 'forma' | 'impresion' | 'maquina';
 
@@ -1174,7 +1174,7 @@ export default function App() {
                   title="Ocultar panel" aria-label="Ocultar panel izquierdo"><Chevron dir="left" /></button>
               </span>
             </div>
-            {workspace === 'maquina' ? <MachineParams params={params} onChange={setParams} /> : <>
+            {workspace === 'maquina' ? <Suspense fallback={null}><MachineParams params={params} onChange={setParams} /></Suspense> : <>
             {savedSession && !parsedSVG && (
               <div className="session-banner" role="status">
                 <span className="session-banner-text">
@@ -1271,12 +1271,14 @@ export default function App() {
         <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
             {workspace === 'maquina' ? (
-              <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
-                gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
-                headerExtra={
-                  <button className="btn-icon" onClick={() => togglePanel('right')}
-                    title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
-                } />
+              <Suspense fallback={null}>
+                <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
+                  gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
+                  headerExtra={
+                    <button className="btn-icon" onClick={() => togglePanel('right')}
+                      title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
+                  } />
+              </Suspense>
             ) : (
             <LissajousParams
               params={lissParams}
