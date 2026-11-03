@@ -247,6 +247,22 @@ describe('generateGcode — extrusion', () => {
   });
 });
 
+describe('generateGcode — header', () => {
+  it('lists the keyframes, which override the wave it lists', () => {
+    const params = { ...PARAMS, ...WAVE, numLayers: 3 };
+    const kfs = [
+      { id: 'a', t: 0, ampN: 1, ampT: 0, wlN: 20, wlT: 20, delta: 0 },
+      { id: 'b', t: 0.5, ampN: 4.5, ampT: 0.5, wlN: 25, wlT: 12, delta: Math.PI / 2, rotation: 30, smooth: true },
+    ];
+    const toolpath = buildToolpath(generateWaveLayers([lemniscate()], params, kfs), params, CENTRE);
+    const { text } = generateGcode(toolpath, params, kfs);
+
+    expect(text).toContain('; Keyframes              : 2');
+    expect(text).toContain(';   2 at 50.0 % · N 4.5 / 25 · T 0.5 / 12 · Z 0.8 / 30 mm · delta 90.0° · scale 1 / 1 · rotation 30° · smooth');
+    expect(generateGcode(toolpath, params).text).not.toContain('Keyframes');
+  });
+});
+
 describe('generateGcode — program start and end', () => {
   it('sets absolute extrusion only when E is generated', () => {
     expect(run(facingPair()).gcode).toContain('\nM82 ');

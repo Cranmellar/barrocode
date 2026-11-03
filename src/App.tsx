@@ -703,7 +703,7 @@ export default function App() {
     setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
-      setProgram(generateGcode(toolpath, params));
+      setProgram(generateGcode(toolpath, params, keyframes));
       setGcodeBusy(false);
     }, 400);
     return () => {
@@ -712,7 +712,7 @@ export default function App() {
         gcodeTimerRef.current = null;
       }
     };
-  }, [toolpath, params]);
+  }, [toolpath, params, keyframes]);
 
   function togglePath(id: string) {
     setParsedSVG(prev => prev && {
