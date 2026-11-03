@@ -68,7 +68,21 @@ describe('fan, speeds and templates', () => {
     const fan = lines.findIndex(l => l.startsWith('M106'));
     expect(lines.slice(0, fan).reverse().find(l => l.startsWith(';LAYER:'))).toBe(';LAYER:2');
     expect(gcode).toContain('\nM107');
-    expect(run(square(), { numLayers: 4 }).gcode).not.toMatch(/M10[67]/);
+    const clay = run(square(), { numLayers: 4 }).gcode;
+    expect(clay.slice(0, clay.indexOf('; ===== End')).match(/M10[67]/)).toBeNull();
+  });
+
+  it('shuts clay down after the last move, end template or not', () => {
+    for (const endGcode of ['', 'G28']) {
+      const lines = run(square(), { numLayers: 2, endGcode }).gcode.trimEnd().split('\n');
+      expect(lines.slice(-3).map(l => l.split(' ')[0])).toEqual(['M400', 'M107', 'M84']);
+      if (endGcode) expect(lines.indexOf('G28')).toBeLessThan(lines.length - 4);
+    }
+  });
+
+  it('turns filament heaters off when the end template is empty', () => {
+    const tail = run(square(), { ...FIL, numLayers: 2, endGcode: '' }).gcode.trimEnd().split('\n').slice(-4);
+    expect(tail.map(l => l.replace(/\s*;.*/, ''))).toEqual(['M104 S0', 'M140 S0', 'M107', 'M84']);
   });
 
   it('slows the first layer and layers shorter than the minimum time', () => {

@@ -266,6 +266,9 @@ ToolpathLayer[] consumed by BOTH:
   │      filament: M107, then M106 at fanFromLayer, retraction on skirt travel
   │    • per-layer feed (layerFeeds): firstLayerSpeed, minLayerTime
   │    • final lift to max(safeZ, highest printed Z) + 10, at most bedZ
+  │    • shutdown: clay always ends with M400 / M107 / M84 after any end
+  │      template; filament with no end template gets M104 S0 / M140 S0 /
+  │      M107 / M84
   │    • move() / dwell() write each line and keep the time / length / E
   │      summary from the rounded values written
   │  → { text, stats }    (stats feed the viewer summary)
@@ -436,7 +439,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - Path order, Z oscillation and z-hop belong in `lib/toolpath.ts`, not in the emitter: the preview draws the same toolpath, so anything computed only in `gcodeGenerator.ts` makes the two disagree.
 - E accumulates (`E += dist * ePerMM(params)`), only going back for a filament retraction that the next move recovers. If you add new motion, account for E unless `params.generateE` is false. Stats count E from its high-water mark (`eHigh`), so a retraction and its recovery consume nothing; `summarizeGcode` does the same.
 - Clay never retracts. Filament retracts only around skirt travel (`retractLength`, `buildSkirtTravel`); don't add retraction elsewhere without a reason the review can explain.
-- With the clay profile (`MACHINE_PROFILES[0]`, the defaults) the output must stay what it was: the start template is empty, no fan codes, the feed is `printSpeed`. Machine features key on `material === 'filament'` or on a field the clay profile leaves at 0.
+- With the clay profile (`MACHINE_PROFILES[0]`, the defaults) the output must stay what it was: the start template is empty, no fan codes before the end (the shutdown block's `M107` is the only one), the feed is `printSpeed`. Machine features key on `material === 'filament'` or on a field the clay profile leaves at 0.
 
 ---
 

@@ -264,7 +264,9 @@ export function MachineParams({ params, onChange }: Props) {
             onChange={e => set('startGcode', e.target.value)} />
           <label htmlFor="end-gcode">G-code de fin</label>
           <textarea id="end-gcode" rows={3} spellCheck={false} value={params.endGcode}
-            placeholder="Vacío: M84"
+            placeholder={params.material === 'filament'
+              ? 'Vacío: apaga boquilla, cama y ventilador (M104 S0, M140 S0, M107) y los motores (M84)'
+              : 'Arcilla: al final siempre se añade M400, M107 y M84 (apaga el extrusor y los motores)'}
             onChange={e => set('endGcode', e.target.value)} />
           <p className="machine-note">Variables: {TEMPLATE_VARS.map(v => `{${v}}`).join(' ')}</p>
         </div>

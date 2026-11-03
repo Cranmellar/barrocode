@@ -38,6 +38,22 @@ import { FIRMWARE_LABEL, profileName } from './machineProfiles';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
+
+// Clay always gets it, after any end template: a clay extruder keeps pushing
+// while its motor holds, and some rigs drive the auger or the air valve from
+// the fan output.
+const CLAY_SHUTDOWN = [
+  '; --- Shutdown ---',
+  'M400  ; wait for the last move to finish',
+  'M107  ; auxiliary output off (auger or air valve on the fan pin)',
+  'M84   ; disable motors, extruder included',
+].join('\n');
+const FILAMENT_SHUTDOWN = [
+  'M104 S0  ; nozzle heater off',
+  'M140 S0  ; bed heater off',
+  'M107     ; fan off',
+  'M84      ; disable motors',
+].join('\n');
 const PRIME_GAP = 10;        // mm between the priming line and the part
 
 function fmt(n: number, d = 3) { return n.toFixed(d); }
@@ -537,7 +553,8 @@ export function generateGcode(
     minX: fmt(box.minX), maxX: fmt(box.maxX), minY: fmt(box.minY), maxY: fmt(box.maxY),
   };
   if (params.endGcode.trim()) blocks.push('; --- End G-code ---', fillTemplate(params.endGcode.trimEnd(), vars));
-  else blocks.push('M84  ; disable motors');
+  if (!filament) blocks.push(CLAY_SHUTDOWN);
+  else if (!params.endGcode.trim()) blocks.push(FILAMENT_SHUTDOWN);
 
   const head = [buildHeader(params, box)];
   if (params.startGcode.trim()) head.push(`; --- Start G-code ---\n${fillTemplate(params.startGcode.trimEnd(), vars)}\n; --- End of start G-code ---`);
