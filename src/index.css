@@ -1426,19 +1426,64 @@ input[type="range"]::-moz-range-thumb {
 .view-preset:hover { color: var(--ink); }
 .view-preset--on { color: var(--ink); }
 
-/* Forma · Impresión · Máquina: the header of the left panel in every workspace */
-.workspace-switch { display: flex; gap: var(--sp-3); }
+/* Forma · Impresión · Máquina: the header of the left panel in every workspace.
+   Numbered steps on one track read as a sequence; the raised segment as the one picked. */
+.panel-header:has(.workspace-switch) { flex-wrap: wrap; row-gap: var(--sp-2); }
+.workspace-switch {
+  flex: 1 1 100%;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  background: var(--surface-3);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
 .workspace-tab {
-  padding: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 26px;
+  padding: 0 6px 0 3px;
   background: none;
   border: none;
-  color: var(--muted);
+  border-radius: var(--radius-sm);
+  color: var(--ink-2);
   font: inherit;
+  white-space: nowrap;
   cursor: pointer;
-  transition: color var(--dur-fast);
+  transition: color var(--dur-fast), background var(--dur-fast), box-shadow var(--dur-fast);
 }
-.workspace-tab:hover { color: var(--ink-2); }
-.workspace-tab--on, .workspace-tab--on:hover { color: var(--ink); }
+.workspace-tab:hover { color: var(--ink); background: var(--surface-2); }
+.workspace-tab--on, .workspace-tab--on:hover {
+  color: var(--ink);
+  background: var(--field);
+  box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
+  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
+}
+.workspace-num {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid var(--control-edge);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.workspace-tab--on .workspace-num { background: var(--ink); border-color: var(--ink); color: var(--field); }
+.workspace-sep {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin: 0 2px 0 0;
+  border-top: 1.4px solid var(--control-edge);
+  border-right: 1.4px solid var(--control-edge);
+  transform: rotate(45deg);
+}
 
 /* ── Máquina ─────────────────────────────────────────────────────────────── */
 .machine-select {

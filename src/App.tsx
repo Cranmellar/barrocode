@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
+import { Fragment, lazy, Suspense, useState, useCallback, useEffect, useId, useMemo, useRef, type CSSProperties } from 'react';
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, WAVE_PARAMS } from './lib/waveGenerator';
@@ -997,14 +997,19 @@ export default function App() {
   const switcher = (
     <div className="workspace-switch" role="tablist" aria-label="Espacio de trabajo">
       {([
-        ['forma', 'Forma', 'Crear la forma de la pieza'],
-        ['impresion', 'Impresión', 'Onda, capas y keyframes'],
-        ['maquina', 'Máquina', 'Impresora, cama, material y revisión del G-code'],
+        ['forma', 'Forma', 'Paso 1 de 3: dibuja la forma de la pieza y envíala a impresión'],
+        ['impresion', 'Impresión', 'Paso 2 de 3: onda, capas y keyframes sobre la forma'],
+        ['maquina', 'Máquina', 'Paso 3 de 3: impresora, cama, material y revisión del G-code'],
       ] as const)
-        .map(([w, label, title]) => (
-          <button key={w} role="tab" aria-selected={workspace === w} title={wrapHint(title)}
-            className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
-            onClick={() => setWorkspace(w)}>{label}</button>
+        .map(([w, label, title], i) => (
+          <Fragment key={w}>
+            {i > 0 && <span className="workspace-sep" aria-hidden="true" />}
+            <button role="tab" aria-selected={workspace === w} title={wrapHint(title)}
+              className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
+              onClick={() => setWorkspace(w)}>
+              <span className="workspace-num" aria-hidden="true">{i + 1}</span>{label}
+            </button>
+          </Fragment>
         ))}
     </div>
   );
