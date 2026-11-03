@@ -718,6 +718,12 @@ export function generateWaveLayers(
   // Absolute Z of each point on the previous layer, in sampling order.
   let prevZ: number[][] = [];
 
+  // Without keyframes or a per-layer phase shift every layer has the same
+  // wave (one per direction with alternateDirection); only the Z floor
+  // differs. It is computed once per direction, before the floor, and copied.
+  const reuse = !useKeyframes && params.phaseShiftPerLayer === 0;
+  const waveCache = new Map<boolean, PathWave[]>();
+
   // Sum of the keyframed per-layer shifts of the layers below.
   let shiftBelow = 0;
 
@@ -733,14 +739,9 @@ export function generateWaveLayers(
     const isAlt = params.alternateDirection && li % 2 === 1;
     const reverse = params.reversePath !== isAlt;
 
-    const layerZ: number[][] = [];
-
-    const pathPoints: WavePoint[][] = enabled.map((path, pi) => {
+    // The waved, transformed path before the Z floor, closed when asked.
+    function computeWave(path: SampledPath, pi: number): PathWave {
       const pts = reverse ? [...path.points].reverse() : path.points;
-      const n = pts.length;
-      const below = prevZ[pi];
-      const pathZ: number[] = new Array(n);
-      layerZ.push(pathZ);
       const arcAt = (p: SampledPoint) => reverse ? path.totalLength - p.arcLength : p.arcLength;
       const pathLocal: LocalParams = {
         ampN: (path.ampNOverride ?? params.lissAmpN) / sf,
@@ -800,16 +801,6 @@ export function generateWaveLayers(
           p, aN, aT, aZ, cycN, cycT, cycZ, lp.delta, lp.phaseZ, phaseBase,
         );
 
-        // The first layer never dips below its set height, and each later
-        // point stays a thin bead above the same sample on the layer below,
-        // so the Z wave can't drive the nozzle into the bed or the part.
-        const si = reverse ? n - 1 - i : i;
-        const floor = below
-          ? below[si] + params.layerHeight * MIN_LAYER_GAP
-          : z;
-        wavePt.zOffset = Math.max(wavePt.zOffset, floor - z);
-        pathZ[si] = z + wavePt.zOffset;
-
         if (offsets.length > 1) {
           const [dx, dy] = transformNormal(
             outward[pi] * p.tangentY, -outward[pi] * p.tangentX,
@@ -834,24 +825,56 @@ export function generateWaveLayers(
           flatIdx++;
         }
       }
+      return { wave: result, dirX, dirY };
+    }
 
-      if (offsets.length === 1) return result;
+    const layerZ: number[][] = [];
+    const cached = reuse ? waveCache.get(reverse) : undefined;
+    const computed: PathWave[] = [];
+
+    const pathPoints: WavePoint[][] = enabled.map((path, pi) => {
+      const n = path.points.length;
+      const { wave, dirX, dirY } = cached ? copyWave(cached[pi]) : computeWave(path, pi);
+      if (reuse && !cached) computed.push(copyWave({ wave, dirX, dirY }));
+
+      // The first layer never dips below its set height, and each later
+      // point stays a thin bead above the same sample on the layer below,
+      // so the Z wave can't drive the nozzle into the bed or the part.
+      const below = prevZ[pi];
+      const pathZ: number[] = new Array(n);
+      layerZ.push(pathZ);
+      for (let i = 0; i < n; i++) {
+        const si = reverse ? n - 1 - i : i;
+        const floor = below ? below[si] + params.layerHeight * MIN_LAYER_GAP : z;
+        wave[i].zOffset = Math.max(wave[i].zOffset, floor - z);
+        pathZ[si] = z + wave[i].zOffset;
+      }
+      if (wave.length > n) wave[n].zOffset = wave[0].zOffset;
+
+      if (offsets.length === 1) return wave;
 
       // Passes follow each other at the seam on a closed path, which keeps
       // the seam ramp on the last one; an open path goes back and forth.
-      flatIdx += (offsets.length - 1) * result.length;
+      flatIdx += (offsets.length - 1) * wave.length;
       return offsets.flatMap((off, k) => {
         const d = off * passStep;
-        const pass = result.map((p, i) => ({ x: p.x + d * dirX[i], y: p.y + d * dirY[i], zOffset: p.zOffset }));
+        const pass = wave.map((p, i) => ({ x: p.x + d * dirX[i], y: p.y + d * dirY[i], zOffset: p.zOffset }));
         return closed[pi] || k % 2 === 0 ? pass : pass.reverse();
       });
     });
+    if (reuse && !cached) waveCache.set(reverse, computed);
 
     layers.push({ index: li, z, paths: pathPoints, closed });
     prevZ = layerZ;
   }
 
   return layers;
+}
+
+interface PathWave { wave: WavePoint[]; dirX: number[]; dirY: number[] }
+
+function copyWave({ wave, dirX, dirY }: PathWave): PathWave {
+  return { wave: wave.map(p => ({ x: p.x, y: p.y, zOffset: p.zOffset })), dirX, dirY };
 }
 
 // ── Coordinate conversion ────────────────────────────────────────────────────
