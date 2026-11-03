@@ -32,7 +32,7 @@
 import type { PrintParams } from '../types';
 import type { ToolpathLayer, ToolpathPoint } from './toolpath';
 import { skirtArcPoints, type MM2 } from './skirtUtils';
-import { layerCount } from './waveGenerator';
+import { layerCount, wallPassCount, wallSpacingMM } from './waveGenerator';
 import { emptyBox, growBox, type GcodeBox, type GcodeStats } from './gcodeStats';
 import { FIRMWARE_LABEL, profileName } from './machineProfiles';
 
@@ -135,6 +135,9 @@ function buildHeader(params: PrintParams, box: GcodeBox): string {
       : `; Part centre at X / Y   : ${params.originX} / ${params.originY} mm`,
     `; Flip Y                 : ${params.flipY}`,
     `; Alternate direction    : ${params.alternateDirection}`,
+    ...(wallPassCount(params) > 1
+      ? [`; Wall passes            : ${wallPassCount(params)} ${params.wallSide}, ${fmt(wallSpacingMM(params), 2)} mm apart (${params.wallSpacing} % of line width)`]
+      : []),
     `; Safe Z                 : ${params.safeZ} mm`,
     `; Z-hop height / radius  : ${params.zHopHeight} / ${params.hopRadius} mm`,
     `; Skirt threshold        : ${params.skirtThreshold} mm`,
