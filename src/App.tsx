@@ -758,8 +758,17 @@ export default function App() {
   }, [machineKey]);
 
   const checks = useMemo(
-    () => workspace === 'maquina' ? checkMachine(params, toolpath, program?.stats ?? null) : [],
+    () => workspace !== 'forma' ? checkMachine(params, toolpath, program?.stats ?? null) : [],
     [workspace, params, toolpath, program],
+  );
+  // Impresión shows only the errors, as a way into the full review.
+  const machineErrs = workspace === 'impresion' ? checks.filter(c => c.level === 'err') : [];
+  const machineAlert = machineErrs.length > 0 && (
+    <button className="btn-small machine-alert" onClick={() => setWorkspace('maquina')}
+      aria-label={`${machineErrs.length} error${machineErrs.length > 1 ? 'es' : ''} de máquina: abrir la revisión`}
+      title={[...machineErrs.map(c => wrapHint(c.title)), 'Abrir la revisión en Máquina'].join('\n')}>
+      <Icon name="aviso" />{machineErrs.length}
+    </button>
   );
   const bedOut = checks.some(c => c.level === 'err' && c.action === 'centre');
   // The bed in toolpath coordinates, which the preview draws in: the G-code's
@@ -1070,6 +1079,7 @@ export default function App() {
         timelineActions={kfActions}
         timelineEditor={kfEditor}
         bed={bed}
+        summaryLead={machineAlert || null}
         showTimeline={workspace === 'impresion'}
       />
 

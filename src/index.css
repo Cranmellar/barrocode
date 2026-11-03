@@ -295,6 +295,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .stage-summary-sep { color: var(--faint); }
+.btn-small.machine-alert { flex: none; gap: 4px; padding: 0 var(--sp-2); color: var(--err); border-color: var(--err); background: var(--err-bg); }
+.btn-small.machine-alert:hover:not(:disabled) { background: var(--err-bg); border-color: var(--err); color: var(--err); text-decoration: underline; }
 .stage-summary { transition: opacity var(--dur) var(--ease); }
 .stage-summary--stale { opacity: 0.55; }
 

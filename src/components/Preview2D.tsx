@@ -62,6 +62,8 @@ interface Props {
   // Máquina: the printer bed under the part, and no keyframe timeline.
   bed?: BedOverlay | null;
   showTimeline?: boolean;
+  // Placed before the summary in the top bar (machine errors in Impresión).
+  summaryLead?: ReactNode;
 }
 
 export const STAGE_GAP = 12;
@@ -165,7 +167,7 @@ export function Preview2D({
   keyframes, onKeyframesChange,
   centerTab, onTabChange, gcode, gcodeStats: stats, gcodeBusy, gcodeFilename, toast, onToast,
   selectedKfId, onKfSelect, onAddKeyframe, onHelp,
-  insets, timelineLead, timelineActions, timelineEditor, bed = null, showTimeline = true,
+  insets, timelineLead, timelineActions, timelineEditor, bed = null, showTimeline = true, summaryLead,
 }: Props) {
   const canvasRef   = useRef<HTMLCanvasElement>(null);
   const topdownRef  = useRef<HTMLCanvasElement>(null);
@@ -749,6 +751,7 @@ export function Preview2D({
         </div>
 
         <div className="bar-group bar-group--end">
+          {summaryLead}
           {toolpath.length > 0 && modelBounds && (
             <span className={`stage-summary${gcodeBusy ? ' stage-summary--stale' : ''}`} title={[
               stats && `Impresión ${Math.round(stats.printLength).toLocaleString()} mm · desplazamiento ${Math.round(stats.travelLength).toLocaleString()} mm`,
