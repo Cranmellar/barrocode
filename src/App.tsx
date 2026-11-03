@@ -209,6 +209,9 @@ function loadMachine(): Partial<MachineFields> {
   }
 }
 const SESSION_KEY = 'barrocode.session';
+// The session's SVG, on its own key: it is the bulk of the session and only
+// changes when another file is loaded.
+const SESSION_SVG_KEY = 'barrocode.sessionSvg';
 // Forma's shape and the last SVG it sent, kept apart from the print session.
 const SHAPE_KEY = 'barrocode.shape';
 
@@ -278,10 +281,18 @@ interface SavedSession {
 function loadSession(): SavedSession | null {
   try {
     const s = JSON.parse(localStorage.getItem(SESSION_KEY) ?? 'null');
-    return s && typeof s.raw === 'string' ? s : null;
+    const raw = localStorage.getItem(SESSION_SVG_KEY);
+    return s && typeof s === 'object' && raw !== null ? { ...s, raw } : null;
   } catch {
     return null;
   }
+}
+
+function forgetSession() {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(SESSION_SVG_KEY);
+  } catch { /* storage unavailable */ }
 }
 
 function hasSeenHelp() {
@@ -745,15 +756,22 @@ export default function App() {
   }
 
   // Autosave so an accidental tab close doesn't lose the work.
+  const savedRawRef = useRef<string | null>(null);
   useEffect(() => {
     const raw = lastRawRef.current?.raw;
     if (!parsedSVG || !raw) return;
     const t = setTimeout(() => {
-      const session: SavedSession = {
-        raw, filename: gcodeFilename, params, keyframes,
+      const session: Omit<SavedSession, 'raw'> = {
+        filename: gcodeFilename, params, keyframes,
         paths: pathStates(parsedSVG.paths),
       };
-      try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch { /* full or unavailable */ }
+      try {
+        if (savedRawRef.current !== raw) {
+          localStorage.setItem(SESSION_SVG_KEY, raw);
+          savedRawRef.current = raw;
+        }
+        localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+      } catch { /* full or unavailable */ }
     }, 1000);
     return () => clearTimeout(t);
   }, [parsedSVG, params, keyframes, gcodeFilename]);
@@ -821,12 +839,14 @@ export default function App() {
   }
 
   function discardSession() {
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    forgetSession();
+    savedRawRef.current = null;
     setSavedSession(null);
   }
 
   function clearSVG() {
-    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage unavailable */ }
+    forgetSession();
+    savedRawRef.current = null;
     setParsedSVG(null);
     setError(null);
     lastRawRef.current = null;
