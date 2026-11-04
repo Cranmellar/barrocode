@@ -171,6 +171,12 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
         <div className="liss-head-side">
           <div className="liss-head-title">
             <span className="panel-title"><Icon name="onda" size={16} />Onda</span>
+            <button className="btn-reset liss-head-reset" onClick={onReset} disabled={autoKeyAt !== null}
+              title={editingKf
+                ? 'Restablece la onda de este keyframe y la fase'
+                : autoKeyAt !== null
+                  ? 'Selecciona un keyframe para restablecer su onda'
+                  : 'Restablece solo los parámetros de la onda'}><Icon name="reset" />Restablecer</button>
           </div>
           {editingKf ? (
             <div className="liss-context liss-context--kf">
@@ -199,14 +205,6 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
               </span>
             </div>
           )}
-          <div className="liss-head-actions">
-            <button className="btn-reset liss-head-reset" onClick={onReset} disabled={autoKeyAt !== null}
-              title={editingKf
-                ? 'Restablece la onda de este keyframe y la fase'
-                : autoKeyAt !== null
-                  ? 'Selecciona un keyframe para restablecer su onda'
-                  : 'Restablece solo los parámetros de la onda'}><Icon name="reset" />Restablecer</button>
-          </div>
         </div>
         {figure}
       </div>

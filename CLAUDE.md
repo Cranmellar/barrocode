@@ -292,8 +292,8 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ Forma·Impr.·Máq.  │ │ Color, Cotas … summary, G-code,  │ │ Onda, context line │
-│ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ Restablecer │ fig. │
+│ Forma·Impr.·Máq.  │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
+│ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ context line│ fig. │
 │ file name         │ └──────────────────────────────────┘ │ (square Lissajous) │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
@@ -477,7 +477,7 @@ This is the most subtle area. Before changing `lib/gcodeGenerator.ts`:
 - On/off options in `.param-check` rows are native checkboxes styled as switches (`appearance: none`).
 
 - Buttons: `.btn-small` (secondary), `.btn-primary` (ink), `.btn-primary.btn-signal` (the export action), `.btn-reset` (ghost), `.btn-link` (an underlined word inside a note, e.g. *abrir Máquina* in Escala). Segmented controls (`.workspace-switch`, `.view-presets`, `.seg` for two-option choices on a param row in Máquina, `aria-pressed` buttons) share one look: a `--surface-3` track with the picked segment raised.
-- Both side panels hide from `.panel-handle`, a tab on the panel's inner edge at mid-height (rendered beside the `<aside>` in `App.tsx`; `--right` mirrors it), so their headers hold no hide button. The keyframe editor above the timeline hides from the same tab lying on the dock's top edge (`--dock`, `editorHidden` in `Preview2D`; the timeline stays). Forma's *Restablecer* sits in Forma's top bar after undo/redo.
+- Both side panels hide from `.panel-handle`, a tab on the panel's inner edge at mid-height (rendered beside the `<aside>` in `App.tsx`; `--right` mirrors it), so their headers hold no hide button. The keyframe editor above the timeline hides from the same tab lying on the dock's top edge (`--dock`, `editorHidden` in `Preview2D`; the timeline stays). Its fields are a fixed 72 px and its groups take their content's width, centred in the dock; the keyframe's layer is not repeated there, since the timeline readout under it shows the same. The wave panel's *Restablecer* sits on the title row beside *Onda*, which is why the figure is 96 px. Forma's *Restablecer* sits in Forma's top bar after undo/redo.
 - Status notes under a field use `.state-line` with an icon (`.state-ok` tints it `--ok`), not a leading `→`, which reads as an action.
 - The top bar compacts itself while the summary doesn't fit between the side panels (`compact` in `Preview2D`, measured in a layout effect, up to `BAR_COMPACT_MAX`): summary on two lines, *Iso* for *Isométrica*, *Descargar* and *G-code* as icons (with `aria-label`), tighter gaps. It starts over when the bar's width or its content changes. Checked at 1280–1920 px with both panels open, with and without the machine mark.
 - Floating containers (`.float-panel`, top bar groups, `.layer-slider`, `.dock`, `.gcode-drawer`) share one surface: white, `--border`, `--radius-lg`, `--shadow-float`. Opaque on purpose: a translucent or blurred panel would make the browser recomposite it on every canvas frame.

@@ -108,7 +108,7 @@ El panel derecho. Arriba, una figura pequeña muestra la onda que recorre la boq
 | **Desfase inicial** | Dónde empieza la onda en la primera capa. |
 | **Desfase por capa** | Cuánto se corre la onda en cada capa. Produce torsiones y espirales. |
 
-*Restablecer* (arriba del panel) vuelve los valores de la onda a los iniciales. Con un keyframe elegido, solo los de ese keyframe.
+*Restablecer* (junto al título *Onda*) vuelve los valores de la onda a los iniciales. Con un keyframe elegido, solo los de ese keyframe.
 
 ## 7. Keyframes
 

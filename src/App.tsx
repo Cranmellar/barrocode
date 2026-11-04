@@ -7,7 +7,7 @@ import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenera
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
 import type { BedOverlay } from './lib/draw3D';
-import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
+import { keyframeColor, layerAtT } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
@@ -1005,9 +1005,9 @@ export default function App() {
 
   const kfEditor = selectedKf && (
     <div className="kf-editor">
-      <div className="kf-group kf-group-pos">
+      <div className="kf-group">
         <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
-          <label>Posición <span className="kf-field-hint">{layerLabel(layerAtT(toolpath, selectedKf.t), params.layerHeight)}</span></label>
+          <label>Posición</label>
           <div className="kf-field-input-row">
             <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
               onChange={v => moveSelectedKf(v / 100)} />
