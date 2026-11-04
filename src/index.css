@@ -490,10 +490,42 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 
 /* Small wave figure at the top of the wave panel */
+/* Wave panel head: title, what is being edited and reset on the left, the figure on the right */
+.liss-head {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+}
+.liss-head-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.liss-head-title {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
+  color: var(--ink);
+}
+.liss-head .liss-context { align-self: stretch; align-items: flex-start; margin: 0; }
+.liss-head .liss-context > .ico, .liss-head .liss-context > .kf-badge { margin-top: 2px; }
+.liss-head .liss-context-text { display: flex; flex-direction: column; }
+.liss-head .liss-context-scope { color: var(--muted); font-weight: var(--fw-regular); font-variation-settings: 'wght' 450; }
+.liss-head-actions { align-self: stretch; display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+.liss-head-reset { display: inline-flex; align-items: center; gap: var(--sp-1); padding-left: 0; }
 .liss-figure {
   position: relative;
-  height: 84px;
-  margin: 0 var(--sp-3) var(--sp-2);
+  flex: none;
+  width: 104px;
+  height: 104px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;

@@ -100,7 +100,7 @@ export function LissajousPreview({ params, morph = 0 }: Props) {
     const { w, h } = size;
     if (w === 0 || h === 0) return;
     const maxAmp = Math.max(lissAmpN, lissAmpT, 0.5);
-    const margin = 10;
+    const margin = 8;
     const scale = Math.min(
       (w - margin * 2) / (maxAmp * 2 || 1),
       (h - margin * 2) / (maxAmp * 2 || 1),
