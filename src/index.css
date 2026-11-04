@@ -224,7 +224,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   z-index: 2;
   display: flex;
   gap: 2px;
-  margin: var(--sp-2) var(--sp-3) var(--sp-1);
+  margin: var(--sp-3) var(--sp-3) var(--sp-1);
   padding: 2px;
   background: var(--surface-3);
   border-radius: var(--radius);
@@ -275,7 +275,7 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   display: flex;
   flex-direction: column;
   gap: var(--sp-2);
-  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  padding: 0 var(--sp-3);
 }
 .file-row { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
 .file-row .sample-nav { flex: 1; min-width: 0; }
@@ -490,10 +490,42 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 
 /* Small wave figure at the top of the wave panel */
+/* Wave panel head: title, what is being edited and reset on the left, the figure on the right */
+.liss-head {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+}
+.liss-head-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-2);
+}
+.liss-head-title {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 24px;
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
+  color: var(--ink);
+}
+.liss-head .liss-context { align-self: stretch; align-items: flex-start; margin: 0; }
+.liss-head .liss-context > .ico, .liss-head .liss-context > .kf-badge { margin-top: 2px; }
+.liss-head .liss-context-text { display: flex; flex-direction: column; }
+.liss-head .liss-context-scope { color: var(--muted); font-weight: var(--fw-regular); font-variation-settings: 'wght' 450; }
+.liss-head-actions { align-self: stretch; display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
+.liss-head-reset { display: inline-flex; align-items: center; gap: var(--sp-1); padding-left: 0; }
 .liss-figure {
   position: relative;
-  height: 84px;
-  margin: 0 var(--sp-3) var(--sp-2);
+  flex: none;
+  width: 104px;
+  height: 104px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -747,7 +779,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 }
 .help-fig figcaption { margin-top: 6px; font-size: var(--fs-sm); color: var(--muted); }
 .help-fig figcaption b { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
-.help-fig--wide { max-width: 380px; }
 .help-keys { white-space: nowrap; }
 .hd-base     { stroke: var(--faint); stroke-width: 1; stroke-dasharray: 3 3; }
 .hd-wave     { fill: none; stroke: var(--ink); stroke-width: 1.8; stroke-linejoin: round; stroke-linecap: round; }
@@ -1486,7 +1517,7 @@ input[type="range"]::-moz-range-thumb {
 
 /* Forma · Impresión · Máquina: the header of the left panel in every workspace.
    Numbered steps on one track read as a sequence; the raised segment as the one picked. */
-.panel-header:has(.workspace-switch) { flex-wrap: wrap; row-gap: var(--sp-2); }
+.panel-header:has(.workspace-switch) { flex-wrap: wrap; row-gap: var(--sp-2); padding: var(--sp-3); }
 .workspace-switch {
   flex: 1 1 100%;
   display: flex;
@@ -1503,7 +1534,7 @@ input[type="range"]::-moz-range-thumb {
   justify-content: center;
   gap: 4px;
   height: 26px;
-  padding: 0 6px 0 3px;
+  padding: 0 6px;
   background: none;
   border: none;
   border-radius: var(--radius-sm);
@@ -1536,7 +1567,7 @@ input[type="range"]::-moz-range-thumb {
   flex: none;
   width: 5px;
   height: 5px;
-  margin: 0 2px 0 0;
+  margin: 0 5px 0 3px;
   border-top: 1.4px solid var(--control-edge);
   border-right: 1.4px solid var(--control-edge);
   transform: rotate(45deg);

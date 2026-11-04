@@ -115,7 +115,7 @@ function KeyframeFigure() {
     </g>
   );
   return (
-    <figure className="help-fig help-fig--wide">
+    <figure className="help-fig">
       <svg viewBox="0 0 320 124" role="img"
         aria-label="Dos keyframes: el 1 con amplitud N de 3 mm y el 2 con 18 mm; entre ellos la onda crece de a poco">
         <line x1="24" y1="38" x2="296" y2="38" className="hd-base" />

@@ -13,7 +13,7 @@ interface Props {
   morph: number;
   // Default values: sliders mark them and snap to them.
   defaults: PrintParams;
-  editingKf: { number: number; label: string; color: string; smooth: boolean; onDone: () => void } | null;
+  editingKf: { number: number; label: string; at: string; color: string; smooth: boolean; onDone: () => void } | null;
   // Keyframes exist but none is selected: the panel shows the wave at the
   // extruder (this position), and editing it creates a keyframe there.
   autoKeyAt: string | null;
@@ -168,40 +168,54 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
 
   return (
     <div className="lissajous-params">
-      <div className="panel-header">
-        <span className="panel-title"><Icon name="onda" size={16} />Onda</span>
-        <span className="panel-header-actions">
-          <button className="btn-reset" onClick={onReset} disabled={autoKeyAt !== null}
-            title={editingKf
-              ? 'Restablece la onda de este keyframe y la fase'
-              : autoKeyAt !== null
-                ? 'Selecciona un keyframe para restablecer su onda'
-                : 'Restablece solo los parámetros de la onda'}>Restablecer</button>
-          {headerExtra}
-        </span>
+      <div className="liss-head">
+        <div className="liss-head-side">
+          <div className="liss-head-title">
+            <span className="panel-title"><Icon name="onda" size={16} />Onda</span>
+            {headerExtra}
+          </div>
+          {editingKf ? (
+            <div className="liss-context liss-context--kf">
+              <span className={`kf-badge${editingKf.smooth ? ' kf-smooth' : ''}`} style={{ '--kf-c': editingKf.color } as React.CSSProperties}>
+                {editingKf.number}
+              </span>
+              <span className="liss-context-text">
+                <span className="liss-context-scope">Editando · {editingKf.at}</span>
+                {editingKf.label}
+              </span>
+            </div>
+          ) : autoKeyAt !== null ? (
+            <div className="liss-context liss-context--live">
+              <Icon name="keyframe" />
+              <span className="liss-context-text">
+                <span className="liss-context-scope">En el extrusor</span>
+                {autoKeyAt}. Un cambio crea un keyframe aquí.
+              </span>
+            </div>
+          ) : (
+            <div className="liss-context liss-context--global" title="Sin keyframes, esta onda se aplica igual a toda la pieza">
+              <Icon name="global" />
+              <span className="liss-context-text">
+                Onda global
+                <span className="liss-context-scope">toda la pieza</span>
+              </span>
+            </div>
+          )}
+          <div className="liss-head-actions">
+            <button className="btn-reset liss-head-reset" onClick={onReset} disabled={autoKeyAt !== null}
+              title={editingKf
+                ? 'Restablece la onda de este keyframe y la fase'
+                : autoKeyAt !== null
+                  ? 'Selecciona un keyframe para restablecer su onda'
+                  : 'Restablece solo los parámetros de la onda'}><Icon name="reset" />Restablecer</button>
+            {editingKf && (
+              <button className="btn-small liss-context-done" onClick={editingKf.onDone}
+                title="Terminar de editar el keyframe (Esc)">OK</button>
+            )}
+          </div>
+        </div>
+        {figure}
       </div>
-      {figure}
-      {editingKf ? (
-        <div className="liss-context liss-context--kf">
-          <span className={`kf-badge${editingKf.smooth ? ' kf-smooth' : ''}`} style={{ '--kf-c': editingKf.color } as React.CSSProperties}>
-            {editingKf.number}
-          </span>
-          <span className="liss-context-text">Editando {editingKf.label}</span>
-          <button className="btn-small liss-context-done" onClick={editingKf.onDone}
-            title="Terminar de editar el keyframe (Esc)">OK</button>
-        </div>
-      ) : autoKeyAt !== null ? (
-        <div className="liss-context liss-context--live">
-          <Icon name="keyframe" />
-          Onda en el extrusor ({autoKeyAt}). Al cambiar un valor se crea un keyframe aquí.
-        </div>
-      ) : (
-        <div className="liss-context liss-context--global" title="Sin keyframes, esta onda se aplica igual a toda la pieza">
-          <Icon name="global" />
-          <span className="liss-context-text">Onda global</span>
-          <span className="liss-context-scope">toda la pieza</span>
-        </div>
-      )}
 
       {/* ── Preajustes ── */}
       <Sec title="Preajustes" icon="preajustes">

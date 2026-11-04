@@ -1305,7 +1305,8 @@ export default function App() {
               defaults={DEFAULT_PARAMS}
               editingKf={selectedKf && {
                 number: selectedIdx + 1,
-                label: `Keyframe ${selectedIdx + 1} · ${Math.round(selectedKf.t * 100)}%`,
+                label: `Keyframe ${selectedIdx + 1}`,
+                at: `${Math.round(selectedKf.t * 100)} %`,
                 color: keyframeColor(selectedKf.t),
                 smooth: Boolean(selectedKf.smooth),
                 onDone: () => setSelectedKfId(null),

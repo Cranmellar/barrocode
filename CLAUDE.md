@@ -291,9 +291,9 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 
 ```
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
-│ Forma·Impr.·Máq.  │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
-│ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ small Lissajous    │
-│ file name         │ └──────────────────────────────────┘ │ context line       │
+│ Forma·Impr.·Máq.  │ │ Color, Cotas … summary, G-code,  │ │ Onda, context line │
+│ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ Restablecer │ fig. │
+│ file name         │ └──────────────────────────────────┘ │ (square Lissajous) │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
 │ Trayecto          │   G-code opens as a drawer here  │a│ │                    │
