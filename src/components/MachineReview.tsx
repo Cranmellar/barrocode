@@ -2,6 +2,7 @@ import type { PrintParams } from '../types';
 import type { ToolpathLayer } from '../lib/toolpath';
 import type { GcodeStats } from '../lib/gcodeStats';
 import type { MachineCheck } from '../lib/machineCheck';
+import { PLA_DENSITY } from '../lib/gcodeGenerator';
 import { Icon } from './icons';
 
 interface Props {
@@ -15,7 +16,6 @@ interface Props {
   onAdapt: () => void;
 }
 
-const PLA_DENSITY = 1.24;   // g/cm³
 const CLAY_DENSITY = 1.8;   // g/cm³, wet
 
 const n = (v: number, d = 1) => v.toLocaleString('es', { maximumFractionDigits: d });

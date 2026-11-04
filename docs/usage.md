@@ -157,6 +157,8 @@ En *Impresión*, una marca en la barra superior avisa de los mismos errores (en 
 | **Pausa al inicio** / **Cebado** | Arcilla. Una pausa (`G4`) en la primera posición y una línea corta a 10 mm de la primera capa. |
 | **Inicio y fin** | G-code antes y después del programa, con variables: `{nozzleTemp}`, `{bedTemp}`, `{bedX}`, `{bedY}`, `{bedZ}`, `{firstLayerZ}`, `{topZ}`, `{parkZ}`, `{clearZ}`, `{minX}`, `{maxX}`, `{minY}`, `{maxY}`. Una variable desconocida es un error en la revisión. |
 
+Con filamento, el archivo empieza como uno de Creality Print: una miniatura de la pieza (vista isométrica, 96 y 300 px), el tiempo estimado, el filamento usado (largo, volumen y peso con PLA de 1,24 g/cm³) y el número de capas. Así la pantalla de la impresora los muestra. El tiempo es el de la barra superior: a la velocidad programada, sin aceleraciones, así que la impresión real tarda algo más. En el panel de G-code cada miniatura ocupa una sola línea.
+
 Al final del programa, con arcilla, barrocode siempre agrega `M400` (espera el último movimiento), `M107` (apaga la salida auxiliar, por si el tornillo o la válvula de aire cuelgan de ella) y `M84` (apaga los motores, extrusor incluido).
 
 ## 9. Vista 3D
