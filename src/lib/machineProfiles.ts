@@ -25,6 +25,8 @@ export type MachineFields = Pick<PrintParams, typeof MACHINE_FIELDS[number]>;
 
 const T = {
   creality: 'M140 S0\nM104 S0\nSTART_PRINT EXTRUDER_TEMP={nozzleTemp} BED_TEMP={bedTemp}',
+  // Creality Print 7.1 sets the corner speed from the profile's jerk (20) after START_PRINT.
+  crealityK1: 'M140 S0\nM104 S0\nSTART_PRINT EXTRUDER_TEMP={nozzleTemp} BED_TEMP={bedTemp}\nSET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=20',
   // END_PRINT turns the heaters off, cools the nozzle with the part fan and
   // lowers the bed to half its travel, but only 2 mm more when the part is
   // taller than that; the heaters go off first in case the macro was edited.
@@ -61,6 +63,8 @@ export interface MachineProfile {
   note: string;
   // Generic starting points with no catalogue figures to check (the clay ones).
   generic?: boolean;
+  // Where the figures were checked, shown in place of the catalogue warning.
+  source?: string;
   values: Omit<MachineFields, 'machineProfile' | 'gcodeOrigin' | 'originX' | 'originY' | 'marginX' | 'marginY'>;
 }
 
@@ -78,8 +82,8 @@ const CLAY: Partial<MachineProfile['values']> = {
   startGcode: '', endGcode: '',
 };
 
-const p = (id: string, name: string, note: string, v: Partial<MachineProfile['values']>, generic = false): MachineProfile =>
-  ({ id, name, note, generic, values: { ...BASE, ...v } });
+const p = (id: string, name: string, note: string, v: Partial<MachineProfile['values']>, generic = false, source?: string): MachineProfile =>
+  ({ id, name, note, generic, source, values: { ...BASE, ...v } });
 
 export const MACHINE_PROFILES: MachineProfile[] = [
   p('clay-centre', 'Arcilla · origen al centro', 'Sin plantillas; E = largo recorrido × multiplicador. Ajusta la cama a tu máquina.',
@@ -90,8 +94,13 @@ export const MACHINE_PROFILES: MachineProfile[] = [
     { ...CLAY, firmware: 'reprap', bedShape: 'circle', bedX: 200, bedY: 200, bedZ: 400, bedOrigin: 'centre',
       nozzleDiameter: 1.2, lineWidth: 1.6, printSpeed: 1200, travelSpeed: 3600, startGcode: T.wasp, endGcode: T.waspEnd }),
 
+  // Figures from a Creality Print 7.1 file (0.20mm Standard @Creality K1 0.4 nozzle, EN-PLA+):
+  // outer wall speed and acceleration, first layer, travel, fan from layer 2, EN-PLA+ flow and cooling time.
   p('k1', 'Creality K1 / K1C', 'Creality OS (Klipper): la macro START_PRINT calienta, hace homing y purga.',
-    { firmware: 'klipper', printSpeed: 7200, travelSpeed: 18000, accel: 8000, maxVolumetricFlow: 32, startGcode: T.creality, endGcode: T.crealityEnd }),
+    { firmware: 'klipper', nozzleTemp: 220, bedTemp: 55, flowRatio: 96, maxVolumetricFlow: 18, fanFromLayer: 2,
+      printSpeed: 3000, firstLayerSpeed: 3000, travelSpeed: 30000, minLayerTime: 12, accel: 5000,
+      startGcode: T.crealityK1, endGcode: T.crealityEnd },
+    false, 'Velocidades, temperaturas y flujo tomados de Creality Print 7.1 (0.20 mm Standard, EN-PLA+), con la velocidad del muro exterior. Revisa la cama y las plantillas.'),
   p('k1max', 'Creality K1 Max', 'Como la K1, con cama de 300 mm.',
     { firmware: 'klipper', bedX: 300, bedY: 300, bedZ: 300, printSpeed: 7200, travelSpeed: 18000, accel: 8000, maxVolumetricFlow: 32, startGcode: T.creality, endGcode: T.crealityEnd }),
   p('e3v3', 'Creality Ender-3 V3', 'CoreXZ con Creality OS (Klipper); Z rápido, bien para la onda Z. Macro de inicio supuesta igual a la K1.',

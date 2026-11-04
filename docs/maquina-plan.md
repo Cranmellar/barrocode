@@ -63,6 +63,8 @@ El G-code de barrocode ya es, en FDM, un **modo jarrón** (*spiralize*): una sol
 
 «Ender K1» no existe como modelo: se entiende la **Creality K1** (familia K1 / K1C / K1 SE; la K1 Max es más grande). Cifras de catálogo o perfiles de la comunidad: **verificar contra la impresora y su perfil de Creality Print antes de fijarlas** en un perfil.
 
+Nov 2026: el perfil K1 toma sus cifras de un G-code de Creality Print 7.1 (perfil *0.20mm Standard @Creality K1 0.4 nozzle*, EN-PLA+): boquilla 220 °C, cama 55 °C, 50 mm/s (la velocidad del muro exterior, la cara que barrocode imprime), primera capa 50 mm/s, viaje 500 mm/s, aceleración 5000 (muro exterior), ventilador al 100 % desde la capa 2, flujo 96 %, caudal máximo 18 mm³/s, capa mínima 12 s y `SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=20` después de `START_PRINT`. Retracción 0,8 mm a 40 mm/s, como ya estaba. No se probó en la máquina.
+
 | | Creality K1 / K1C | Ender-3 V3 | Ender-3 V3 SE | Ender-3 V3 KE |
 |---|---|---|---|---|
 | Cinemática | CoreXY, cama en Z | CoreXZ (X y Z acoplados) | Cartesiana, cama en Y | Cartesiana, cama en Y |
