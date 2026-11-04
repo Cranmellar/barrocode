@@ -110,7 +110,7 @@ export function MachineParams({ params, onChange }: Props) {
         </div>
         <p className="machine-note">
           {profile
-            ? <>{profile.note}{!profile.generic && ' Cifras de catálogo: revisa cama y plantillas.'}</>
+            ? <>{profile.note}{profile.source ? ` ${profile.source}` : !profile.generic && ' Cifras de catálogo: revisa cama y plantillas.'}</>
             : 'Valores propios. Elegir un perfil reemplaza la máquina y centra la pieza en su cama.'}
         </p>
         <Choice label="Material" value={params.material} options={[['clay', 'Arcilla'], ['filament', 'Filamento']]}
