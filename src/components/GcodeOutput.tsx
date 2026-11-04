@@ -11,16 +11,21 @@ interface Props {
 // head of the program is shown; copy and download use the full string.
 const PREVIEW_LINES = 1500;
 
+// The thumbnails' base64 would fill the preview; they show as one line each.
+const THUMBNAIL = /(; thumbnail begin (\S+) \d+\n)(?:; [^\n]*\n)*?(; thumbnail end)/g;
+
 function summarize(gcode: string) {
-  let lines = 1, headEnd = -1;
-  for (let i = gcode.indexOf('\n'); i !== -1; i = gcode.indexOf('\n', i + 1)) {
-    if (lines === PREVIEW_LINES) headEnd = i;
-    lines++;
+  let lines = 1;
+  for (let i = gcode.indexOf('\n'); i !== -1; i = gcode.indexOf('\n', i + 1)) lines++;
+  const shown = gcode.replace(THUMBNAIL, (_, begin, size, end) => `${begin}; (imagen PNG de ${size} px)\n${end}`);
+  let n = 1, headEnd = -1;
+  for (let i = shown.indexOf('\n'); i !== -1; i = shown.indexOf('\n', i + 1)) {
+    if (n === PREVIEW_LINES) headEnd = i;
+    n++;
   }
-  const hidden = lines - PREVIEW_LINES;
   const text = headEnd === -1
-    ? gcode
-    : `${gcode.slice(0, headEnd)}\n\n; … ${hidden.toLocaleString()} líneas más. ` +
+    ? shown
+    : `${shown.slice(0, headEnd)}\n\n; … ${(n - PREVIEW_LINES).toLocaleString()} líneas más. ` +
       'Usa «Copiar» o «Descargar» para obtener el programa completo.';
   return { lines, text, kb: (new Blob([gcode]).size / 1024).toFixed(1) };
 }

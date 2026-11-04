@@ -3,7 +3,8 @@ import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types'
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, wallPassCount, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
-import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenerator';
+import { gcodeOffset, generateGcode, THUMBNAIL_SIZES, type GcodeProgram } from './lib/gcodeGenerator';
+import { renderThumbnail } from './lib/thumbnail';
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
 import type { BedOverlay } from './lib/draw3D';
@@ -761,7 +762,10 @@ export default function App() {
     setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
-      setProgram(generateGcode(toolpath, params, keyframes));
+      const thumbnails = params.material === 'filament'
+        ? THUMBNAIL_SIZES.map(size => renderThumbnail(toolpath, size, params.lineWidth))
+        : [];
+      setProgram(generateGcode(toolpath, params, keyframes, thumbnails));
       setGcodeBusy(false);
     }, 400);
     return () => {
