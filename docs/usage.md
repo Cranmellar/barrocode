@@ -116,7 +116,7 @@ Un keyframe fija la onda, la escala, el giro y el centro en un punto de la impre
 
 1. Mueve el extrusor de la línea de tiempo (abajo) al punto que quieras.
 2. Pulsa **Keyframe** o `K`. El keyframe toma la onda que se ve en ese punto y queda elegido.
-3. Con un keyframe elegido, el panel derecho edita su onda (dice *Editando* con el % y *Keyframe N*). La franja de abajo edita su posición, giro, escala, centro y transición. La pestaña en su borde superior la oculta y la vuelve a mostrar.
+3. Con un keyframe elegido, el panel derecho edita su onda (dice *Editando* con el % y *Keyframe N*). El editor sobre la línea de tiempo edita su centro (con la planta), posición, giro, escala y transición. La pestaña en su borde superior lo oculta y lo vuelve a mostrar.
 4. Pulsa **✓ Listo** o `Esc` para terminar. `Supr` borra el keyframe elegido.
 
 Más:

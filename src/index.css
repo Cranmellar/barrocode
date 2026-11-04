@@ -135,7 +135,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .float-panel,
 .stage-bar .bar-group,
 .layer-slider,
-.dock,
+.dock-row,
+.kf-editor,
 .gcode-drawer {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -415,14 +416,17 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .check-draw path { stroke-dasharray: 14; stroke-dashoffset: 14; animation: check-draw 260ms 60ms var(--ease) forwards; }
 @keyframes check-draw { to { stroke-dashoffset: 0; } }
 
-/* Timeline dock: keyframe editor (when one is selected) above the timeline row */
+/* Timeline dock: the keyframe editor (when one is selected) floats above the
+   timeline row as its own container, as wide as its fields. The dock itself is
+   transparent and lets clicks beside the editor reach the canvas. */
 .dock {
   position: absolute;
   z-index: 5;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  pointer-events: none;
 }
+.dock > * { pointer-events: auto; }
 .dock-row {
   display: flex;
   align-items: center;
@@ -2042,19 +2046,20 @@ input[type="range"]::-moz-range-thumb {
 .kf-add-btn--on:hover:not(:disabled) { background: var(--accent-hi); border-color: var(--accent-hi); }
 /* ── Keyframe editor panel ───────────────────────────────────────────────── */
 .kf-editor {
+  align-self: center;
   display: flex;
   flex-direction: row;
-  justify-content: center;
+  max-width: 100%;
   height: 116px;
   flex-shrink: 0;
+  margin-bottom: var(--sp-2);
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
   animation: editor-in 220ms var(--ease) both;
 }
 @keyframes editor-in { from { height: 0; opacity: 0; } }
-.dock-editor-leave { overflow: hidden; pointer-events: none; animation: editor-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
+.dock > .dock-editor-leave { align-self: center; max-width: 100%; overflow: hidden; pointer-events: none; animation: editor-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
 .dock-editor-leave .kf-editor { animation: none; }
-@keyframes editor-out { from { max-height: 117px; } to { max-height: 0; opacity: 0; } }
+@keyframes editor-out { from { max-height: 124px; } to { max-height: 0; opacity: 0; } }
 .kf-group {
   display: flex;
   flex-direction: column;
@@ -2062,8 +2067,7 @@ input[type="range"]::-moz-range-thumb {
   min-width: 0;
   border-right: 1px solid var(--border);
 }
-.kf-group:first-child { border-left: 1px solid var(--border); }
-.kf-group:last-child { border-right: 1px solid var(--border); }
+.kf-group:last-child { border-right: none; }
 .kf-group-ease .kf-field { align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
 .kf-ease-glyph path:first-child { transition: d var(--dur) var(--ease); }
 .kf-group .kf-field {
@@ -2157,7 +2161,7 @@ input[type="range"]::-moz-range-thumb {
 .kf-pad-wrap {
   display: flex;
   min-height: 0;
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 .center-pad-canvas {
   border: 1px solid var(--border-strong);

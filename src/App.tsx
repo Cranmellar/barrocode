@@ -1005,71 +1005,7 @@ export default function App() {
 
   const kfEditor = selectedKf && (
     <div className="kf-editor">
-      <div className="kf-group">
-        <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
-          <label>Posición</label>
-          <div className="kf-field-input-row">
-            <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
-              onChange={v => moveSelectedKf(v / 100)} />
-            <span className="kf-unit">%</span>
-          </div>
-        </div>
-        <div className="kf-field" title={wrapHint('Giro de la forma en este keyframe, alrededor del centro de pivote y antihorario visto desde arriba. Entre keyframes se interpola: de 0° a 360° la pieza da una vuelta completa.')}>
-          <label><Icon name="giro" size={11} />Giro</label>
-          <div className="kf-field-input-row">
-            <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
-              onChange={v => updateKf('rotation', v)} />
-            <span className="kf-unit">°</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="kf-group">
-        <div className="kf-field" title={wrapHint('Escala en X en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
-          <label><Icon name="escalaX" size={11} />Escala X</label>
-          <div className="kf-field-input-row">
-            <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
-              onChange={v => updateKf('scaleX', v)} />
-          </div>
-        </div>
-        <div className="kf-field" title={wrapHint('Escala en Y en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
-          <label><Icon name="escalaY" size={11} />Escala Y</label>
-          <div className="kf-field-input-row">
-            <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
-              onChange={v => updateKf('scaleY', v)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="kf-group kf-group-ease">
-        <div className="kf-field" title={wrapHint('Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, cambian a ritmo constante y el cambio de ritmo se nota en el keyframe.')}>
-          <label>Transición</label>
-          <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
-          <label className="kf-switch">
-            <input type="checkbox" checked={Boolean(selectedKf.smooth)}
-              onChange={e => updateKf('smooth', e.target.checked)} />
-            Suave
-          </label>
-        </div>
-      </div>
-
       <div className="kf-group kf-group-center">
-        <div className="kf-pad-wrap">
-          <CenterPad
-            layers={layers}
-            params={params}
-            centre={centre}
-            centerX={selectedKf.centerX ?? params.centerX}
-            centerY={selectedKf.centerY ?? params.centerY}
-            kfT={selectedKf.t}
-            onChange={(x, y) => {
-              if (!selectedKfId) return;
-              setKeyframes(keyframes.map(k =>
-                k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
-              ));
-            }}
-          />
-        </div>
         <div className="kf-center-fields">
           <div className="kf-field">
             <label><Icon name="centro" size={11} />Centro X</label>
@@ -1088,8 +1024,68 @@ export default function App() {
             </div>
           </div>
         </div>
+        <div className="kf-pad-wrap">
+          <CenterPad
+            layers={layers}
+            params={params}
+            centre={centre}
+            centerX={selectedKf.centerX ?? params.centerX}
+            centerY={selectedKf.centerY ?? params.centerY}
+            kfT={selectedKf.t}
+            onChange={(x, y) => {
+              if (!selectedKfId) return;
+              setKeyframes(keyframes.map(k =>
+                k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
+              ));
+            }}
+          />
+        </div>
       </div>
-
+      <div className="kf-group">
+        <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
+          <label>Posición</label>
+          <div className="kf-field-input-row">
+            <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
+              onChange={v => moveSelectedKf(v / 100)} />
+            <span className="kf-unit">%</span>
+          </div>
+        </div>
+        <div className="kf-field" title={wrapHint('Giro de la forma en este keyframe, alrededor del centro de pivote y antihorario visto desde arriba. Entre keyframes se interpola: de 0° a 360° la pieza da una vuelta completa.')}>
+          <label><Icon name="giro" size={11} />Giro</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
+              onChange={v => updateKf('rotation', v)} />
+            <span className="kf-unit">°</span>
+          </div>
+        </div>
+      </div>
+      <div className="kf-group">
+        <div className="kf-field" title={wrapHint('Escala en X en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
+          <label><Icon name="escalaX" size={11} />Escala X</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
+              onChange={v => updateKf('scaleX', v)} />
+          </div>
+        </div>
+        <div className="kf-field" title={wrapHint('Escala en Y en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
+          <label><Icon name="escalaY" size={11} />Escala Y</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
+              onChange={v => updateKf('scaleY', v)} />
+          </div>
+        </div>
+      </div>
+      <div className="kf-group kf-group-ease">
+        <div className="kf-field" title={wrapHint('Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, cambian a ritmo constante y el cambio de ritmo se nota en el keyframe.')}>
+          <label>Transición</label>
+          <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
+          <label className="kf-switch">
+            <input type="checkbox" checked={Boolean(selectedKf.smooth)}
+              onChange={e => updateKf('smooth', e.target.checked)} />
+            Suave
+          </label>
+        </div>
+      </div>
     </div>
   );
 
