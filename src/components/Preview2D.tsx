@@ -275,8 +275,10 @@ export function Preview2D({
   // stays mounted for the length of the closing animation.
   const lastEditorRef = useRef<ReactNode>(null);
   const [closingEditor, setClosingEditor] = useState<ReactNode>(null);
-  const hasEditor = Boolean(timelineEditor);
-  if (timelineEditor) lastEditorRef.current = timelineEditor;
+  const [editorHidden, setEditorHidden] = useState(false);
+  const editor = editorHidden ? null : timelineEditor;
+  const hasEditor = Boolean(editor);
+  if (editor) lastEditorRef.current = editor;
   useLayoutEffect(() => {
     if (hasEditor) { setClosingEditor(null); return; }
     const last = lastEditorRef.current;
@@ -894,9 +896,22 @@ export function Preview2D({
         )}
       </div>
 
+      {hasDock && timelineEditor && (
+        <button className="panel-handle panel-handle--dock"
+          style={{ left: insets.left, right: insets.right, bottom: STAGE_GAP + dockH - 1 }}
+          onClick={() => setEditorHidden(h => !h)}
+          title={editorHidden ? 'Mostrar el editor del keyframe' : 'Ocultar el editor del keyframe'}
+          aria-label={editorHidden ? 'Mostrar el editor del keyframe' : 'Ocultar el editor del keyframe'} aria-expanded={!editorHidden}>
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.6"
+            strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d={editorHidden ? 'M2.5 7.5 6 4l3.5 3.5' : 'M2.5 4.5 6 8l3.5-3.5'} />
+          </svg>
+        </button>
+      )}
+
       {hasDock && (
         <div className="dock" ref={dockRef} style={{ left: insets.left, right: insets.right, bottom: STAGE_GAP }}>
-          {timelineEditor ?? (closingEditor && <div className="dock-editor-leave" aria-hidden="true">{closingEditor}</div>)}
+          {editor ?? (closingEditor && <div className="dock-editor-leave" aria-hidden="true">{closingEditor}</div>)}
           <div className="dock-row">
             {timelineLead}
             <div className="timeline-track">

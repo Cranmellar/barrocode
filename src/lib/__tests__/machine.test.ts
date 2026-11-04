@@ -214,6 +214,12 @@ describe('checkMachine', () => {
     expect(levels({ ...k1, layerHeight: 0.05 }).find(c => c.action === 'adapt')?.level).toBe('warn');
   });
 
+  it('lets a clay layer reach the nozzle width', () => {
+    const clay = { ...PARAMS, nozzleDiameter: 4 };
+    expect(levels({ ...clay, layerHeight: 4 }).some(c => c.action === 'adapt')).toBe(false);
+    expect(levels({ ...clay, layerHeight: 4.5 }).find(c => c.action === 'adapt')?.level).toBe('warn');
+  });
+
   it('flags a flow the hotend cannot melt and unknown template variables', () => {
     const c = levels({ ...k1, layerHeight: 0.3, printSpeed: 30000, startGcode: 'START_PRINT {foo}' });
     expect(c.some(x => x.title.startsWith('Caudal') && x.level === 'warn')).toBe(true);

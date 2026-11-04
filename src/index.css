@@ -205,6 +205,23 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .panel-handle:hover { color: var(--ink); background: var(--surface-2); }
 .panel-handle.panel-leave { animation: panel-out-left 140ms cubic-bezier(0.4, 0, 1, 1) both; }
 .panel-handle svg { width: 12px; height: 12px; }
+.panel-handle--right {
+  border-left: 1px solid var(--border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.panel-handle--right.panel-leave { animation-name: panel-out-right; }
+/* Hides the keyframe editor: the same tab, lying on the dock's top edge */
+.panel-handle--dock {
+  top: auto;
+  width: 44px;
+  height: 14px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  animation: none;
+}
 
 .panel-scroll {
   --fade-bg: var(--surface);
@@ -1086,7 +1103,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .liss-context-scope { flex-shrink: 0; }
 .liss-context > .ico { color: var(--ink-2); }
 .liss-context--global .liss-context-text { color: var(--ink-2); }
-.liss-context-done { padding: 2px 10px; font-size: var(--fs-xs); }
 .liss-context--live { color: var(--ink-2); }
 
 .warn-note {
@@ -1442,6 +1458,10 @@ input[type="range"]::-moz-range-thumb {
 .layer-slider input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; background: var(--thumb-c, var(--accent)); }
 .layer-slider input[type="range"]::-moz-range-thumb     { width: 16px; height: 16px; background: var(--thumb-c, var(--accent)); }
 .layer-slider-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   font-variant-numeric: tabular-nums;
@@ -1551,18 +1571,6 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
 }
-.workspace-num {
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.workspace-tab--on .workspace-num { background: var(--ink); color: var(--field); }
 .workspace-sep {
   flex: none;
   width: 5px;
@@ -1729,8 +1737,8 @@ input[type="range"]::-moz-range-thumb {
 .shaper-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-1) var(--sp-4) var(--sp-2); }
 .shaper-actions .btn-small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .shaper-note--error { color: var(--err); }
-/* Editar puntos: first thing under the header, full width */
-.shaper-edit { padding: 0 var(--sp-4) var(--sp-3); }
+/* Editar puntos: under the family tabs, full width */
+.shaper-edit { padding: var(--sp-3) var(--sp-4); }
 .btn-small.btn-edit {
   width: 100%;
   height: 34px;
@@ -2056,21 +2064,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-group:last-child { border-right: none; }
 .kf-group-ease { flex: 0 0 auto; }
-.kf-group-diff {
-  flex: 1.2;
-  gap: 2px;
-  padding: var(--sp-2) var(--sp-3);
-  overflow-y: auto;
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-2);
-}
-.kf-diff-head { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
-.kf-diff-none { color: var(--muted); }
-.kf-diff { margin: 0; padding: 0; list-style: none; }
-.kf-diff li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kf-diff-label { color: var(--muted); }
-.kf-diff strong { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
+.kf-group-pos { flex: 1.6; }
 .kf-group-ease .kf-field { align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
 .kf-ease-glyph path:first-child { transition: d var(--dur) var(--ease); }
 .kf-group .kf-field {
@@ -2136,6 +2130,9 @@ input[type="range"]::-moz-range-thumb {
   line-height: 1;
 }
 .kf-field-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   margin-left: var(--sp-1);
   font-size: var(--fs-xs);
   font-variant-numeric: tabular-nums;

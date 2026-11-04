@@ -13,13 +13,12 @@ interface Props {
   morph: number;
   // Default values: sliders mark them and snap to them.
   defaults: PrintParams;
-  editingKf: { number: number; label: string; at: string; color: string; smooth: boolean; onDone: () => void } | null;
+  editingKf: { number: number; label: string; at: string; color: string; smooth: boolean } | null;
   // Keyframes exist but none is selected: the panel shows the wave at the
   // extruder (this position), and editing it creates a keyframe there.
   autoKeyAt: string | null;
   // Small figure of the wave, shown under the header.
   figure?: React.ReactNode;
-  headerExtra?: React.ReactNode;
 }
 
 // Within this fraction of the range, dragging snaps to the default value.
@@ -158,7 +157,7 @@ const PRESETS = [
 
 // ── Main component ──────────────────────────────────────────────────────────
 
-export function LissajousParams({ params, onChange, onReset, morph, defaults, editingKf, autoKeyAt, figure, headerExtra }: Props) {
+export function LissajousParams({ params, onChange, onReset, morph, defaults, editingKf, autoKeyAt, figure }: Props) {
   function set<K extends keyof PrintParams>(k: K, v: PrintParams[K]) {
     onChange({ ...params, [k]: v });
   }
@@ -172,7 +171,6 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
         <div className="liss-head-side">
           <div className="liss-head-title">
             <span className="panel-title"><Icon name="onda" size={16} />Onda</span>
-            {headerExtra}
           </div>
           {editingKf ? (
             <div className="liss-context liss-context--kf">
@@ -180,7 +178,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
                 {editingKf.number}
               </span>
               <span className="liss-context-text">
-                <span className="liss-context-scope">Editando · {editingKf.at}</span>
+                <span className="liss-context-scope">{'Editando\u00a0· '}{editingKf.at}</span>
                 {editingKf.label}
               </span>
             </div>
@@ -208,10 +206,6 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
                 : autoKeyAt !== null
                   ? 'Selecciona un keyframe para restablecer su onda'
                   : 'Restablece solo los parámetros de la onda'}><Icon name="reset" />Restablecer</button>
-            {editingKf && (
-              <button className="btn-small liss-context-done" onClick={editingKf.onDone}
-                title="Terminar de editar el keyframe (Esc)">OK</button>
-            )}
           </div>
         </div>
         {figure}
@@ -296,7 +290,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
 
       {/* ── Acoplamiento N/T ── */}
       <Sec title="Acoplamiento N / T" icon="acople">
-        <Slider morph={morph} def={deg(defaults.lissDelta)} label="Delta  (N respecto a T)" value={deg(params.lissDelta)}
+        <Slider morph={morph} def={deg(defaults.lissDelta)} label={'Delta (N respecto a\u00a0T)'} value={deg(params.lissDelta)}
           min={-180} max={180} step={1} unit="°"
           hint={'Desfase entre la onda lateral (N) y la de avance (T): decide la figura que dibuja la boquilla. Con λN igual a λT: 0° y 180° dan un vaivén en línea, inclinado hacia un lado o el otro; 90° da una elipse, que es un círculo si las dos amplitudes son iguales.'}
           onChange={v => set('lissDelta', rad(v))} />

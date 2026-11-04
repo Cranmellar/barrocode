@@ -97,9 +97,9 @@ export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], sta
     out.push({ level: 'warn', title: `Primera capa a Z ${n(first, 2)} mm con capas de ${n(h, 2)}`,
       detail: 'En filamento la primera capa suele ir a una altura de capa: ajusta el desplazamiento Z.' });
   }
-  if (h > 0.8 * noz) {
+  if (h > (filament ? 0.8 : 1) * noz + 1e-9) {
     out.push({ level: filament ? 'err' : 'warn', title: `Capa de ${n(h, 2)} mm con boquilla de ${n(noz, 2)}`,
-      detail: filament ? 'Más del 80 % de la boquilla: las capas no se pegan.' : 'En arcilla suele ir entre el 40 y el 70 % de la boquilla.', action: 'adapt' });
+      detail: filament ? 'Más del 80 % de la boquilla: las capas no se pegan.' : 'Más alta que el ancho de la boquilla: el cordón se apoya poco en la capa de abajo. En arcilla suele ir entre el 40 y el 70 % de la boquilla.', action: 'adapt' });
   } else if (h < 0.25 * noz) {
     out.push({ level: 'warn', title: `Capa de ${n(h, 2)} mm con boquilla de ${n(noz, 2)}`,
       detail: 'Muy fina para esta boquilla: el cordón se aplasta y la onda apenas se lee.', action: 'adapt' });

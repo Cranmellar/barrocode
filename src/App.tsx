@@ -21,7 +21,6 @@ import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 import { wrapHint } from './lib/wrapHint';
-import { keyframeChanges } from './lib/keyframeDiff';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -1004,10 +1003,9 @@ export default function App() {
     </div>
   );
 
-  const kfDiff = selectedKf && selectedIdx > 0 ? keyframeChanges(keyframes[selectedIdx - 1], selectedKf, params) : [];
   const kfEditor = selectedKf && (
     <div className="kf-editor">
-      <div className="kf-group">
+      <div className="kf-group kf-group-pos">
         <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
           <label>Posición <span className="kf-field-hint">{layerLabel(layerAtT(toolpath, selectedKf.t), params.layerHeight)}</span></label>
           <div className="kf-field-input-row">
@@ -1092,27 +1090,15 @@ export default function App() {
         </div>
       </div>
 
-      <div className="kf-group kf-group-diff" title={wrapHint('Lo que cambia desde el keyframe anterior; entre los dos, cada valor pasa de uno a otro.')}>
-        <span className="kf-diff-head">
-          {selectedIdx === 0 ? 'Primer keyframe' : <>Desde el {selectedIdx}</>}
-        </span>
-        {selectedIdx > 0 && (kfDiff.length === 0
-          ? <span className="kf-diff-none">Sin cambios</span>
-          : <ul className="kf-diff">
-              {kfDiff.map(c => (
-                <li key={c.label}><span className="kf-diff-label">{c.label}</span> {c.from} → <strong>{c.to}</strong>{c.unit && <span className="kf-unit">{c.unit === '°' ? c.unit : ` ${c.unit}`}</span>}</li>
-              ))}
-            </ul>)}
-      </div>
     </div>
   );
 
   const switcher = (
     <div className="workspace-switch" role="tablist" aria-label="Espacio de trabajo">
       {([
-        ['forma', 'Forma', 'Paso 1 de 3: dibuja la forma de la pieza y envíala a impresión'],
-        ['impresion', 'Impresión', 'Paso 2 de 3: onda, capas y keyframes sobre la forma'],
-        ['maquina', 'Máquina', 'Paso 3 de 3: impresora, cama, material y revisión del G-code'],
+        ['forma', 'Forma', 'Dibuja la forma de la pieza y envíala a impresión'],
+        ['impresion', 'Impresión', 'Onda, capas y keyframes sobre la forma'],
+        ['maquina', 'Máquina', 'Impresora, cama, material y revisión del G-code'],
       ] as const)
         .map(([w, label, title], i) => (
           <Fragment key={w}>
@@ -1120,7 +1106,7 @@ export default function App() {
             <button role="tab" aria-selected={workspace === w} title={wrapHint(title)}
               className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
               onClick={() => setWorkspace(w)}>
-              <span className="workspace-num" aria-hidden="true">{i + 1}</span>{label}
+              {label}
             </button>
           </Fragment>
         ))}
@@ -1284,17 +1270,16 @@ export default function App() {
       )}
 
       {/* ── Panel derecho ── */}
-      {shown.right ? (
+      {shown.right ? (<>
+        <button className={`panel-handle panel-handle--right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ right: STAGE_GAP + RIGHT_W - 1 }}
+          onClick={() => togglePanel('right')} title="Ocultar panel"
+          aria-label={workspace === 'maquina' ? 'Ocultar panel de revisión' : 'Ocultar panel de onda'}><Chevron dir="right" /></button>
         <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
             {workspace === 'maquina' ? (
               <Suspense fallback={null}>
                 <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
-                  gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
-                  headerExtra={
-                    <button className="btn-icon" onClick={() => togglePanel('right')}
-                      title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
-                  } />
+                  gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave} />
               </Suspense>
             ) : (
             <LissajousParams
@@ -1306,22 +1291,17 @@ export default function App() {
               editingKf={selectedKf && {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1}`,
-                at: `${Math.round(selectedKf.t * 100)} %`,
+                at: `${Math.round(selectedKf.t * 100)}\u00a0%`,
                 color: keyframeColor(selectedKf.t),
                 smooth: Boolean(selectedKf.smooth),
-                onDone: () => setSelectedKfId(null),
               }}
               autoKeyAt={autoKey ? `${Math.round(timelineProgress * 100)} %, capa ${layerAtT(toolpath, timelineProgress) + 1}` : null}
               figure={<div className="liss-figure"><LissajousPreview params={lissParams} morph={lissMorph} /></div>}
-              headerExtra={
-                <button className="btn-icon" onClick={() => togglePanel('right')}
-                  title="Ocultar panel" aria-label="Ocultar panel de onda"><Chevron dir="right" /></button>
-              }
             />
             )}
           </div>
         </aside>
-      ) : (
+      </>) : (
         <aside className="float-panel panel-rail panel-rail--right" style={{ width: RAIL_W }}>
           <button className="btn-icon rail-open" onClick={() => togglePanel('right')}
             title={workspace === 'maquina' ? 'Mostrar la revisión previa' : 'Mostrar panel de onda'}
