@@ -135,7 +135,8 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .float-panel,
 .stage-bar .bar-group,
 .layer-slider,
-.dock,
+.dock-row,
+.kf-editor,
 .gcode-drawer {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -205,6 +206,23 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .panel-handle:hover { color: var(--ink); background: var(--surface-2); }
 .panel-handle.panel-leave { animation: panel-out-left 140ms cubic-bezier(0.4, 0, 1, 1) both; }
 .panel-handle svg { width: 12px; height: 12px; }
+.panel-handle--right {
+  border-left: 1px solid var(--border);
+  border-right: none;
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+.panel-handle--right.panel-leave { animation-name: panel-out-right; }
+/* Hides the keyframe editor: the same tab, lying on the dock's top edge */
+.panel-handle--dock {
+  top: auto;
+  width: 44px;
+  height: 14px;
+  margin: 0 auto;
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  animation: none;
+}
 
 .panel-scroll {
   --fade-bg: var(--surface);
@@ -398,14 +416,17 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .check-draw path { stroke-dasharray: 14; stroke-dashoffset: 14; animation: check-draw 260ms 60ms var(--ease) forwards; }
 @keyframes check-draw { to { stroke-dashoffset: 0; } }
 
-/* Timeline dock: keyframe editor (when one is selected) above the timeline row */
+/* Timeline dock: the keyframe editor (when one is selected) floats above the
+   timeline row as its own container, as wide as its fields. The dock itself is
+   transparent and lets clicks beside the editor reach the canvas. */
 .dock {
   position: absolute;
   z-index: 5;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  pointer-events: none;
 }
+.dock > * { pointer-events: auto; }
 .dock-row {
   display: flex;
   align-items: center;
@@ -519,13 +540,12 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .liss-head .liss-context > .ico, .liss-head .liss-context > .kf-badge { margin-top: 2px; }
 .liss-head .liss-context-text { display: flex; flex-direction: column; }
 .liss-head .liss-context-scope { color: var(--muted); font-weight: var(--fw-regular); font-variation-settings: 'wght' 450; }
-.liss-head-actions { align-self: stretch; display: flex; align-items: center; justify-content: space-between; margin-top: auto; }
-.liss-head-reset { display: inline-flex; align-items: center; gap: var(--sp-1); padding-left: 0; }
+.btn-reset.liss-head-reset { display: inline-flex; align-items: center; gap: 3px; padding: 0 0 0 var(--sp-1); font-size: var(--fs-xs); flex-shrink: 0; }
 .liss-figure {
   position: relative;
   flex: none;
-  width: 104px;
-  height: 104px;
+  width: 96px;
+  height: 96px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   overflow: hidden;
@@ -1086,7 +1106,6 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .liss-context-scope { flex-shrink: 0; }
 .liss-context > .ico { color: var(--ink-2); }
 .liss-context--global .liss-context-text { color: var(--ink-2); }
-.liss-context-done { padding: 2px 10px; font-size: var(--fs-xs); }
 .liss-context--live { color: var(--ink-2); }
 
 .warn-note {
@@ -1442,6 +1461,10 @@ input[type="range"]::-moz-range-thumb {
 .layer-slider input[type="range"]::-webkit-slider-thumb { width: 16px; height: 16px; background: var(--thumb-c, var(--accent)); }
 .layer-slider input[type="range"]::-moz-range-thumb     { width: 16px; height: 16px; background: var(--thumb-c, var(--accent)); }
 .layer-slider-value {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
   font-size: var(--fs-md);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
   font-variant-numeric: tabular-nums;
@@ -1551,18 +1574,6 @@ input[type="range"]::-moz-range-thumb {
   box-shadow: inset 0 0 0 1px var(--control-edge), var(--shadow-sm);
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
 }
-.workspace-num {
-  display: grid;
-  place-items: center;
-  width: 13px;
-  height: 13px;
-  border-radius: 50%;
-  font-size: var(--fs-xs);
-  font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-}
-.workspace-tab--on .workspace-num { background: var(--ink); color: var(--field); }
 .workspace-sep {
   flex: none;
   width: 5px;
@@ -1729,8 +1740,8 @@ input[type="range"]::-moz-range-thumb {
 .shaper-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-1) var(--sp-4) var(--sp-2); }
 .shaper-actions .btn-small { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 .shaper-note--error { color: var(--err); }
-/* Editar puntos: first thing under the header, full width */
-.shaper-edit { padding: 0 var(--sp-4) var(--sp-3); }
+/* Editar puntos: under the family tabs, full width */
+.shaper-edit { padding: var(--sp-3) var(--sp-4); }
 .btn-small.btn-edit {
   width: 100%;
   height: 34px;
@@ -2035,42 +2046,28 @@ input[type="range"]::-moz-range-thumb {
 .kf-add-btn--on:hover:not(:disabled) { background: var(--accent-hi); border-color: var(--accent-hi); }
 /* ── Keyframe editor panel ───────────────────────────────────────────────── */
 .kf-editor {
+  align-self: center;
   display: flex;
   flex-direction: row;
+  max-width: 100%;
   height: 116px;
   flex-shrink: 0;
+  margin-bottom: var(--sp-2);
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
   animation: editor-in 220ms var(--ease) both;
 }
 @keyframes editor-in { from { height: 0; opacity: 0; } }
-.dock-editor-leave { overflow: hidden; pointer-events: none; animation: editor-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
+.dock > .dock-editor-leave { align-self: center; max-width: 100%; overflow: hidden; pointer-events: none; animation: editor-out 160ms cubic-bezier(0.4, 0, 1, 1) both; }
 .dock-editor-leave .kf-editor { animation: none; }
-@keyframes editor-out { from { max-height: 117px; } to { max-height: 0; opacity: 0; } }
+@keyframes editor-out { from { max-height: 124px; } to { max-height: 0; opacity: 0; } }
 .kf-group {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   border-right: 1px solid var(--border);
 }
 .kf-group:last-child { border-right: none; }
-.kf-group-ease { flex: 0 0 auto; }
-.kf-group-diff {
-  flex: 1.2;
-  gap: 2px;
-  padding: var(--sp-2) var(--sp-3);
-  overflow-y: auto;
-  font-size: var(--fs-sm);
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-2);
-}
-.kf-diff-head { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
-.kf-diff-none { color: var(--muted); }
-.kf-diff { margin: 0; padding: 0; list-style: none; }
-.kf-diff li { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kf-diff-label { color: var(--muted); }
-.kf-diff strong { color: var(--ink); font-weight: var(--fw-strong); font-variation-settings: 'wght' 600; }
 .kf-group-ease .kf-field { align-items: center; gap: var(--sp-2); padding: var(--sp-2) var(--sp-4); }
 .kf-ease-glyph path:first-child { transition: d var(--dur) var(--ease); }
 .kf-group .kf-field {
@@ -2079,10 +2076,7 @@ input[type="range"]::-moz-range-thumb {
   flex: 1;
 }
 .kf-group .kf-field:last-child { border-bottom: none; }
-.kf-group-center {
-  flex: 2;
-  flex-direction: row;
-}
+.kf-group-center { flex-direction: row; }
 .kf-group-center .kf-pad-wrap {
   flex: 0 1 auto;
   min-width: 0;
@@ -2095,7 +2089,7 @@ input[type="range"]::-moz-range-thumb {
   max-width: 100%;
 }
 .kf-center-fields {
-  flex: 1 0 108px;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
 }
@@ -2112,7 +2106,7 @@ input[type="range"]::-moz-range-thumb {
   flex-direction: column;
   align-items: stretch;
   justify-content: center;
-  padding: 4px 6px;
+  padding: 4px var(--sp-3);
   gap: 2px;
   border-right: 1px solid var(--border);
 }
@@ -2135,11 +2129,6 @@ input[type="range"]::-moz-range-thumb {
   white-space: nowrap;
   line-height: 1;
 }
-.kf-field-hint {
-  margin-left: var(--sp-1);
-  font-size: var(--fs-xs);
-  font-variant-numeric: tabular-nums;
-}
 .kf-field-input-row {
   display: flex;
   align-items: center;
@@ -2147,9 +2136,8 @@ input[type="range"]::-moz-range-thumb {
   min-width: 0;
 }
 .kf-field input[type="number"] {
-  flex: 1;
-  min-width: 0;
-  width: 0;
+  flex: none;
+  width: 72px;
   height: 26px;
   padding: 0 6px;
   background: var(--field);
@@ -2164,6 +2152,7 @@ input[type="range"]::-moz-range-thumb {
 }
 .kf-field input[type="number"]:focus { outline: none; border-color: var(--ink); }
 .kf-unit {
+  min-width: 2ch;
   font-size: var(--fs-xs);
   color: var(--muted);
   flex-shrink: 0;
@@ -2172,7 +2161,7 @@ input[type="range"]::-moz-range-thumb {
 .kf-pad-wrap {
   display: flex;
   min-height: 0;
-  border-right: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 .center-pad-canvas {
   border: 1px solid var(--border-strong);

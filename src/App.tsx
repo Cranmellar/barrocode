@@ -7,7 +7,7 @@ import { gcodeOffset, generateGcode, type GcodeProgram } from './lib/gcodeGenera
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
 import type { BedOverlay } from './lib/draw3D';
-import { keyframeColor, layerAtT, layerLabel } from './lib/draw3D';
+import { keyframeColor, layerAtT } from './lib/draw3D';
 import { rampColor } from './lib/palette';
 import { PathParams } from './components/PathParams';
 import { LissajousParams } from './components/LissajousParams';
@@ -21,7 +21,6 @@ import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 import { wrapHint } from './lib/wrapHint';
-import { keyframeChanges } from './lib/keyframeDiff';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -1004,74 +1003,9 @@ export default function App() {
     </div>
   );
 
-  const kfDiff = selectedKf && selectedIdx > 0 ? keyframeChanges(keyframes[selectedIdx - 1], selectedKf, params) : [];
   const kfEditor = selectedKf && (
     <div className="kf-editor">
-      <div className="kf-group">
-        <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
-          <label>Posición <span className="kf-field-hint">{layerLabel(layerAtT(toolpath, selectedKf.t), params.layerHeight)}</span></label>
-          <div className="kf-field-input-row">
-            <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
-              onChange={v => moveSelectedKf(v / 100)} />
-            <span className="kf-unit">%</span>
-          </div>
-        </div>
-        <div className="kf-field" title={wrapHint('Giro de la forma en este keyframe, alrededor del centro de pivote y antihorario visto desde arriba. Entre keyframes se interpola: de 0° a 360° la pieza da una vuelta completa.')}>
-          <label><Icon name="giro" size={11} />Giro</label>
-          <div className="kf-field-input-row">
-            <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
-              onChange={v => updateKf('rotation', v)} />
-            <span className="kf-unit">°</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="kf-group">
-        <div className="kf-field" title={wrapHint('Escala en X en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
-          <label><Icon name="escalaX" size={11} />Escala X</label>
-          <div className="kf-field-input-row">
-            <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
-              onChange={v => updateKf('scaleX', v)} />
-          </div>
-        </div>
-        <div className="kf-field" title={wrapHint('Escala en Y en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
-          <label><Icon name="escalaY" size={11} />Escala Y</label>
-          <div className="kf-field-input-row">
-            <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
-              onChange={v => updateKf('scaleY', v)} />
-          </div>
-        </div>
-      </div>
-
-      <div className="kf-group kf-group-ease">
-        <div className="kf-field" title={wrapHint('Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, cambian a ritmo constante y el cambio de ritmo se nota en el keyframe.')}>
-          <label>Transición</label>
-          <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
-          <label className="kf-switch">
-            <input type="checkbox" checked={Boolean(selectedKf.smooth)}
-              onChange={e => updateKf('smooth', e.target.checked)} />
-            Suave
-          </label>
-        </div>
-      </div>
-
       <div className="kf-group kf-group-center">
-        <div className="kf-pad-wrap">
-          <CenterPad
-            layers={layers}
-            params={params}
-            centre={centre}
-            centerX={selectedKf.centerX ?? params.centerX}
-            centerY={selectedKf.centerY ?? params.centerY}
-            kfT={selectedKf.t}
-            onChange={(x, y) => {
-              if (!selectedKfId) return;
-              setKeyframes(keyframes.map(k =>
-                k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
-              ));
-            }}
-          />
-        </div>
         <div className="kf-center-fields">
           <div className="kf-field">
             <label><Icon name="centro" size={11} />Centro X</label>
@@ -1090,19 +1024,67 @@ export default function App() {
             </div>
           </div>
         </div>
+        <div className="kf-pad-wrap">
+          <CenterPad
+            layers={layers}
+            params={params}
+            centre={centre}
+            centerX={selectedKf.centerX ?? params.centerX}
+            centerY={selectedKf.centerY ?? params.centerY}
+            kfT={selectedKf.t}
+            onChange={(x, y) => {
+              if (!selectedKfId) return;
+              setKeyframes(keyframes.map(k =>
+                k.id === selectedKfId ? { ...k, centerX: x, centerY: y } : k,
+              ));
+            }}
+          />
+        </div>
       </div>
-
-      <div className="kf-group kf-group-diff" title={wrapHint('Lo que cambia desde el keyframe anterior; entre los dos, cada valor pasa de uno a otro.')}>
-        <span className="kf-diff-head">
-          {selectedIdx === 0 ? 'Primer keyframe' : <>Desde el {selectedIdx}</>}
-        </span>
-        {selectedIdx > 0 && (kfDiff.length === 0
-          ? <span className="kf-diff-none">Sin cambios</span>
-          : <ul className="kf-diff">
-              {kfDiff.map(c => (
-                <li key={c.label}><span className="kf-diff-label">{c.label}</span> {c.from} → <strong>{c.to}</strong>{c.unit && <span className="kf-unit">{c.unit === '°' ? c.unit : ` ${c.unit}`}</span>}</li>
-              ))}
-            </ul>)}
+      <div className="kf-group">
+        <div className="kf-field" title={wrapHint('Dónde está el keyframe, en porcentaje del recorrido completo de la boquilla. Al arrastrarlo en la línea de tiempo, cerca del inicio de una capa se ajusta a él (Alt lo deja libre).')}>
+          <label>Posición</label>
+          <div className="kf-field-input-row">
+            <NumInput value={parseFloat((selectedKf.t * 100).toFixed(1))} min={0} max={100} step={0.5}
+              onChange={v => moveSelectedKf(v / 100)} />
+            <span className="kf-unit">%</span>
+          </div>
+        </div>
+        <div className="kf-field" title={wrapHint('Giro de la forma en este keyframe, alrededor del centro de pivote y antihorario visto desde arriba. Entre keyframes se interpola: de 0° a 360° la pieza da una vuelta completa.')}>
+          <label><Icon name="giro" size={11} />Giro</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.rotation ?? params.rotation} step={1}
+              onChange={v => updateKf('rotation', v)} />
+            <span className="kf-unit">°</span>
+          </div>
+        </div>
+      </div>
+      <div className="kf-group">
+        <div className="kf-field" title={wrapHint('Escala en X en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
+          <label><Icon name="escalaX" size={11} />Escala X</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.scaleX ?? params.scaleX} min={0.05} max={5} step={0.01}
+              onChange={v => updateKf('scaleX', v)} />
+          </div>
+        </div>
+        <div className="kf-field" title={wrapHint('Escala en Y en este keyframe, alrededor del centro de pivote. Entre keyframes se interpola: la pieza se abre o se cierra al subir.')}>
+          <label><Icon name="escalaY" size={11} />Escala Y</label>
+          <div className="kf-field-input-row">
+            <NumInput value={selectedKf.scaleY ?? params.scaleY} min={0.05} max={5} step={0.01}
+              onChange={v => updateKf('scaleY', v)} />
+          </div>
+        </div>
+      </div>
+      <div className="kf-group kf-group-ease">
+        <div className="kf-field" title={wrapHint('Los valores llegan a este keyframe y salen de él sin quiebre: se frenan al acercarse y arrancan despacio. Desactivado, cambian a ritmo constante y el cambio de ritmo se nota en el keyframe.')}>
+          <label>Transición</label>
+          <EaseGlyph smooth={Boolean(selectedKf.smooth)} />
+          <label className="kf-switch">
+            <input type="checkbox" checked={Boolean(selectedKf.smooth)}
+              onChange={e => updateKf('smooth', e.target.checked)} />
+            Suave
+          </label>
+        </div>
       </div>
     </div>
   );
@@ -1110,9 +1092,9 @@ export default function App() {
   const switcher = (
     <div className="workspace-switch" role="tablist" aria-label="Espacio de trabajo">
       {([
-        ['forma', 'Forma', 'Paso 1 de 3: dibuja la forma de la pieza y envíala a impresión'],
-        ['impresion', 'Impresión', 'Paso 2 de 3: onda, capas y keyframes sobre la forma'],
-        ['maquina', 'Máquina', 'Paso 3 de 3: impresora, cama, material y revisión del G-code'],
+        ['forma', 'Forma', 'Dibuja la forma de la pieza y envíala a impresión'],
+        ['impresion', 'Impresión', 'Onda, capas y keyframes sobre la forma'],
+        ['maquina', 'Máquina', 'Impresora, cama, material y revisión del G-code'],
       ] as const)
         .map(([w, label, title], i) => (
           <Fragment key={w}>
@@ -1120,7 +1102,7 @@ export default function App() {
             <button role="tab" aria-selected={workspace === w} title={wrapHint(title)}
               className={`workspace-tab${workspace === w ? ' workspace-tab--on' : ''}`}
               onClick={() => setWorkspace(w)}>
-              <span className="workspace-num" aria-hidden="true">{i + 1}</span>{label}
+              {label}
             </button>
           </Fragment>
         ))}
@@ -1284,17 +1266,16 @@ export default function App() {
       )}
 
       {/* ── Panel derecho ── */}
-      {shown.right ? (
+      {shown.right ? (<>
+        <button className={`panel-handle panel-handle--right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ right: STAGE_GAP + RIGHT_W - 1 }}
+          onClick={() => togglePanel('right')} title="Ocultar panel"
+          aria-label={workspace === 'maquina' ? 'Ocultar panel de revisión' : 'Ocultar panel de onda'}><Chevron dir="right" /></button>
         <aside className={`float-panel panel-right${leaving === 'right' ? ' panel-leave' : ''}`} style={{ width: RIGHT_W }}>
           <div ref={rightScroll.ref} className={`panel-scroll${rightScroll.more ? ' scroll-more' : ''}`}>
             {workspace === 'maquina' ? (
               <Suspense fallback={null}>
                 <MachineReview params={params} toolpath={toolpath} checks={checks} stats={program?.stats ?? null}
-                  gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave}
-                  headerExtra={
-                    <button className="btn-icon" onClick={() => togglePanel('right')}
-                      title="Ocultar panel" aria-label="Ocultar panel de revisión"><Chevron dir="right" /></button>
-                  } />
+                  gcodeBytes={program?.text.length ?? 0} busy={gcodeBusy} onCentre={centreOnBed} onAdapt={adaptWave} />
               </Suspense>
             ) : (
             <LissajousParams
@@ -1306,22 +1287,17 @@ export default function App() {
               editingKf={selectedKf && {
                 number: selectedIdx + 1,
                 label: `Keyframe ${selectedIdx + 1}`,
-                at: `${Math.round(selectedKf.t * 100)} %`,
+                at: `${Math.round(selectedKf.t * 100)}\u00a0%`,
                 color: keyframeColor(selectedKf.t),
                 smooth: Boolean(selectedKf.smooth),
-                onDone: () => setSelectedKfId(null),
               }}
               autoKeyAt={autoKey ? `${Math.round(timelineProgress * 100)} %, capa ${layerAtT(toolpath, timelineProgress) + 1}` : null}
               figure={<div className="liss-figure"><LissajousPreview params={lissParams} morph={lissMorph} /></div>}
-              headerExtra={
-                <button className="btn-icon" onClick={() => togglePanel('right')}
-                  title="Ocultar panel" aria-label="Ocultar panel de onda"><Chevron dir="right" /></button>
-              }
             />
             )}
           </div>
         </aside>
-      ) : (
+      </>) : (
         <aside className="float-panel panel-rail panel-rail--right" style={{ width: RAIL_W }}>
           <button className="btn-icon rail-open" onClick={() => togglePanel('right')}
             title={workspace === 'maquina' ? 'Mostrar la revisión previa' : 'Mostrar panel de onda'}

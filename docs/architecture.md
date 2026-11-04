@@ -42,7 +42,6 @@ La vista 3D, el G-code y la revisión leen la misma trayectoria (`ToolpathLayer[
 | `lib/machineProfiles.ts`, `lib/machineCheck.ts` | Perfiles de impresora y revisión antes de exportar. |
 | `lib/hopUtils.ts`, `lib/skirtUtils.ts` | Detección de cruces y viajes en arco. |
 | `lib/draw3D.ts`, `lib/palette.ts` | Dibujo de la vista 3D y colores tomados del CSS. |
-| `lib/keyframeDiff.ts` | Qué cambia entre un keyframe y el anterior. |
 | `components/` | Paneles, vista 3D, línea de tiempo, campos numéricos, ayuda. |
 | `shaper/` | *Forma*. Se carga aparte la primera vez que se abre y solo entrega un SVG a `App`. |
 

@@ -13,13 +13,13 @@ flowchart TD
   M --> G["Descargar el .gcode"]
 ```
 
-La app tiene tres espacios de trabajo. Se cambian con el selector de arriba del panel izquierdo:
+La app tiene tres espacios de trabajo. Se cambian con el selector de arriba del panel izquierdo, en cualquier orden:
 
 | Espacio | Para qué |
 |---|---|
-| **1 · Forma** | Dibujar la línea central de la pieza, en mm. Es opcional. |
-| **2 · Impresión** | Rutas, capas, onda y keyframes. Es donde se diseña la pieza. |
-| **3 · Máquina** | La impresora: cama, boquilla, velocidades, plantillas. Muestra la revisión antes de exportar. |
+| **Forma** | Dibujar la línea central de la pieza, en mm. Es opcional. |
+| **Impresión** | Rutas, capas, onda y keyframes. Es donde se diseña la pieza. |
+| **Máquina** | La impresora: cama, boquilla, velocidades, plantillas. Muestra la revisión antes de exportar. |
 
 ## 1. Cargar la pieza
 
@@ -108,7 +108,7 @@ El panel derecho. Arriba, una figura pequeña muestra la onda que recorre la boq
 | **Desfase inicial** | Dónde empieza la onda en la primera capa. |
 | **Desfase por capa** | Cuánto se corre la onda en cada capa. Produce torsiones y espirales. |
 
-*Restablecer* (arriba del panel) vuelve los valores de la onda a los iniciales. Con un keyframe elegido, solo los de ese keyframe.
+*Restablecer* (junto al título *Onda*) vuelve los valores de la onda a los iniciales. Con un keyframe elegido, solo los de ese keyframe.
 
 ## 7. Keyframes
 
@@ -116,7 +116,7 @@ Un keyframe fija la onda, la escala, el giro y el centro en un punto de la impre
 
 1. Mueve el extrusor de la línea de tiempo (abajo) al punto que quieras.
 2. Pulsa **Keyframe** o `K`. El keyframe toma la onda que se ve en ese punto y queda elegido.
-3. Con un keyframe elegido, el panel derecho edita su onda (dice *Editando* con el % y *Keyframe N*). La franja de abajo edita su posición, giro, escala, centro y transición, y la columna *Desde el N* lista lo que cambia respecto al keyframe anterior ("N 3 → 6 mm").
+3. Con un keyframe elegido, el panel derecho edita su onda (dice *Editando* con el % y *Keyframe N*). El editor sobre la línea de tiempo edita su centro (con la planta), posición, giro, escala y transición. La pestaña en su borde superior lo oculta y lo vuelve a mostrar.
 4. Pulsa **✓ Listo** o `Esc` para terminar. `Supr` borra el keyframe elegido.
 
 Más:

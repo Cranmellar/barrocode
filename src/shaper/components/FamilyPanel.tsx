@@ -111,15 +111,6 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
 
   return (
     <>
-      <div className="shaper-edit">
-        <button className="btn-small btn-edit" onClick={onEditPoints}>
-          <Icon name="nodos" size={16} />Editar puntos
-        </button>
-        <p className="shaper-edit-note">
-          Mueve los nodos uno a uno, con simetría si la forma se repite. Deja de ser paramétrica; Ctrl+Z lo deshace.
-        </p>
-      </div>
-
       <div ref={tabsRef} className="panel-tabs" role="tablist" aria-label="Familia de formas">
         <span className="panel-tabs-ind" aria-hidden="true"
           style={ind ? { left: 0, width: ind.w, transform: `translateX(${ind.x}px)` } : { visibility: 'hidden' }} />
@@ -128,6 +119,15 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
             className={`panel-tab${doc.family === f ? ' panel-tab--on' : ''}`}
             onClick={() => set('family', f)}>{familyName(f)}</button>
         ))}
+      </div>
+
+      <div className="shaper-edit">
+        <button className="btn-small btn-edit" onClick={onEditPoints}>
+          <Icon name="nodos" size={16} />Editar puntos
+        </button>
+        <p className="shaper-edit-note">
+          Mueve los nodos uno a uno, con simetría si la forma se repite. Deja de ser paramétrica; Ctrl+Z lo deshace.
+        </p>
       </div>
 
       <div key={doc.family} className="tab-pane" role="tabpanel">

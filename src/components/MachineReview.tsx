@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import type { PrintParams } from '../types';
 import type { ToolpathLayer } from '../lib/toolpath';
 import type { GcodeStats } from '../lib/gcodeStats';
@@ -14,7 +13,6 @@ interface Props {
   busy: boolean;
   onCentre: () => void;
   onAdapt: () => void;
-  headerExtra?: ReactNode;
 }
 
 const PLA_DENSITY = 1.24;   // g/cm³
@@ -29,7 +27,7 @@ function duration(sec: number): string {
 
 const ICON = { err: 'aviso', warn: 'aviso', ok: 'ok' } as const;
 
-export function MachineReview({ params, toolpath, checks, stats, gcodeBytes, busy, onCentre, onAdapt, headerExtra }: Props) {
+export function MachineReview({ params, toolpath, checks, stats, gcodeBytes, busy, onCentre, onAdapt }: Props) {
   const errs = checks.filter(c => c.level === 'err').length;
   const warns = checks.filter(c => c.level === 'warn').length;
   const filament = params.material === 'filament';
@@ -47,7 +45,6 @@ export function MachineReview({ params, toolpath, checks, stats, gcodeBytes, bus
           <span className="machine-count">
             {toolpath.length === 0 ? '' : errs ? `${errs} error${errs > 1 ? 'es' : ''}` : warns ? `${warns} aviso${warns > 1 ? 's' : ''}` : 'todo en orden'}
           </span>
-          {headerExtra}
         </span>
       </div>
 
