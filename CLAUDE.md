@@ -118,6 +118,12 @@ Ordered by impact ÷ effort. Each is one small commit. Verify against the code b
 
 ## Performance — user-side findings
 
+### Measured 2026-11-05 on `main` @ `8a97239`
+
+Unminified production build, headless Chromium, sample 4 at 150 layers, ten wave-slider ticks (*Amplitud N*) then the debounced G-code; CDP `TaskDuration` and the CPU profiler. Run-to-run noise is ±10 ms per tick, so compare several runs. Per tick ≈45–65 ms (`buildToolpath` ≈8–12, drawing ≈12, `copyWave` ≈6, GC ≈4–5); the G-code step after it ≈150–200 ms. Idle 0 %, scrub step 11–16 ms, `CenterPad` < 1 ms per tick.
+
+1. ~~**`Math.hypot` in per-point loops.**~~ **Done.** V8 runs it ≈10× slower than `Math.sqrt(dx*dx + dy*dy)` (≈40 vs 3–4 ns a call). Replaced in `arcLengths`, `dist` / `dist3` / `move` (G-code) and `checkMachine`'s bed radius. G-code identical (snapshots). Node, 150 layers: `generateGcode` ≈96–101 → ≈83–84 ms, `checkMachine` ≈5 → 0.6 ms, `layerFeeds` 5.4 → 0.4 ms. Browser, filament, per slider tick ≈49–58 → ≈42–46 ms (`checkMachine` runs every tick and, with `minLayerTime`, measures every point in 3D); clay within noise. Keep `Math.hypot` out of loops over points.
+
 ### Re-measured 2026-10-28 on `main` @ `dddc17b` (supersedes the older numbers below where they disagree)
 
 Same setup as below (production build, headless Chromium, CDP `TaskDuration`, sample 4, defaults). Stage times come from temporary `performance.now()` wrappers in the browser build; pure-JS times from `vite-node` on the 750-point flower.

@@ -48,7 +48,7 @@ export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], sta
   const filament = params.material === 'filament';
   const off = gcodeOffset(toolpath, params);
 
-  let top = -Infinity, maxR = 0;
+  let top = -Infinity, maxR2 = 0;
   const c = bedCentre(params);
   const pts = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity };
   for (const layer of toolpath) {
@@ -60,10 +60,12 @@ export function checkMachine(params: PrintParams, toolpath: ToolpathLayer[], sta
         if (x > pts.maxX) pts.maxX = x;
         if (y < pts.minY) pts.minY = y;
         if (y > pts.maxY) pts.maxY = y;
-        maxR = Math.max(maxR, Math.hypot(x - c.x, y - c.y));
+        const r2 = (x - c.x) ** 2 + (y - c.y) ** 2;
+        if (r2 > maxR2) maxR2 = r2;
       }
     }
   }
+  const maxR = Math.sqrt(maxR2);
   // The program's own envelope also has the priming line and travel arcs.
   const box = stats && Number.isFinite(stats.box.minX) ? stats.box : pts;
   const bed = bedLimits(params);
