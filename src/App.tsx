@@ -2,8 +2,8 @@ import { Fragment, lazy, Suspense, useState, useCallback, useEffect, useId, useM
 import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types';
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, wallPassCount, WAVE_PARAMS } from './lib/waveGenerator';
-import { buildToolpath, TOOLPATH_PARAMS } from './lib/toolpath';
-import { gcodeOffset, generateGcode, THUMBNAIL_SIZES, type GcodeProgram } from './lib/gcodeGenerator';
+import { buildToolpath, TOOLPATH_PARAMS, type ToolpathLayer } from './lib/toolpath';
+import { gcodeOffset, generateGcode, THUMBNAIL_SIZES, type GcodeProgram, type GcodeThumbnail } from './lib/gcodeGenerator';
 import { renderThumbnail } from './lib/thumbnail';
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
@@ -363,6 +363,9 @@ export default function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Thumbnails depend only on the toolpath and the bead width, so a speed or
+  // temperature edit reuses them.
+  const thumbsRef = useRef<{ toolpath: ToolpathLayer[]; lineWidth: number; thumbs: GcodeThumbnail[] } | null>(null);
 
   // Jumping to a keyframe glides the extruder there; any direct edit of the
   // timeline cancels the glide.
@@ -762,9 +765,16 @@ export default function App() {
     setGcodeBusy(true);
     gcodeTimerRef.current = setTimeout(() => {
       gcodeTimerRef.current = null;
-      const thumbnails = params.material === 'filament'
-        ? THUMBNAIL_SIZES.map(size => renderThumbnail(toolpath, size, params.lineWidth))
-        : [];
+      let thumbnails: GcodeThumbnail[] = [];
+      if (params.material === 'filament') {
+        const cached = thumbsRef.current;
+        if (cached && cached.toolpath === toolpath && cached.lineWidth === params.lineWidth) {
+          thumbnails = cached.thumbs;
+        } else {
+          thumbnails = THUMBNAIL_SIZES.map(size => renderThumbnail(toolpath, size, params.lineWidth));
+          thumbsRef.current = { toolpath, lineWidth: params.lineWidth, thumbs: thumbnails };
+        }
+      }
       setProgram(generateGcode(toolpath, params, keyframes, thumbnails));
       setGcodeBusy(false);
     }, 400);
