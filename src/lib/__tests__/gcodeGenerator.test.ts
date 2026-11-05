@@ -1,18 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import type { PrintParams, SampledPath } from '../../types';
+import type { PrintParams } from '../../types';
 import { generateWaveLayers } from '../waveGenerator';
 import { generateGcode } from '../gcodeGenerator';
 import { summarizeGcode } from '../gcodeStats';
 import { buildToolpath } from '../toolpath';
-import { CENTRE, PARAMS, curve, interpret, polyline, sampledPath } from './fixtures';
-
-function run(paths: SampledPath[], overrides: Partial<PrintParams> = {}) {
-  const params = { ...PARAMS, ...overrides };
-  const layers = generateWaveLayers(paths, params, []);
-  const toolpath = buildToolpath(layers, params, CENTRE);
-  const { text: gcode, stats } = generateGcode(toolpath, params);
-  return { params, gcode, stats, toolpath };
-}
+import { CENTRE, PARAMS, curve, interpret, polyline, run, sampledPath } from './fixtures';
 
 const lemniscate = () => sampledPath('lemniscate', curve(u => {
   const t = 2 * Math.PI * u + 0.3;
@@ -52,73 +44,85 @@ for (const [wallPasses, wallSide] of [[2, 'out'], [2, 'in'], [3, 'centre']] as c
   CONFIGS.push({ ...WAVE, ...HOP, numLayers: 3, softJoin: true, wallPasses, wallSide });
 }
 
-describe('generateGcode — motion invariants', () => {
+const ORIGIN = { gcodeOrigin: 'corner' as const, marginX: 0, marginY: 0 };
+
+// Each program is generated once and checked for every invariant, so a
+// failure names the geometry and config but not which check broke: read the
+// expect message.
+describe('generateGcode — invariants', () => {
   for (const [name, geometry] of Object.entries(GEOMETRIES)) {
     for (const config of CONFIGS) {
       const label = `${name} softJoin=${config.softJoin} priming=${config.primingMove} alt=${config.alternateDirection}`
+        + (config.material ? ` ${config.material}` : '')
         + (config.wallPasses ? ` wall=${config.wallPasses}${config.wallSide}` : '');
 
-      // A soft-join transition is split into short steps, so its span is
-      // checked as a whole against transitionLength.
-      it(`never extrudes a long or plunging move — ${label}`, () => {
-        const { gcode, params } = run(geometry(), config);
-        const body = gcode.slice(gcode.indexOf('; ===== Layer 1'));
-        const maxDz = params.layerHeight + params.zHopHeight + 2 * params.lissAmpZ + 0.01;
+      it(label, () => {
+        const { gcode, params, stats, toolpath } = run(geometry(), config);
+        const moves = interpret(gcode);
 
+        // No long or plunging extrusion. A soft-join transition is split
+        // into short steps, so its span is checked as a whole.
+        const body = interpret(gcode.slice(gcode.indexOf('; ===== Layer 1')));
+        const maxDz = params.layerHeight + params.zHopHeight + 2 * params.lissAmpZ + 0.01;
         let span = 0;
-        for (const m of interpret(body).filter(m => m.extruding)) {
+        for (const m of body.filter(m => m.extruding)) {
           const d = Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y);
           span = m.transition ? span + d : 0;
-          expect(m.transition ? span : d).toBeLessThan(m.transition ? params.transitionLength + 1e-6 : 15);
-          expect(Math.abs(m.to.z - m.from.z)).toBeLessThan(maxDz);
+          expect(m.transition ? span : d, 'extrusion length')
+            .toBeLessThan(m.transition ? params.transitionLength + 1e-6 : 15);
+          expect(Math.abs(m.to.z - m.from.z), 'extrusion Z step').toBeLessThan(maxDz);
         }
-      });
 
-      it(`travels above everything already printed — ${label}`, () => {
-        const { gcode } = run(geometry(), config);
+        // Travels above everything already printed.
         let top = -Infinity;
-        for (const m of interpret(gcode)) {
+        for (const m of moves) {
           if (m.extruding) { top = Math.max(top, m.from.z, m.to.z); continue; }
           if (Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y) > 1e-6) {
-            expect(Math.min(m.from.z, m.to.z)).toBeGreaterThan(top);
+            expect(Math.min(m.from.z, m.to.z), 'travel height').toBeGreaterThan(top);
           }
         }
-      });
 
-      it(`prints exactly the preview toolpath — ${label}`, () => {
-        const { gcode, toolpath } = run(geometry(), config);
-        const extruded = interpret(gcode).filter(m => m.extruding).map(m => m.to);
+        // Prints exactly the preview toolpath.
         const expected = toolpath.flatMap(l => l.paths.flatMap(p => p.slice(1)));
-
         let k = 0;
-        for (const p of extruded) {
+        for (const p of moves.filter(m => m.extruding).map(m => m.to)) {
           const q = expected[k];
           if (q && Math.abs(p.x - q.x) < 1e-3 && Math.abs(p.y - q.y) < 1e-3 && Math.abs(p.z - q.z) < 1e-3) k++;
         }
-        expect(k).toBe(expected.length);
+        expect(k, 'toolpath points printed').toBe(expected.length);
+
+        // The summary matches the program read back.
+        expectSummary(gcode, stats);
+
+        // Corner origin: never at negative X or Y, skirt arcs and priming included.
+        for (const m of interpret(run(geometry(), { ...config, ...ORIGIN, skirtThreshold: 1 }).gcode)) {
+          expect(Math.min(m.to.x, m.to.y), 'corner origin coordinate').toBeGreaterThanOrEqual(0);
+        }
       });
     }
   }
 });
 
-describe('generateGcode — summary', () => {
-  const variants: Partial<PrintParams>[] = [
-    ...CONFIGS,
-    { ...WAVE, ...HOP, numLayers: 3, generateE: false, primingMove: true },
-    { ...WAVE, numLayers: 2, dwellAtStart: 1500, skirtThreshold: 1 },
-  ];
-  for (const [name, geometry] of Object.entries(GEOMETRIES)) {
-    variants.forEach((config, i) => {
-      it(`matches the G-code read back — ${name} #${i}`, () => {
-        const { gcode, stats } = run(geometry(), config);
-        const read = summarizeGcode(gcode);
-        for (const k of ['timeSec', 'printLength', 'travelLength', 'eTotal'] as const) {
-          expect(stats[k]).toBeCloseTo(read[k], 6);
-        }
-        expect(stats.box).toEqual(read.box);
-      });
-    });
+function expectSummary(gcode: string, stats: ReturnType<typeof run>['stats']) {
+  const read = summarizeGcode(gcode);
+  for (const k of ['timeSec', 'printLength', 'travelLength', 'eTotal'] as const) {
+    expect(stats[k], k).toBeCloseTo(read[k], 6);
   }
+  expect(stats.box, 'box').toEqual(read.box);
+}
+
+describe('generateGcode — summary', () => {
+  it('matches the G-code read back without E and with dwell', () => {
+    for (const geometry of Object.values(GEOMETRIES)) {
+      for (const config of [
+        { ...WAVE, ...HOP, numLayers: 3, generateE: false, primingMove: true },
+        { ...WAVE, numLayers: 2, dwellAtStart: 1500, skirtThreshold: 1 },
+      ]) {
+        const { gcode, stats } = run(geometry(), config);
+        expectSummary(gcode, stats);
+      }
+    }
+  });
 });
 
 describe('generateGcode — soft join', () => {
@@ -167,8 +171,6 @@ describe('generateGcode — priming', () => {
 });
 
 describe('generateGcode — corner origin', () => {
-  const ORIGIN = { gcodeOrigin: 'corner' as const, marginX: 0, marginY: 0 };
-
   it('prints the centred toolpath moved so its bottom-left corner is at Margen X / Y', () => {
     for (const geometry of Object.values(GEOMETRIES)) {
       for (const [marginX, marginY] of [[0, 0], [15, 30]]) {
@@ -189,18 +191,6 @@ describe('generateGcode — corner origin', () => {
         const printed = interpret(corner.gcode).filter(m => m.extruding).flatMap(m => [m.from, m.to]);
         expect(Math.min(...printed.map(p => p.x))).toBeCloseTo(marginX, 2);
         expect(Math.min(...printed.map(p => p.y))).toBeCloseTo(marginY, 2);
-      }
-    }
-  });
-
-  it('never moves to negative X or Y, skirt arcs and priming included', () => {
-    for (const geometry of Object.values(GEOMETRIES)) {
-      for (const config of CONFIGS) {
-        const { gcode } = run(geometry(), { ...config, ...ORIGIN, skirtThreshold: 1 });
-        for (const m of interpret(gcode)) {
-          expect(m.to.x).toBeGreaterThanOrEqual(0);
-          expect(m.to.y).toBeGreaterThanOrEqual(0);
-        }
       }
     }
   });
