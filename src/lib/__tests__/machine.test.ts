@@ -1,19 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { PrintParams, SampledPath } from '../../types';
+import type { PrintParams } from '../../types';
 import { generateWaveLayers } from '../waveGenerator';
 import { buildToolpath } from '../toolpath';
 import { ePerMM, generateGcode, layerFeeds, unknownTemplateVars } from '../gcodeGenerator';
 import { summarizeGcode } from '../gcodeStats';
 import { MACHINE_PROFILES, applyProfile, bedCentre, findProfile } from '../machineProfiles';
 import { adaptToNozzle, checkMachine } from '../machineCheck';
-import { CENTRE, PARAMS, interpret, polyline, sampledPath } from './fixtures';
-
-function run(paths: SampledPath[], overrides: Partial<PrintParams> = {}, centre = CENTRE) {
-  const params = { ...PARAMS, ...overrides };
-  const toolpath = buildToolpath(generateWaveLayers(paths, params, []), params, centre);
-  const program = generateGcode(toolpath, params);
-  return { params, toolpath, gcode: program.text, stats: program.stats };
-}
+import { CENTRE, PARAMS, interpret, polyline, run, sampledPath } from './fixtures';
 
 // The program's commands, without comments or blank lines.
 const codeLines = (gcode: string) => gcode.split('\n').map(l => l.replace(/\s*;.*/, '')).filter(Boolean);

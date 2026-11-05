@@ -1,5 +1,8 @@
 import type { PrintParams, SampledPath, SVGViewBox } from '../../types';
 import { MACHINE_PROFILES } from '../machineProfiles';
+import { generateWaveLayers } from '../waveGenerator';
+import { buildToolpath } from '../toolpath';
+import { generateGcode } from '../gcodeGenerator';
 
 export const VIEWBOX: SVGViewBox = { x: 0, y: 0, width: 200, height: 200 };
 
@@ -27,6 +30,14 @@ export const PARAMS: PrintParams = {
   wallPasses: 1, wallSpacing: 100, wallSide: 'out',
   dwellAtStart: 0, primingMove: false, primingLength: 20,
 };
+
+/** Whole pipeline, no keyframes: SVG paths → layers → toolpath → G-code. */
+export function run(paths: SampledPath[], overrides: Partial<PrintParams> = {}, centre = CENTRE) {
+  const params = { ...PARAMS, ...overrides };
+  const toolpath = buildToolpath(generateWaveLayers(paths, params, []), params, centre);
+  const { text: gcode, stats } = generateGcode(toolpath, params);
+  return { params, toolpath, gcode, stats };
+}
 
 type P2 = [number, number];
 

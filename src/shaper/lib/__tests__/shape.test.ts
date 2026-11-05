@@ -38,35 +38,24 @@ const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 
 describe('shapePoints', () => {
   for (const doc of docs) {
-    describe(label(doc), () => {
+    it(`draws ${label(doc)} closed, at its size, seam and direction`, () => {
       const pts = shapePoints(doc);
 
-      it('closes on itself with no step over 0.25 mm', () => {
-        const steps = pts.map((p, i) => dist(p, pts[(i + 1) % pts.length]));
-        expect(Math.max(...steps)).toBeLessThan(0.2502);
-        expect(Math.min(...steps)).toBeGreaterThan(0);
-      });
+      const steps = pts.map((p, i) => dist(p, pts[(i + 1) % pts.length]));
+      expect(Math.max(...steps), 'longest step').toBeLessThan(0.2502);
+      expect(Math.min(...steps), 'shortest step').toBeGreaterThan(0);
 
       // A sharp tip can fall between two samples, a few hundredths short.
-      it('reaches the requested diameter', () => {
-        const r = Math.max(...pts.map(p => Math.hypot(p.x, p.y)));
-        expect(r).toBeLessThanOrEqual(doc.sizeMM / 2 + 1e-9);
-        expect(r).toBeGreaterThan(doc.sizeMM / 2 - 0.05);
-      });
+      const r = Math.max(...pts.map(p => Math.hypot(p.x, p.y)));
+      expect(r, 'radius').toBeLessThanOrEqual(doc.sizeMM / 2 + 1e-9);
+      expect(r, 'radius').toBeGreaterThan(doc.sizeMM / 2 - 0.05);
 
-      it('starts at the seam angle', () => {
-        const a = (Math.atan2(pts[0].y, pts[0].x) * 180) / Math.PI;
-        const diff = ((a - doc.seamAngle) % 360 + 540) % 360 - 180;
-        expect(Math.abs(diff)).toBeLessThan(1e-6);
-      });
+      const a = (Math.atan2(pts[0].y, pts[0].x) * 180) / Math.PI;
+      const diff = ((a - doc.seamAngle) % 360 + 540) % 360 - 180;
+      expect(Math.abs(diff), 'seam angle').toBeLessThan(1e-6);
 
-      it('runs in the chosen direction', () => {
-        expect(Math.sign(signedArea(pts))).toBe(doc.clockwise ? -1 : 1);
-      });
-
-      it('gives the same points every time', () => {
-        expect(shapePoints(doc)).toEqual(pts);
-      });
+      expect(Math.sign(signedArea(pts)), 'direction').toBe(doc.clockwise ? -1 : 1);
+      expect(shapePoints(doc), 'repeatable').toEqual(pts);
     });
   }
 
