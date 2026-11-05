@@ -273,7 +273,8 @@ ToolpathLayer[] consumed by BOTH:
   │    • final lift to max(safeZ, highest printed Z) + 10, at most bedZ
   │    • shutdown: clay always ends with M400 / M107 / M84 after any end
   │      template; filament with no end template gets M104 S0 / M140 S0 /
-  │      M107 / M84
+  │      M107 / M84; with one, M107 before it if the fan ran (Creality
+  │      OS's END_PRINT leaves the part fan on)
   │    • move() / dwell() write each line and keep the time / length / E
   │      summary from the rounded values written
   │  → { text, stats }    (stats feed the viewer summary)
