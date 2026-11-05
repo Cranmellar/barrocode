@@ -59,14 +59,17 @@ const PRIME_GAP = 10;        // mm between the priming line and the part
 
 function fmt(n: number, d = 3) { return n.toFixed(d); }
 
+// Not Math.hypot: V8 runs it ≈10× slower, and these run once per point.
 function dist(ax: number, ay: number, bx: number, by: number) {
-  return Math.hypot(bx - ax, by - ay);
+  const dx = bx - ax, dy = by - ay;
+  return Math.sqrt(dx * dx + dy * dy);
 }
 
 // Extrusion follows the bead's length in space: the Z wave, the seam ramp
 // and z-hops all climb while printing.
 function dist3(ax: number, ay: number, az: number, bx: number, by: number, bz: number) {
-  return Math.hypot(bx - ax, by - ay, bz - az);
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
 // ── Moves ───────────────────────────────────────────────────────────────────
@@ -105,7 +108,7 @@ function move(
   if (to.e !== undefined) { const v = fmt(to.e); line += ` E${v}`; e = +v; }
   line += ` F${feed}`;
 
-  const d = Math.hypot(x - m.x, y - m.y, z - m.z);
+  const d = dist3(m.x, m.y, m.z, x, y, z);
   if (feed > 0) m.timeSec += d / (feed / 60);
   if (e > m.e) {
     m.printLength += d;

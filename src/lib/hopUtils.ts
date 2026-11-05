@@ -9,7 +9,9 @@ type XY = { x: number; y: number };
 export function arcLengths(pts: XY[]): Float64Array {
   const out = new Float64Array(pts.length);
   for (let i = 1; i < pts.length; i++) {
-    out[i] = out[i - 1] + Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y);
+    // Not Math.hypot, which V8 runs ≈10× slower.
+    const dx = pts[i].x - pts[i - 1].x, dy = pts[i].y - pts[i - 1].y;
+    out[i] = out[i - 1] + Math.sqrt(dx * dx + dy * dy);
   }
   return out;
 }
