@@ -510,7 +510,7 @@ Phase 5 of the overhaul. Durations and easing come from `--dur-fast` / `--dur` /
 
 `.gitignore` excludes `node_modules/`, **`package-lock.json`**, `dist/`, `release/`, `.vite/`, env files, editor settings, OS junk, and logs.
 
-The lockfile being gitignored is intentional (it broke cross-platform rollup native binaries in CI) — accept it; don't try to commit it.
+The lockfile being gitignored is intentional (it broke cross-platform rollup native binaries in CI) — accept it; don't try to commit it. To keep deploys repeatable anyway, `package.json` pins exact versions of the direct dependencies, and `.npmrc` has `save-exact=true` so `npm install <pkg>` keeps them exact; upgrade on purpose by editing the version and running `npm test` and `npm run build`. Transitive dependencies still float.
 
 `release/` was the Electron build output and is gitignored for legacy reasons; nothing writes to it any more.
 
