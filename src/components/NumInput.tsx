@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useId } from 'react';
 
 interface Props {
   value: number;
@@ -39,9 +39,11 @@ function format(v: number, step: number | undefined): string {
  *
  * 3. Dragging the row's label left or right changes the value the same way.
  *
- * Wheel and drag changes show the amount added next to the field.
+ * Wheel and drag changes show the amount added next to the field. The row's
+ * label (or a slider's name) names the field for screen readers.
  */
 export function NumInput({ value, min, max, step, fineStep, className, placeholder, disabled, onChange }: Props) {
+  const id        = useId();
   const inputRef  = useRef<HTMLInputElement>(null);
   const valRef    = useRef(value);
   const focusedRef = useRef(false);
@@ -97,11 +99,21 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
     }
     el.addEventListener('wheel', onWheel, { passive: false });
 
-    const label = el.closest('.param-row, .kf-field')?.querySelector('label');
+    const row   = el.closest('.param-row, .kf-field, .slider-row');
+    const label = row?.matches('.slider-row') ? null : row?.querySelector('label');
+    const name  = label ? null : row?.querySelector('.slider-label');
+    if (label) label.htmlFor = id;
+    if (name) {
+      name.id = `${id}-name`;
+      el.setAttribute('aria-labelledby', name.id);
+    }
     let scrub: { x: number; base: number; moved: boolean } | null = null;
+    // A drag ends in a click on the label, which would focus the field.
+    let dragged = false;
     function onDown(e: PointerEvent) {
       if (e.button !== 0 || el!.matches(':disabled')) return;
       scrub = { x: e.clientX, base: valRef.current, moved: false };
+      dragged = false;
       label!.setPointerCapture(e.pointerId);
     }
     function onMove(e: PointerEvent) {
@@ -115,11 +127,17 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
       nudge(scrub.base, Math.round(dx / SCRUB_PX), e.shiftKey);
     }
     function onUp() {
+      dragged = !!scrub?.moved;
       scrub = null;
       label!.classList.remove('num-scrub--on');
     }
+    function onClick(e: MouseEvent) {
+      if (dragged) e.preventDefault();
+      dragged = false;
+    }
     if (label) {
       label.classList.add('num-scrub');
+      label.addEventListener('click', onClick);
       label.addEventListener('pointerdown', onDown);
       label.addEventListener('pointermove', onMove);
       label.addEventListener('pointerup', onUp);
@@ -130,6 +148,7 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
       el.removeEventListener('wheel', onWheel);
       if (label) {
         label.classList.remove('num-scrub', 'num-scrub--on');
+        label.removeEventListener('click', onClick);
         label.removeEventListener('pointerdown', onDown);
         label.removeEventListener('pointermove', onMove);
         label.removeEventListener('pointerup', onUp);
@@ -148,6 +167,7 @@ export function NumInput({ value, min, max, step, fineStep, className, placehold
       )}
       <input
         ref={inputRef}
+        id={id}
         type="number"
         value={raw}
         min={min}

@@ -1,13 +1,13 @@
 /* ── Fuentes ─────────────────────────────────────────────────────────────── */
 @font-face {
   font-family: 'GSCode';
-  src: url('/fonts/GSCode.ttf') format('truetype');
+  src: url('/fonts/GSCode.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
 }
 @font-face {
   font-family: 'GSCode';
-  src: url('/fonts/GSCode-Italic.ttf') format('truetype');
+  src: url('/fonts/GSCode-Italic.woff2') format('woff2');
   font-weight: 100 900;
   font-style: italic;
 }
