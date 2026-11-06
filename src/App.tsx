@@ -22,7 +22,8 @@ import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 import { wrapHint } from './lib/wrapHint';
-import { nameFromFile, parseProject, projectFileName, serializeProject, shapeDoc, type PathState, type ProjectShape } from './lib/project';
+import { nameFromFile, parseProject, projectFileName, serializeProject, shapeDoc, type PathState, type ProjectApp, type ProjectShape } from './lib/project';
+import { BUILD, versionLabel } from './lib/build';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -134,6 +135,14 @@ const BAR_H   = 40;
 const NARROW_W = 1280;
 const TIMELINE_GLIDE_MS = 220;
 const TOAST_MS = 2200;
+const TOAST_LONG_MS = 5000;
+
+/** A note when a project comes from another barrocode, whose pipeline may give a different part. */
+function otherVersion(app: ProjectApp | null): string | null {
+  if (!app) return 'hecho con una versión anterior de barrocode, puede verse distinto';
+  if (app.commit === BUILD.commit) return null;
+  return `hecho con barrocode ${versionLabel(app.commit, app.build)}, puede verse distinto`;
+}
 // How long "Borrar todos" waits for its confirming second click.
 const CLEAR_CONFIRM_MS = 3000;
 // Matches the panel-leave animation in index.css.
@@ -654,13 +663,13 @@ export default function App() {
   // One short notice at a time; a new one replaces the current one.
   const [toast, setToast] = useState<Toast | null>(null);
   const toastTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const showToast = useCallback((text: string) => {
+  const showToast = useCallback((text: string, ms = TOAST_MS) => {
     toastTimersRef.current.forEach(clearTimeout);
     const id = performance.now();
     setToast({ id, text });
     toastTimersRef.current = [
-      setTimeout(() => setToast(t => t?.id === id ? { ...t, leaving: true } : t), TOAST_MS),
-      setTimeout(() => setToast(t => t?.id === id ? null : t), TOAST_MS + 200),
+      setTimeout(() => setToast(t => t?.id === id ? { ...t, leaving: true } : t), ms),
+      setTimeout(() => setToast(t => t?.id === id ? null : t), ms + 200),
     ];
   }, []);
 
@@ -774,7 +783,7 @@ export default function App() {
           thumbsRef.current = { toolpath, lineWidth: params.lineWidth, thumbs: thumbnails };
         }
       }
-      setProgram(generateGcode(toolpath, params, keyframes, thumbnails));
+      setProgram(generateGcode(toolpath, params, keyframes, thumbnails, gcodeFilename.replace(/\.gcode$/i, '')));
       setGcodeBusy(false);
     }, 400);
     return () => {
@@ -783,7 +792,7 @@ export default function App() {
         gcodeTimerRef.current = null;
       }
     };
-  }, [toolpath, params, keyframes]);
+  }, [toolpath, params, keyframes, gcodeFilename]);
 
   function togglePath(id: string) {
     setParsedSVG(prev => prev && {
@@ -923,7 +932,8 @@ export default function App() {
       }
       applyDesign(project.svg, `${name}.gcode`, project.params, project.keyframes, project.paths);
       if (project.svg === null) setWorkspace('forma');
-      showToast(`Proyecto abierto: ${name}`);
+      const other = otherVersion(project.app);
+      showToast(other ? `Proyecto abierto: ${name} · ${other}` : `Proyecto abierto: ${name}`, other ? TOAST_LONG_MS : TOAST_MS);
     };
     reader.readAsText(file);
   }

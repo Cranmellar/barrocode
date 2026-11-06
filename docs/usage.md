@@ -180,7 +180,7 @@ La barra superior resume la impresión: tiempo estimado (a la velocidad programa
 
 ## 10. Exportar
 
-Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo empieza con el del SVG y sigue con la altura de capa, el tiempo estimado y la fecha y hora de la descarga: `mi-vasija.svg` con capas de 1,5 mm da `mi-vasija_1.5mm_2h05m_20261106-1432.gcode`. Así dos versiones de la misma pieza no se pisan y se ordenan por fecha.
+Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo empieza con el del SVG y sigue con la altura de capa, el tiempo estimado y la fecha y hora de la descarga: `mi-vasija.svg` con capas de 1,5 mm da `mi-vasija_1.5mm_2h05m_20261106-1432.gcode`. Así dos versiones de la misma pieza no se pisan y se ordenan por fecha. El encabezado del archivo dice con qué versión de barrocode se hizo y el nombre de la pieza.
 
 ## Campos numéricos
 
@@ -217,3 +217,5 @@ Un proyecto es un archivo `.barrocode.json` con el diseño completo: el SVG, los
 La máquina no viaja con el diseño. El archivo la guarda como referencia, pero al abrirlo se mantiene tu impresora, con sus velocidades, su ancho de cordón y su extrusión. Revisa *Máquina* antes de imprimir un proyecto ajeno.
 
 Un proyecto sin SVG, solo con una forma, se abre en *Forma*.
+
+El archivo guarda también qué versión de barrocode lo hizo y cuándo se guardó. Si abres un proyecto de otra versión, un aviso lo dice: la pieza puede verse distinta, porque el cálculo de la onda, las esquinas o la costura pudo cambiar entre versiones. La versión en uso está al pie de la ayuda (`?`).

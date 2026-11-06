@@ -35,6 +35,7 @@ import { skirtArcPoints, type MM2 } from './skirtUtils';
 import { layerCount, wallPassCount, wallSpacingMM } from './waveGenerator';
 import { emptyBox, growBox, type GcodeBox, type GcodeStats } from './gcodeStats';
 import { FIRMWARE_LABEL, profileName } from './machineProfiles';
+import { BUILD, versionLabel } from './build';
 
 const TRAVEL_CLEARANCE = 2;  // mm above the highest bead printed so far
 const FINAL_CLEARANCE = 10;  // mm above both safeZ and the top of the part
@@ -147,13 +148,15 @@ function keyframeLines(kfs: WaveKeyframe[], params: PrintParams): string[] {
   ];
 }
 
-function buildHeader(params: PrintParams, box: GcodeBox, keyframes: WaveKeyframe[]): string {
+function buildHeader(params: PrintParams, box: GcodeBox, keyframes: WaveKeyframe[], project: string): string {
   const deg = (r: number) => (r * 180 / Math.PI).toFixed(1);
   const filament = params.material === 'filament';
   return [
     '; ============================================================',
     '; barrocode — Lissajous G-code Generator',
     '; ============================================================',
+    `; Version                : barrocode ${versionLabel(BUILD.commit, BUILD.date)}`,
+    ...(project ? [`; Project                : ${project.replace(/[\r\n]+/g, ' ')}`] : []),
     `; Machine                : ${profileName(params.machineProfile)} · ${FIRMWARE_LABEL[params.firmware]}`,
     `; Material               : ${filament ? `filament ${params.filamentDiameter} mm, flow ${params.flowRatio} %` : 'clay'}`,
     `; Nozzle / line width    : ${params.nozzleDiameter} / ${params.lineWidth} mm`,
@@ -527,6 +530,7 @@ export function generateGcode(
   params: PrintParams,
   keyframes: WaveKeyframe[] = [],
   thumbnails: GcodeThumbnail[] = [],
+  project = '',
 ): GcodeProgram {
   const m = newMachine();
   if (centred.length === 0) return { text: '; No layers to generate.\n', stats: statsOf(m) };
@@ -662,7 +666,7 @@ export function generateGcode(
   if (!filament) blocks.push(CLAY_SHUTDOWN);
   else if (!params.endGcode.trim()) blocks.push(FILAMENT_SHUTDOWN);
 
-  const head = [buildHeader(params, box, keyframes)];
+  const head = [buildHeader(params, box, keyframes, project)];
   if (params.startGcode.trim()) head.push(`; --- Start G-code ---\n${fillTemplate(params.startGcode.trimEnd(), vars)}\n; --- End of start G-code ---`);
 
   const stats = statsOf(m);

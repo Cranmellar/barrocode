@@ -1,6 +1,7 @@
 ; ============================================================
 ; barrocode — Lissajous G-code Generator
 ; ============================================================
+; Version                : barrocode dev
 ; Machine                : Arcilla · origen al centro · RepRap / Duet
 ; Material               : clay
 ; Nozzle / line width    : 4 / 5 mm

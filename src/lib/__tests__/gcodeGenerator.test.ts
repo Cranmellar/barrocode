@@ -253,6 +253,16 @@ describe('generateGcode — header', () => {
   });
 });
 
+describe('generateGcode — version', () => {
+  it('names the barrocode and the project that made it, on one line each', () => {
+    const toolpath = buildToolpath(generateWaveLayers([lemniscate()], PARAMS), PARAMS, CENTRE);
+    const lines = generateGcode(toolpath, PARAMS, [], [], 'vasija\nG1 Z-50').text.split('\n');
+    expect(lines).toContain('; Version                : barrocode dev');
+    expect(lines).toContain('; Project                : vasija G1 Z-50');
+    expect(generateGcode(toolpath, PARAMS).text).not.toContain('; Project');
+  });
+});
+
 describe('generateGcode — program start and end', () => {
   it('sets absolute extrusion only when E is generated', () => {
     expect(run(facingPair()).gcode).toContain('\nM82 ');

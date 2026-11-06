@@ -626,6 +626,12 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
   font-weight: var(--fw-strong); font-variation-settings: 'wght' 600;
 }
 .help-nav [role="tablist"] { display: flex; flex-direction: column; gap: 2px; }
+.help-version {
+  margin: auto 0 0;
+  padding: 0 var(--sp-2);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
 .help-tab {
   height: 30px;
   padding: 0 var(--sp-2);
