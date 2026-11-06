@@ -1253,6 +1253,17 @@ export default function App() {
                 </div>
               )}
 
+              <div className="file-project">
+                <span className="file-project-label">Proyecto</span>
+                <button className="btn-small" aria-label="Abrir proyecto" title={wrapHint('Abrir un archivo .barrocode.json: SVG, parámetros, keyframes, trazos y la forma de Forma. Tu máquina no cambia.')}>
+                  <Icon name="importar" />Abrir
+                </button>
+                <button className="btn-small" disabled={!parsedSVG && !shape} aria-label="Guardar proyecto"
+                  title={wrapHint('Descargar este diseño como .barrocode.json para abrirlo después o compartirlo. Guarda la máquina como referencia, pero no se aplica al abrir.')}>
+                  <Icon name="descargar" />Guardar
+                </button>
+              </div>
+
               {error && <div className="error-msg"><Icon name="aviso" />{error}</div>}
             </div>
 
