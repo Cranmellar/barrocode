@@ -40,6 +40,7 @@ export function PathList({ paths, params, hasKeyframes, onToggle, onOverride }: 
               <input
                 type="checkbox"
                 checked={path.enabled}
+                aria-label={`Imprimir ${path.id}`}
                 title={wrapHint('Imprimir esta ruta. Desactivada, no se imprime y la pieza se recentra con las demás.')}
                 onChange={() => onToggle(path.id)}
               />

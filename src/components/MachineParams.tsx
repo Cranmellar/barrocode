@@ -117,8 +117,8 @@ export function MachineParams({ params, onChange }: Props) {
           hint="Cambia cómo se calcula la extrusión (E). Arcilla: E por mm recorrido según el multiplicador, sin retracción. Filamento: E sale del volumen del cordón, y se suman retracción, ventilador y temperaturas."
           onChange={v => set('material', v)} />
         <div className="param-row" title={wrapHint('Decide cómo se escribe la aceleración (M204, o SET_VELOCITY_LIMIT en Klipper) y qué avisos da la revisión: cuántos segmentos por segundo aguanta y las comprobaciones propias de Prusa, Bambu Lab y Klipper.')}>
-          <label>Firmware</label>
-          <select className="machine-select machine-select--short" value={params.firmware}
+          <label htmlFor="machine-firmware">Firmware</label>
+          <select id="machine-firmware" className="machine-select machine-select--short" value={params.firmware}
             onChange={e => set('firmware', e.target.value as Firmware)}>
             {(Object.keys(FIRMWARE_LABEL) as Firmware[]).map(f => <option key={f} value={f}>{FIRMWARE_LABEL[f]}</option>)}
           </select>

@@ -74,6 +74,7 @@ function Slider({ label, icon, value, min, max, step, unit, hint, def, morph, on
           </span>
         )}
         <input type="range" min={min} max={max} step={step} value={value}
+          aria-label={label}
           style={{ background: trackBg }}
           onPointerDown={() => setDragging(true)}
           onChange={e => {
