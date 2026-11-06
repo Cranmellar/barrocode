@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { isVariantOf, variations, type Batch, type Variant } from '../lib/discovery';
+import { batchParams, isVariantOf, variations, type Batch, type Variant } from '../lib/discovery';
 import { checkShape, type WaveLimit } from '../lib/printability';
-import { FAMILY_PARAMS, fmt, shapeBounds, shapePath, shapePoints, type ShapeDoc } from '../lib/shape';
+import { fmt, shapeBounds, shapePath, shapePoints, type ShapeDoc } from '../lib/shape';
 import { wrapHint } from '../../lib/wrapHint';
 
 interface Props {
@@ -15,17 +15,17 @@ interface Props {
 
 export function DiscoveryGrid({ doc, batch, wave, onAdopt, onMore, onAnother }: Props) {
   const variants = useMemo(() => variations(batch), [batch]);
-  // Drawn at the current size, rotation and seam, so a pick looks the same once adopted.
+  // Drawn at the current size, rotation, seam and secondary lobes, so a pick looks the same once adopted.
   const cards = useMemo(() => variants.map(v => {
     const pts = shapePoints({ ...doc, ...v });
     const b = shapeBounds([pts]);
     return { v, d: shapePath([pts]), cx: b.x + b.width / 2, cy: b.y + b.height / 2, tight: checkShape(pts, wave).tight.length };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }), [variants, doc.sizeMM, doc.rotation, doc.seamAngle, doc.clockwise, wave]);
+  }), [variants, doc.sizeMM, doc.rotation, doc.seamAngle, doc.clockwise, doc.subLobeCount, doc.subLobeDepthPct, wave]);
 
   // One scale for every card, each centred on its own box.
   const r = (doc.sizeMM / 2) * 1.08;
-  const keys = FAMILY_PARAMS[batch.base.family].map(s => s.key);
+  const keys = batchParams(batch.base).map(s => s.key);
 
   return (
     <div className="shaper-discover">

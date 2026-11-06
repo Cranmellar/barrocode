@@ -36,6 +36,7 @@ Sin archivo a mano, usa las muestras: ocho dibujos y cinco polígonos básicos. 
 *Forma* dibuja la línea central de la pieza directamente en mm, con curvas que la onda puede seguir.
 
 - **Familias.** *Lóbulos* (número, profundidad, agudeza), *Polígono* (lados, estrella, radio de esquina en mm) y *Superfórmula* (m, n1, n2, n3).
+- **Lóbulos secundarios.** Suman lóbulos pequeños al contorno de cualquier familia: un borde festoneado sobre un hexágono, una flor o una estrella. *Profundidad* en 0 los apaga. Un *Número* múltiplo de los lóbulos, lados o m repite el mismo dibujo en cada uno; otro número rompe parte de la simetría. Con lóbulos secundarios activos, *Descubrir* también los varía.
 - **Tamaño y orientación.** *Diámetro exterior* es dos veces la distancia del centro al punto más lejano. *Giro* rota la forma. *Costura* es el ángulo donde empieza y termina cada capa. *Sentido horario* invierte el recorrido.
 - **Descubrir** (barra superior) muestra nueve variaciones de la familia. Un clic adopta una. *Más como esta* busca cerca de la forma actual; *Otra tanda*, en todo el rango.
 - **Imprimibilidad** marca en rojo los tramos más cerrados de lo que la onda puede seguir y propone cómo corregirlos. **Onda** (barra superior) dibuja la franja que ocupa la onda: donde dos franjas se tocan, las paredes chocarán.

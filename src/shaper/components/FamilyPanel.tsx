@@ -160,6 +160,13 @@ export function FamilyPanel({ doc, onChange, onEditPoints }: Props) {
         )}
       </div>
 
+      <Sec title="Lóbulos secundarios" icon="sublobulos">
+        {slider('subLobeCount', 'Número', undefined,
+          'Cuántos lóbulos pequeños se suman al contorno de la familia, alrededor del centro. Un múltiplo de los lóbulos, lados o m repite el mismo dibujo en cada uno; otro número rompe parte de la simetría. Con\u00a02 la forma se achata en una dirección.')}
+        {slider('subLobeDepthPct', 'Profundidad', '%',
+          'Cuánto se hunden sus valles: con 10\u00a0% quedan al 90\u00a0% del radio que tendría la forma sin ellos.\n0\u00a0=\u00a0sin lóbulos secundarios.')}
+      </Sec>
+
       <Sec title="Tamaño y costura" icon="costura">
         <Num label="Diámetro exterior" unit="mm" value={doc.sizeMM} min={5} max={1000} step={1}
           hint="Dos veces la distancia del centro al punto más lejano: el círculo que encierra la forma. Es el tamaño exacto con que llega a Impresión."

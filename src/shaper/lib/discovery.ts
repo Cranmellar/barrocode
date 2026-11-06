@@ -1,5 +1,5 @@
 import { superformulaN3 } from './families';
-import { FAMILY_PARAMS, type FamilyKey, type ParamSpec, type ShapeDoc } from './shape';
+import { FAMILY_PARAMS, OVERLAY_PARAMS, type FamilyKey, type ParamSpec, type ShapeDoc } from './shape';
 
 /** A batch of variations: the same seed and spread around the same base give the same grid. */
 export interface Batch {
@@ -45,9 +45,14 @@ function draw(spec: ParamSpec, base: number, spread: number, u: number): number 
   return snap(base + t * spread * (hi - lo) / 2, spec);
 }
 
+/** What a batch varies: the family's parameters, and the secondary lobes once they are on. */
+export function batchParams(base: ShapeDoc): ParamSpec[] {
+  return base.subLobeDepthPct > 0 ? [...FAMILY_PARAMS[base.family], ...OVERLAY_PARAMS] : FAMILY_PARAMS[base.family];
+}
+
 export function variations(batch: Batch, count = GRID_SIZE): Variant[] {
   const next = rng(batch.seed);
-  const specs = FAMILY_PARAMS[batch.base.family];
+  const specs = batchParams(batch.base);
   return Array.from({ length: count }, () => {
     const v: Variant = {};
     for (const spec of specs) v[spec.key] = draw(spec, batch.base[spec.key], batch.spread, next());

@@ -96,6 +96,7 @@ const SHAPE_KINDS: Record<Exclude<keyof ShapeDoc, 'family' | 'contours'>, Kind> 
   sfM: 'number', sfN1: 'number', sfN2: 'number', sfN3: 'number',
   polySides: 'number', polyStarPct: 'number', polyFilletMM: 'number',
   lobeCount: 'number', lobeDepthPct: 'number', lobeSharp: 'number',
+  subLobeCount: 'number', subLobeDepthPct: 'number',
   pathOrder: 'number', pathSymmetric: 'boolean',
 };
 const FAMILIES: ReadonlySet<unknown> = new Set<ShapeDoc['family']>(['superformula', 'polygon', 'lobes']);
