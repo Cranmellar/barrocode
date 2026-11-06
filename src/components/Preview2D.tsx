@@ -24,7 +24,7 @@ import {
 import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
 import { Icon } from './icons';
-import { downloadGcode } from '../lib/gcodeGenerator';
+import { downloadGcode, gcodeFileName } from '../lib/gcodeGenerator';
 import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
@@ -819,11 +819,12 @@ export function Preview2D({
           </button>
           <button className="btn-primary btn-signal" disabled={!gcode}
             onClick={() => {
-              downloadGcode(gcode, gcodeFilename);
-              onToast(`${gcodeFilename} descargado · ${formatSize(new Blob([gcode]).size)}`);
+              const name = gcodeFileName(gcodeFilename, params, stats, new Date());
+              downloadGcode(gcode, name);
+              onToast(`${name} descargado · ${formatSize(new Blob([gcode]).size)}`);
             }}
             aria-label={compact >= 3 ? `Descargar ${gcodeFilename}` : undefined}
-            title={`Descargar ${gcodeFilename}`}><Icon name="descargar" />{compact < 3 && 'Descargar'}</button>
+            title={`Descargar ${gcodeFileName(gcodeFilename, params, stats, new Date())}`}><Icon name="descargar" />{compact < 3 && 'Descargar'}</button>
           <button className="btn-icon" onClick={onHelp} aria-haspopup="dialog"
             aria-label="Ayuda: cómo usar barrocode" title="Ayuda (?)">?</button>
           {gcodeBusy && gcode && <span className="gcode-progress" role="progressbar" aria-label="Generando G-code" />}
