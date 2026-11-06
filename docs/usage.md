@@ -180,7 +180,7 @@ La barra superior resume la impresión: tiempo estimado (a la velocidad programa
 
 ## 10. Exportar
 
-Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo sale del SVG: `mi-vasija.svg` da `mi-vasija.gcode`.
+Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 líneas) y permite copiarlo entero. El nombre del archivo empieza con el del SVG y sigue con la boquilla, la altura de capa, el tiempo estimado y la fecha y hora de la descarga: `mi-vasija.svg` con boquilla de 4 mm y capas de 1,5 mm da `mi-vasija_4n_1.5mm_2h05m_20261106-1432.gcode`. Así dos versiones de la misma pieza no se pisan y se ordenan por fecha.
 
 ## Campos numéricos
 

@@ -47,6 +47,7 @@ Verified on branch `claude/quirky-wright-bw4mdv`, on top of `main` @ `899f21a`, 
 - **Accessibility.** 26 number fields had no accessible name: the panels' `<label>` wasn't linked to `NumInput`. `NumInput` now sets the row label's `htmlFor` (or `aria-labelledby` to a slider's `.slider-label`), in the same lookup the label drag uses; a drag no longer ends by focusing the field. The wave sliders, the firmware select and the path switch got names; `<html lang="es">`. Checked in Chromium over the three workspaces with a sample, a keyframe and the path settings open: every field named.
 - **Pinned dependencies.** Exact versions in `package.json` and `save-exact` in `.npmrc`, since the lockfile stays out of git.
 - **Fonts.** WOFF2 with `MONO` pinned at 1 and the box-drawing block dropped (415 → 117 kB), regular face preloaded. Outlines and advances compared with fontTools at weights 300–800: identical apart from 0.08 units on the bullet.
+- **G-code file name.** The download is named like PrusaSlicer's default plus the date: `name_4n_1.5mm_2h05m_20261106-1432.gcode` (`gcodeFileName`, at click time). Two versions of one part no longer overwrite each other, and the printer's file list shows nozzle, layer and time. Dots, not commas, in the numbers; a configurable template (PrusaSlicer's `output_filename_format`) left for when someone asks.
 - **Docs.** `CLAUDE.md` 79 → 56 kB: this record and `docs/performance-log.md` hold the history it carried; stale entries in `pendientes.md` corrected.
 
 ## "Next steps" as they stood in Nov 2026
