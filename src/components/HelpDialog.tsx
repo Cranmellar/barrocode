@@ -213,6 +213,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
       </p>
       <Defs items={[
         ['Familias', <>Lóbulos, polígono o estrella, y superfórmula, con diámetro exterior, giro, costura (dónde empieza cada capa) y sentido.</>],
+        ['Lóbulos secundarios', <>Lóbulos pequeños sobre cualquier familia, como un borde festoneado. Con profundidad 0 no hacen nada.</>],
         ['Editar puntos', <>Arriba del panel. Convierte la forma en nodos: arrastra nodos y asas; doble clic en la línea añade uno. Con simetría, cada cambio se repite en todas las repeticiones. <em>Volver a la familia</em> deja los nodos.</>],
         ['Descubrir', <>Nueve variaciones de la familia. Clic para adoptar una; <em>Más como esta</em> afina alrededor de ella. Con nodos, vuelve antes a la familia.</>],
         ['Imprimibilidad', <>Marca en rojo los tramos más cerrados de lo que la onda actual puede seguir. <em>Onda</em> dibuja la franja que barre.</>],

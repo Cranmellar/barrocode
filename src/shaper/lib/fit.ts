@@ -15,13 +15,24 @@ const STRAIGHT_MM = 0.01;
 // Deep enough for a long imported contour with no fixed node for hundreds of mm.
 const MAX_DEPTH = 12;
 
-/** How many times the family's outline repeats around its centre. */
+/** How many times the family's outline, secondary lobes included, repeats around its centre. */
 export function familySymmetry(doc: ShapeDoc): number {
+  const base = baseSymmetry(doc);
+  if (doc.subLobeDepthPct <= 0) return Math.max(1, base);
+  return base === 0 ? doc.subLobeCount : gcd(base, doc.subLobeCount);
+}
+
+function gcd(a: number, b: number): number {
+  return b === 0 ? a : gcd(b, a % b);
+}
+
+/** 0 for a circle, which any number of lobes keeps whole. */
+function baseSymmetry(doc: ShapeDoc): number {
   switch (doc.family) {
     case 'lobes': return doc.lobeCount;
     case 'polygon': return doc.polySides;
     case 'superformula': {
-      if (doc.sfM === 0) return 1;
+      if (doc.sfM === 0) return 0;
       // |cos|^n2 + |sin|^n3 repeats every π of mφ/4, or every π/2 when n2 = n3.
       const even = doc.sfN2 === superformulaN3(doc.sfM, doc.sfN2, doc.sfN3);
       return even ? doc.sfM : doc.sfM % 2 === 0 ? doc.sfM / 2 : doc.sfM;

@@ -131,6 +131,18 @@ describe('symmetry', () => {
   });
 });
 
+describe('familySymmetry', () => {
+  it('keeps what the family and the secondary lobes share', () => {
+    const sym = (patch: Partial<ShapeDoc>) => familySymmetry({ ...DEFAULT_SHAPE, ...patch });
+    expect(sym({ lobeCount: 6, subLobeCount: 4 })).toBe(6);
+    expect(sym({ lobeCount: 6, subLobeCount: 18, subLobeDepthPct: 10 })).toBe(6);
+    expect(sym({ lobeCount: 6, subLobeCount: 4, subLobeDepthPct: 10 })).toBe(2);
+    expect(sym({ family: 'polygon', polySides: 5, subLobeCount: 7, subLobeDepthPct: 10 })).toBe(1);
+    expect(sym({ family: 'superformula', sfM: 0 })).toBe(1);
+    expect(sym({ family: 'superformula', sfM: 0, subLobeCount: 7, subLobeDepthPct: 10 })).toBe(7);
+  });
+});
+
 describe('fitOutline', () => {
   const docs: [string, Partial<ShapeDoc>][] = [
     ['default flower', {}],
@@ -143,6 +155,9 @@ describe('fitOutline', () => {
     ['superformula, odd m', { family: 'superformula', sfM: 5, sfN1: 2, sfN2: 7, sfN3: 3 }],
     ['superformula, n2 ≠ n3', { family: 'superformula', sfM: 6, sfN1: 3, sfN2: 4, sfN3: 9 }],
     ['circle', { family: 'superformula', sfM: 0 }],
+    ['flower with secondary lobes', { lobeCount: 6, subLobeCount: 18, subLobeDepthPct: 10 }],
+    ['hexagon with secondary lobes', { family: 'polygon', subLobeCount: 12, subLobeDepthPct: 8 }],
+    ['circle with secondary lobes', { family: 'superformula', sfM: 0, subLobeCount: 7, subLobeDepthPct: 15 }],
   ];
   // An imported contour has no symmetry, so only its seam, corners and two
   // extremes are fixed: long smooth gaps with many lobes in between.

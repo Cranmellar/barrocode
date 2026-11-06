@@ -213,5 +213,7 @@ Esto es lo propio de barrocode, que ningún referente tiene.
 
 ## 8. Fuera de este plan (siguientes pasos posibles)
 
+- **Modificadores comunes a todas las familias** (2026-11-06). Para sumar complejidad sin sumar familias: un modificador entra solo si actúa sobre las tres familias (todas tienen un único radio por ángulo desde el centro), tiene a lo más dos números, no cambia nada en 0, hace algo que los sliders y el giro no alcanzan, y actúa en la escala media: la familia da la silueta y la onda de *Impresión* la textura fina. Sin pilas ni anidamiento: un orden fijo. **Hecho: *Lóbulos secundarios*** (`overlayLobes`): número y profundidad; cada punto se mueve sobre su rayo según el perfil de lóbulos de la familia *Lóbulos* con agudeza 1, y los lados rectos del polígono se parten antes al paso angular de las familias polares. La simetría para *Editar puntos* es el mcd entre la de la familia y el número. *Descubrir* los varía solo si ya están activos. Candidatos, sin hacer: remolino (rompe la simetría especular), óvalo, irregularidad con semilla; y simetría especular en *Editar puntos*.
+
 - Composición por campos de distancia: unión suave de círculos (muestras 4, 5, 7 y 8), offset, pared doble.
 - Forma que cambia con la altura (parámetros de familia con keyframes). Exige que `generateWaveLayers` acepte una forma por capa, y pierde la reutilización de capas idénticas. Las familias polares lo hacen viable porque cada muestra corresponde a un ángulo.

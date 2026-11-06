@@ -16,6 +16,7 @@ const SHAPE: ShapeDoc = {
   family: 'polygon', sizeMM: 120, rotation: 15, seamAngle: 90, clockwise: true,
   sfM: 6, sfN1: 4, sfN2: 8, sfN3: 8, polySides: 5, polyStarPct: 30, polyFilletMM: 6,
   lobeCount: 6, lobeDepthPct: 20, lobeSharp: 1,
+  subLobeCount: 24, subLobeDepthPct: 12,
   contours: [[
     { x: 0, y: 0, inX: 0, inY: 0, outX: 0, outY: 0, smooth: false },
     { x: 10, y: 0, inX: 10, inY: 0, outX: 10, outY: 0, smooth: false },
