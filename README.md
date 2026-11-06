@@ -23,6 +23,7 @@ Funciona en el navegador. No hay que instalar nada y los archivos no salen de tu
 - Ver en 3D exactamente lo que se va a imprimir, con el tiempo estimado y el tamaño.
 - Elegir tu impresora y revisar antes de exportar si la pieza cabe en la cama.
 - Descargar el G-code.
+- Guardar el diseño en un archivo de proyecto y compartirlo.
 
 ## Cómo se usa
 
@@ -40,7 +41,7 @@ flowchart LR
 2. **Impresión**. Elige los trayectos que se imprimen, la altura de capa, el número de capas y la onda. Agrega keyframes (`K`) si la pieza cambia con la altura.
 3. **Máquina**. Elige el perfil de tu impresora. La revisión avisa si la pieza se sale de la cama, si la capa no corresponde a la boquilla o si falta algo en las plantillas de inicio y fin.
 
-Después pulsa **Descargar**. La sesión se guarda en el navegador y se puede recuperar al volver.
+Después pulsa **Descargar**. La sesión se guarda en el navegador y se puede recuperar al volver. Para guardar o compartir un diseño, usa *Proyecto › Guardar*.
 
 La guía completa, con cada parámetro y atajo, está en [docs/usage.md](docs/usage.md). En la app, el botón `?` abre una ayuda rápida.
 

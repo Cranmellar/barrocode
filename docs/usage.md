@@ -206,3 +206,14 @@ Pulsa **Descargar**. **G-code** abre el archivo en un panel (las primeras 1500 l
 ## Sesión
 
 barrocode guarda la sesión en el navegador (SVG, parámetros, keyframes y rutas) un segundo después de cada cambio. Al volver aparece **Sesión anterior**, con *Restaurar* o *Descartar*. Cerrar el SVG con la ✕ también borra la sesión guardada. La máquina y la forma de *Forma* se guardan aparte y vuelven solas.
+
+## Proyecto
+
+Un proyecto es un archivo `.barrocode.json` con el diseño completo: el SVG, los parámetros, los keyframes, qué rutas se imprimen con sus ajustes propios y la forma de *Forma*. Sirve para guardar una pieza y para compartirla.
+
+- **Proyecto › Guardar**, bajo el nombre del archivo en *Impresión*, lo descarga con el nombre de la pieza.
+- **Proyecto › Abrir** lo carga y reemplaza la pieza actual. También puedes arrastrarlo a la ventana.
+
+La máquina no viaja con el diseño. El archivo la guarda como referencia, pero al abrirlo se mantiene tu impresora, con sus velocidades, su ancho de cordón y su extrusión. Revisa *Máquina* antes de imprimir un proyecto ajeno.
+
+Un proyecto sin SVG, solo con una forma, se abre en *Forma*.

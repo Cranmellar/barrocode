@@ -24,7 +24,7 @@ import {
 import { GcodeOutput } from './GcodeOutput';
 import { FlowSteps } from './FlowSteps';
 import { Icon } from './icons';
-import { downloadGcode } from '../lib/gcodeGenerator';
+import { downloadText } from '../lib/gcodeGenerator';
 import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
@@ -819,7 +819,7 @@ export function Preview2D({
           </button>
           <button className="btn-primary btn-signal" disabled={!gcode}
             onClick={() => {
-              downloadGcode(gcode, gcodeFilename);
+              downloadText(gcode, gcodeFilename);
               onToast(`${gcodeFilename} descargado · ${formatSize(new Blob([gcode]).size)}`);
             }}
             aria-label={compact >= 3 ? `Descargar ${gcodeFilename}` : undefined}
