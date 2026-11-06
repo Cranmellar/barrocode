@@ -678,11 +678,11 @@ export function generateGcode(
 
 const mmLabel = (v: number) => String(Number(v.toFixed(2)));
 
-// Like PrusaSlicer's default (name, nozzle, layer height, time), plus the
+// Like PrusaSlicer's default (name, layer height, time), plus the
 // date and time of the download so versions of one part sort and differ.
 export function gcodeFileName(base: string, params: PrintParams, stats: GcodeStats | null, now: Date): string {
   const name = base.replace(/\.gcode$/i, '');
-  const parts = [name, `${mmLabel(params.nozzleDiameter)}n`, `${mmLabel(params.layerHeight)}mm`];
+  const parts = [name, `${mmLabel(params.layerHeight)}mm`];
   if (stats) {
     const min = Math.max(1, Math.round(stats.timeSec / 60));
     parts.push(min < 60 ? `${min}m` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m`);
