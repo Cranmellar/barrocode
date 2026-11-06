@@ -147,6 +147,8 @@ Ideas evaluadas que quedan solo como registro. No son tickets; probablemente se 
 
   Descartado en cualquier caso: previsualizar la pieza real con el valor cambiado (correr el pipeline en cada hover cuesta 60–480 ms a 150 capas). Más adelante, para 3 o 4 parámetros, se podría resaltar en el visor 3D lo que tocan (cruces del z-hop, rampa de la costura, franja de la onda), a costo medio cada uno.
 
+- **Forma que cambia con la altura** (evaluado 2026-11-06). Perfil de la pieza (escalar o desplazar la planta por altura), familias de *Forma* con claves por altura, contornos clave de varios SVG interpolados, campos de distancia. Plan, costos y decisiones en [docs/altura-plan.md](docs/altura-plan.md). Sin compromiso de implementación; el aviso de voladizo (A0) sirve aunque el resto no se haga.
+
 ### Completado en sesiones previas
 
 - [x] **Eliminar todo lo relacionado con el .exe / Electron** — commit `3b516b7`.

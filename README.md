@@ -192,6 +192,7 @@ Usa Vite 5, React 18 y TypeScript estricto, Canvas 2D para la vista 3D y *Forma*
 | [docs/marco-teorico.md](docs/marco-teorico.md) | Referentes teóricos: ornamento, simetría, forma orgánica, materia, accidente programado. |
 | [docs/research-notes.md](docs/research-notes.md) | Ideas de diseño y fabricación en exploración. |
 | [docs/shaper-plan.md](docs/shaper-plan.md), [docs/maquina-plan.md](docs/maquina-plan.md) | Planes y registro de *Forma* y *Máquina*. |
+| [docs/altura-plan.md](docs/altura-plan.md) | Propuesta: forma que cambia con la altura. Sin implementar. |
 | [pendientes.md](pendientes.md) | Tareas pendientes, por prioridad. |
 | [CLAUDE.md](CLAUDE.md) | Manual para trabajar en el código con Claude Code, con el estado actual del proyecto. |
 
