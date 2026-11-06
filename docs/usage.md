@@ -149,7 +149,7 @@ En *Impresión*, una marca en la barra superior avisa de los mismos errores (en 
 | **Colocar por** | *Centro* pone el centro de la pieza en *Posición X / Y*. *Esquina* pone la esquina inferior izquierda de la pieza a *Margen X / Y* del origen. |
 | **Boquilla** / **Ancho de cordón** | Con la altura de capa, definen el volumen extruido (filamento) y la revisión de la capa. |
 | **Generar valores E** / **Multiplicador** | Incluye la columna `E`. En arcilla, el multiplicador son unidades `E` por mm recorrido: ajústalo a tu bomba, pistón o tornillo. `E` sigue el largo real de cada movimiento, subidas incluidas. |
-| **Temperaturas** / **Ventilador** | Filamento. Las temperaturas entran en la plantilla de inicio; el ventilador se enciende en la capa indicada. |
+| **Temperaturas** / **Ventilador** | Filamento. Las temperaturas entran en la plantilla de inicio; el ventilador se enciende en la capa indicada y se apaga al terminar, antes de la plantilla de fin. |
 | **Velocidades** | Impresión, primera capa (0 = la de impresión) y desplazamiento. |
 | **Tiempo mín. por capa** | Las capas más rápidas que esto se imprimen más despacio, para enfriar o asentarse. 0 = desactivado. |
 | **Desplazamiento Z** | Altura de la primera capa. La revisión da error si queda en Z 0. |

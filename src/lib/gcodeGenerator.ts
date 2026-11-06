@@ -654,6 +654,10 @@ export function generateGcode(
     firstLayerZ: fmt(toolpath[0].z), topZ: fmt(partTop), parkZ: fmt(finalZ), clearZ: fmt(clearZ),
     minX: fmt(box.minX), maxX: fmt(box.maxX), minY: fmt(box.minY), maxY: fmt(box.maxY),
   };
+  // Slicers turn the part fan off before their end G-code; Creality OS's
+  // END_PRINT counts on it and only stops the side and chamber fans.
+  const fanOn = filament && params.fanSpeed > 0 && fanLayer < toolpath.length;
+  if (fanOn && params.endGcode.trim()) blocks.push('M107  ; part fan off');
   if (params.endGcode.trim()) blocks.push('; --- End G-code ---', fillTemplate(params.endGcode.trimEnd(), vars));
   if (!filament) blocks.push(CLAY_SHUTDOWN);
   else if (!params.endGcode.trim()) blocks.push(FILAMENT_SHUTDOWN);

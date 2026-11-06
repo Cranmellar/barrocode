@@ -92,6 +92,15 @@ describe('fan, speeds and templates', () => {
     expect(generateGcode(toolpath, { ...params, material: 'clay' }).text).not.toContain('HEADER_BLOCK');
   });
 
+  it('turns the part fan off before a Creality OS END_PRINT', () => {
+    const k1 = applyProfile(PARAMS, findProfile('k1')!);
+    const gcode = run(square(), { ...k1, numLayers: 4 }).gcode;
+    const end = gcode.indexOf('; --- End G-code ---');
+    expect(gcode.lastIndexOf('\nM107')).toBeGreaterThan(gcode.lastIndexOf('\nM106'));
+    expect(gcode.lastIndexOf('\nM107')).toBeLessThan(end);
+    expect(run(square(), { ...k1, numLayers: 4, fanSpeed: 0 }).gcode).not.toContain('part fan off');
+  });
+
   it('turns filament heaters off when the end template is empty', () => {
     const tail = codeLines(run(square(), { ...FIL, numLayers: 2, endGcode: '' }).gcode).slice(-4);
     expect(tail).toEqual(['M104 S0', 'M140 S0', 'M107', 'M84']);
