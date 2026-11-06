@@ -676,6 +676,22 @@ export function generateGcode(
 
 // ── Download helper ──────────────────────────────────────────────────────────
 
+const mmLabel = (v: number) => String(Number(v.toFixed(2)));
+
+// Like PrusaSlicer's default (name, layer height, time), plus the
+// date and time of the download so versions of one part sort and differ.
+export function gcodeFileName(base: string, params: PrintParams, stats: GcodeStats | null, now: Date): string {
+  const name = base.replace(/\.gcode$/i, '');
+  const parts = [name, `${mmLabel(params.layerHeight)}mm`];
+  if (stats) {
+    const min = Math.max(1, Math.round(stats.timeSec / 60));
+    parts.push(min < 60 ? `${min}m` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, '0')}m`);
+  }
+  const two = (n: number) => String(n).padStart(2, '0');
+  parts.push(`${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}`);
+  return `${parts.join('_')}.gcode`;
+}
+
 export function downloadText(text: string, filename: string, type = 'text/plain'): void {
   const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
