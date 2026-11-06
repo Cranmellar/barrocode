@@ -299,6 +299,9 @@ html, body, #root { height: 100%; margin: 0; overflow: hidden; }
 .file-row .sample-nav { flex: 1; min-width: 0; }
 .file-current { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; padding-left: 2px; }
 .file-load { flex-shrink: 0; }
+.file-project { display: flex; align-items: center; gap: var(--sp-2); padding-left: 2px; }
+.file-project-label { flex: 1; color: var(--ink-2); }
+.file-project .btn-small { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); }
 .file-name {
   flex: 1;
   min-width: 0;

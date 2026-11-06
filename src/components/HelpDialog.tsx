@@ -136,7 +136,7 @@ function KeyframeFigure() {
 const K = ({ children }: { children: ReactNode }) => <kbd>{children}</kbd>;
 
 const STEPS: [string, ReactNode][] = [
-  ['Trazo', <>Arrastra un SVG a la ventana, usa <em>Cargar SVG</em> o elige una muestra con <span className="help-keys"><K>‹</K> <K>›</K></span>. También puedes dibujarlo en <em>Forma</em>.</>],
+  ['Trazo', <>Arrastra un SVG a la ventana, usa <em>Cargar SVG</em> o elige una muestra con <span className="help-keys"><K>‹</K> <K>›</K></span>. También puedes dibujarlo en <em>Forma</em>, o abrir un proyecto (<em>Proyecto › Abrir</em>) que alguien guardó con <em>Guardar</em>.</>],
   ['Capas', <>Panel izquierdo: capas, escala y trayecto, en <em>Pieza</em> y <em>Trayecto</em>.</>],
   ['Onda', <>Panel derecho: parte de un preajuste y ajusta amplitud, longitud de onda y fase.</>],
   ['G-code', <>En <em>Máquina</em> elige la impresora y revisa que todo quepa; luego pulsa <em>Descargar</em>. <em>G-code</em> muestra el programa.</>],
@@ -226,7 +226,7 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
     id: 'maquina', title: 'Máquina', body: <>
       <p className="help-lead">
         En <em>Máquina</em> está lo que depende de la impresora y no de la pieza: se configura una vez
-        y se conserva al cargar otro SVG o restaurar una sesión.
+        y se conserva al cargar otro SVG, restaurar una sesión o abrir un proyecto.
       </p>
       <Defs items={[
         ['Perfil', <>Arcilla (origen al centro o en esquina, Delta WASP 2040 Clay) o filamento (Creality, Bambu Lab, Prusa, Elegoo, Anycubic, Sovol, Voron). Rellena la cama, la boquilla, las velocidades y las plantillas, y centra la pieza en la cama. Son cifras de catálogo: compruébalas en tu máquina.</>],

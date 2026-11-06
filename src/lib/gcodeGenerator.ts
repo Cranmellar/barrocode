@@ -692,8 +692,8 @@ export function gcodeFileName(base: string, params: PrintParams, stats: GcodeSta
   return `${parts.join('_')}.gcode`;
 }
 
-export function downloadGcode(gcode: string, filename = 'barrocode.gcode'): void {
-  const blob = new Blob([gcode], { type: 'text/plain' });
+export function downloadText(text: string, filename: string, type = 'text/plain'): void {
+  const blob = new Blob([text], { type });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = filename; a.click();

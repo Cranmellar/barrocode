@@ -46,7 +46,7 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 A summary. How each piece came to be, with measurements and the reasons behind each choice, is in [docs/history.md](docs/history.md); check it before changing an area it covers.
 
-- **Health.** `npm test` (273 tests; the G-code matrix runs every invariant on one program per geometry × config) and `npm run build` pass. Loaded at start: ≈190 kB app JS + 141 kB vendor + 57 kB CSS (≈123 kB gzip) and the regular font (54 kB WOFF2). Forma (≈45 kB) and the Máquina panels (≈17 kB) are separate chunks, loaded when first opened.
+- **Health.** `npm test` (283 tests; the G-code matrix runs every invariant on one program per geometry × config) and `npm run build` pass. Loaded at start: ≈197 kB app JS + 141 kB vendor + 57 kB CSS (≈123 kB gzip) and the regular font (54 kB WOFF2). Forma (≈45 kB) and the Máquina panels (≈17 kB) are separate chunks, loaded when first opened.
 - **Pipeline complete**: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`), priming and wall passes. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
 - **Machine safety.** `M82` when `generateE` is on. Final lift to `max(safeZ, highest printed Z) + 10`, at most `bedZ`. Skirt travel lifts 2 mm above the highest Z printed so far and descends to the next path's real start Z (NP-0b). Z floor in `generateWaveLayers`: layer 0 never dips below its set height, later points stay ≥ `layerHeight · MIN_LAYER_GAP` (0.5) above the same sample below. Priming runs along +X 10 mm beside the first layer's bounding box. E follows the 3D length of each move, Z-only steps included (NP-0a).
 - **Seam ramp (soft join).** `buildToolpath` spreads the layer rise over the last `transitionLength` mm of every closed path, only when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths and `alternateDirection` keep the old transition. Layer 0's tail lifts off the bed by up to one layer height (accepted).
@@ -61,6 +61,7 @@ A summary. How each piece came to be, with measurements and the reasons behind e
 - **UI overhaul** ([docs/ui-overhaul-plan.md](docs/ui-overhaul-plan.md)): phases 1 (tokens, controls, canvas palette, OKLCH ramp), 3 (full-window 3D with floating panels) and 5 (motion) done, with phase 2's canvas text sizes. Open: the rest of phase 2 (duplicates and copy) and phase 6 (QA). Desktop only, no dark mode.
 - **Controls.** Icons (`components/icons.tsx`, 16 px grid, 1.4 px line) on tabs, headers, rails, every section title and the geometric parameters; plain quantities stay text only and an icon never replaces its label. Tooltips are the native `title`, wrapped by `wrapHint` (`HINT_MEASURE` 46; `\n` starts a paragraph, ` ` keeps words together); every hint says what the value does to the part, checked against the code. `NumInput`: wheel (refreshes while focused), Shift for `fineStep`, drag on the row's `<label>`, the step amount floats beside the field; it links the row's label (or a slider's `.slider-label`) as its accessible name.
 - **Samples and session.** Eight inline samples, each wrapped by `sizedSample` to print 15 × 15 × 15 cm (`loadSample` sets the height). Drag-and-drop of an SVG works. Session autosave under `barrocode.session` / `barrocode.sessionSvg`.
+- **Project file** (`.barrocode.json`, `lib/project.ts`, *Proyecto › Abrir / Guardar* under the file name; a dropped `.json` opens too). Holds the SVG, the design params, keyframes, `PathState`s and Forma's shape; `MACHINE_FIELDS` go in a separate `machine` block that opening doesn't apply (`applyDesign`, shared with session restore, keeps the local machine). `parseProject` is the boundary: it drops wrong-typed fields so `DEFAULT_PARAMS` fills them, skips unreadable keyframes, paths and shapes, and refuses newer versions (`PROJECT_VERSION` 1). A project with only a shape opens in Forma.
 - **Not built**: pivot drag in the 3D viewport (`Preview2D` has no params `onChange`; `pendientes.md` Ola 3 / KF-C3, once ticked by mistake).
 
 ---
@@ -85,10 +86,9 @@ Built but never printed or opened in the target software. A short test part per 
 
 ### Features and tests
 
-4. **Save and open a project file** (`.barrocode.json`: SVG, params, keyframes, per-path settings; `SavedSession` in `App.tsx` already holds them, plus Forma's shape). The community has no way to share a configuration today.
-5. **Test `svgParser` in Chromium.** It is untested apart from `splitSubpaths` because Node has no SVG measuring. A few Playwright checks over the samples and tricky fixtures (an Illustrator clip rect, `scale()` transforms, `mm` units, an `onerror` attribute) would pin the October fixes.
-6. **KF-C2 remainder**: copy one panel section (N, T, Z, transform) from the previous keyframe.
-7. **Pivot drag in the 3D viewport** (see *Not built* above).
+4. **Test `svgParser` in Chromium.** It is untested apart from `splitSubpaths` because Node has no SVG measuring. A few Playwright checks over the samples and tricky fixtures (an Illustrator clip rect, `scale()` transforms, `mm` units, an `onerror` attribute) would pin the October fixes.
+5. **KF-C2 remainder**: copy one panel section (N, T, Z, transform) from the previous keyframe.
+6. **Pivot drag in the 3D viewport** (see *Not built* above).
 
 ### Needs a decision
 
@@ -237,7 +237,7 @@ Screen layout: the 3D canvas fills the window (`.app-stage`); everything else fl
 ┌ left panel (300) ─┐ ┌ top bar: fit, Iso/Planta/Frente, ┐ ┌ right panel (296) ─┐
 │ Forma·Impr.·Máq.  │ │ Color, Cotas … summary, G-code,  │ │ Onda · Restablecer │
 │ Cargar SVG · ‹ ›  │ │ Descargar (signal), ?            │ │ context line│ fig. │
-│ file name         │ └──────────────────────────────────┘ │ (square Lissajous) │
+│ name · Proyecto   │ └──────────────────────────────────┘ │ (square Lissajous) │
 │ PathList          │                                  ┌─┐ │ presets, N, T, Z,  │
 │ tabs: Pieza │     │        3D canvas (full window)   │L│ │ Delta, Fase        │
 │ Trayecto          │   G-code opens as a drawer here  │a│ │                    │
@@ -284,6 +284,7 @@ src/
     gcodeStats.ts           GcodeStats type; summary read back from G-code (test oracle)
     thumbnail.ts            PNG thumbnails of the toolpath for the G-code header (filament)
     wrapHint.ts             Line breaks for native title tooltips
+    project.ts              .barrocode.json: serializeProject, parseProject (boundary checks)
     hopUtils.ts             Z-hop crossing detection (spatial grid) + parabolic lift
     skirtUtils.ts           Concentric arc travel math
   shaper/                   Forma workspace (docs/shaper-plan.md), its own lazy chunk

@@ -3,7 +3,7 @@ import type { PrintParams, ParsedSVG, WaveKeyframe, SampledPath } from './types'
 import { parseSVG } from './lib/svgParser';
 import { generateWaveLayers, getParamsAtT, findKeyframeAt, partCentreSVG, shortestWavelength, waveCornerRadius, wallPassCount, WAVE_PARAMS } from './lib/waveGenerator';
 import { buildToolpath, TOOLPATH_PARAMS, type ToolpathLayer } from './lib/toolpath';
-import { gcodeOffset, generateGcode, THUMBNAIL_SIZES, type GcodeProgram, type GcodeThumbnail } from './lib/gcodeGenerator';
+import { downloadText, gcodeOffset, generateGcode, THUMBNAIL_SIZES, type GcodeProgram, type GcodeThumbnail } from './lib/gcodeGenerator';
 import { renderThumbnail } from './lib/thumbnail';
 import { MACHINE_FIELDS, MACHINE_PROFILES, bedCentre, type MachineFields } from './lib/machineProfiles';
 import { adaptToNozzle, bedLimits, checkMachine } from './lib/machineCheck';
@@ -22,6 +22,7 @@ import { Icon } from './components/icons';
 import type { ShapeDoc, ShapeImport } from './shaper/lib/shape';
 import type { WaveLimit } from './shaper/lib/printability';
 import { wrapHint } from './lib/wrapHint';
+import { nameFromFile, parseProject, projectFileName, serializeProject, shapeDoc, type PathState, type ProjectShape } from './lib/project';
 
 // Its own chunk: Impresión doesn't load the shaper until Forma is opened.
 const ShaperView = lazy(() => import('./shaper/ShaperView').then(m => ({ default: m.ShaperView })));
@@ -232,12 +233,11 @@ const SESSION_SVG_KEY = 'barrocode.sessionSvg';
 // Forma's shape and the last SVG it sent, kept apart from the print session.
 const SHAPE_KEY = 'barrocode.shape';
 
-interface SavedShape { doc: ShapeDoc; sent: string | null }
-
-function loadShape(): SavedShape | null {
+function loadShape(): ProjectShape | null {
   try {
     const s = JSON.parse(localStorage.getItem(SHAPE_KEY) ?? 'null');
-    return s && s.doc && typeof s.doc.family === 'string' ? s : null;
+    const doc = shapeDoc(s?.doc);
+    return doc && { doc, sent: typeof s.sent === 'string' ? s.sent : null };
   } catch {
     return null;
   }
@@ -276,8 +276,6 @@ function svgOutlines(raw: string, name: string, mmPerUnit: number | null, keep: 
     return { name, outlines: [], open: 0, error: (e as Error).message };
   }
 }
-
-type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'ampTOverride' | 'wlNOverride' | 'wlTOverride'>;
 
 const pathStates = (paths: SampledPath[]): PathState[] =>
   paths.map(({ id, enabled, ampNOverride, ampTOverride, wlNOverride, wlTOverride }) =>
@@ -361,6 +359,7 @@ export default function App() {
   // The last SVG sent from Forma; while it is the loaded one, Impresión offers to edit it.
   const [sentShapeSvg, setSentShapeSvg] = useState<string | null>(savedShape?.sent ?? null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
   const lastRawRef = useRef<{ raw: string; spacing: number } | null>(null);
   const gcodeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Thumbnails depend only on the toolpath and the bead width, so a speed or
@@ -879,17 +878,57 @@ export default function App() {
       : 'Capa, cordón, onda N y espaciado adaptados a la boquilla');
   }
 
+  // A session or a project replaces the design; the printer stays the one set up here.
+  function applyDesign(raw: string | null, filename: string, design: Partial<PrintParams>, kfs: WaveKeyframe[], paths: PathState[]) {
+    const p = { ...DEFAULT_PARAMS, ...design, ...pickMachine(params) };
+    setParams(p);
+    setKeyframes([...kfs].sort((a, b) => a.t - b.t));
+    setSelectedKfId(null);
+    setGcodeFilename(filename);
+    if (raw !== null) doParse(raw, p.sampleSpacing, paths);
+    else clearSVG();
+    setSavedSession(null);
+  }
+
   function restoreSession() {
     if (!savedSession) return;
-    const p = { ...DEFAULT_PARAMS, ...savedSession.params, ...pickMachine(params) };
-    setParams(p);
-    setKeyframes([...savedSession.keyframes].sort((a, b) => a.t - b.t));
-    setSelectedKfId(null);
-    setGcodeFilename(savedSession.filename);
-    doParse(savedSession.raw, p.sampleSpacing, savedSession.paths);
-    setSavedSession(null);
+    applyDesign(savedSession.raw, savedSession.filename, savedSession.params, savedSession.keyframes, savedSession.paths);
     showToast(`Sesión restaurada: ${savedSession.filename.replace(/\.gcode$/i, '')}`);
   }
+
+  const partName = gcodeFilename.replace(/\.gcode$/i, '');
+
+  function saveProject() {
+    const raw = lastRawRef.current?.raw ?? null;
+    downloadText(serializeProject({
+      name: partName, svg: parsedSVG ? raw : null, params, keyframes,
+      paths: parsedSVG ? pathStates(parsedSVG.paths) : [],
+      shape: shape && { doc: shape, sent: sentShapeSvg },
+    }), projectFileName(partName), 'application/json');
+    showToast(`Proyecto guardado: ${projectFileName(partName)}`);
+  }
+
+  function openProject(file: File) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const project = parseProject(ev.target?.result as string, DEFAULT_PARAMS);
+      if ('error' in project) {
+        setError(project.error);
+        return;
+      }
+      const name = project.name || nameFromFile(file.name);
+      if (project.shape) {
+        setShape(project.shape.doc);
+        setSentShapeSvg(project.shape.sent);
+      }
+      applyDesign(project.svg, `${name}.gcode`, project.params, project.keyframes, project.paths);
+      if (project.svg === null) setWorkspace('forma');
+      showToast(`Proyecto abierto: ${name}`);
+    };
+    reader.readAsText(file);
+  }
+
+  const isProjectFile = (f: File) => /\.json$/i.test(f.name) || f.type === 'application/json';
 
   function discardSession() {
     forgetSession();
@@ -1144,7 +1183,7 @@ export default function App() {
         e.preventDefault();
         setDropping(false);
         const f = e.dataTransfer.files[0];
-        if (f) handleFile(f);
+        if (f) (isProjectFile(f) ? openProject : handleFile)(f);
       }}
     >
       <Preview2D
@@ -1252,6 +1291,19 @@ export default function App() {
                   </button>
                 </div>
               )}
+
+              <div className="file-project">
+                <span className="file-project-label">Proyecto</span>
+                <button className="btn-small" aria-label="Abrir proyecto" onClick={() => projectInputRef.current?.click()} title={wrapHint('Abrir un archivo .barrocode.json: SVG, parámetros, keyframes, trazos y la forma de Forma. Tu máquina no cambia. También puedes arrastrarlo a la ventana.')}>
+                  <Icon name="importar" />Abrir
+                </button>
+                <button className="btn-small" disabled={!parsedSVG && !shape} aria-label="Guardar proyecto" onClick={saveProject}
+                  title={wrapHint('Descargar este diseño como .barrocode.json para abrirlo después o compartirlo. Guarda la máquina como referencia, pero no se aplica al abrir.')}>
+                  <Icon name="descargar" />Guardar
+                </button>
+                <input ref={projectInputRef} type="file" accept=".json,application/json" style={{ display: 'none' }}
+                  onChange={e => { const f = e.target.files?.[0]; if (f) openProject(f); e.target.value = ''; }} />
+              </div>
 
               {error && <div className="error-msg"><Icon name="aviso" />{error}</div>}
             </div>
