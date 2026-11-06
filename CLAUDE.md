@@ -18,7 +18,7 @@ Audience: a **small community of ceramicists**, shared via GitHub Pages. The who
 
 - **Vite 5** + **React 18** + **TypeScript** (strict mode via `tsc &&` before `vite build`)
 - **No UI library**, no state manager, no router. All styles live in `src/index.css`. State is plain React `useState` in `App.tsx`.
-- Font: `GSCode` (variable, roman and italic, `public/fonts/`) for all text (`--font-ui`). Section titles use the italic.
+- Font: `GSCode` (Google Sans Code, SIL OFL 1.1; variable, roman and italic, `public/fonts/*.woff2`) for all text (`--font-ui`). Section titles use the italic. The files are the upstream TTFs converted to WOFF2 with the unused `MONO` axis pinned at its default 1 (what the app always rendered) and the box-drawing glyphs U+2501–257F dropped: 415 → 117 kB, outlines and advances unchanged. Only the regular face is preloaded (`index.html`). To redo it with fontTools: `fonttools varLib.instancer GSCode.ttf MONO=1`, then `pyftsubset` with every codepoint of the cmap but U+2501–257F, `--flavor=woff2 --layout-features='*' --name-IDs='*' --name-languages='*' --notdef-outline`.
 
 | Command | Purpose |
 |---|---|
