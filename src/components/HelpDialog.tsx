@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { rampColor } from '../lib/palette';
+import { BUILD, versionLabel } from '../lib/build';
 import { FlowIcon } from './FlowSteps';
 
 interface Props {
@@ -358,6 +359,7 @@ export function HelpDialog({ open, onClose }: Props) {
               </button>
             ))}
           </div>
+          <p className="help-version">barrocode {versionLabel(BUILD.commit, BUILD.date)}</p>
         </nav>
 
         <div className="help-main">

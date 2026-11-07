@@ -104,6 +104,15 @@ describe('project file', () => {
       .toEqual({ doc: { family: 'lobes', contours: null }, sent: null });
   });
 
+  it('records which barrocode saved it, and reads files saved before that', () => {
+    const p = open(serializeProject(INPUT, new Date('2026-11-12T15:40:00Z')));
+    expect(p.app).toEqual({ commit: 'dev', build: '', saved: '2026-11-12T15:40:00.000Z' });
+    expect(open(withData({ app: undefined })).app).toBeNull();
+    expect(open(withData({ app: { commit: '' } })).app).toBeNull();
+    expect(open(withData({ app: { commit: 'fe7b4ac', build: 7, saved: '2026-11-12T15:40:00Z' } })).app)
+      .toEqual({ commit: 'fe7b4ac', build: '', saved: '2026-11-12T15:40:00Z' });
+  });
+
   it('names the file after the part and back', () => {
     expect(projectFileName('jarrón')).toBe('jarrón.barrocode.json');
     expect(nameFromFile('jarrón.barrocode.json')).toBe('jarrón');

@@ -1,6 +1,7 @@
 import type { PrintParams, SampledPath, WaveKeyframe } from '../types';
 import type { ShapeDoc } from '../shaper/lib/shape';
 import { MACHINE_FIELDS } from './machineProfiles';
+import { BUILD } from './build';
 
 export const PROJECT_FORMAT = 'barrocode';
 export const PROJECT_VERSION = 1;
@@ -13,6 +14,9 @@ export type PathState = Pick<SampledPath, 'id' | 'enabled' | 'ampNOverride' | 'a
 
 export interface ProjectShape { doc: ShapeDoc; sent: string | null }
 
+/** Which barrocode saved the file: commit and build date, and when it was saved (ISO). */
+export interface ProjectApp { commit: string; build: string; saved: string }
+
 /** What a `.barrocode.json` holds, checked field by field. */
 export interface Project {
   name: string;
@@ -24,6 +28,8 @@ export interface Project {
   keyframes: WaveKeyframe[];
   paths: PathState[];
   shape: ProjectShape | null;
+  /** Null for files saved before barrocode wrote it. */
+  app: ProjectApp | null;
 }
 
 export interface ProjectInput {
@@ -37,11 +43,13 @@ export interface ProjectInput {
 
 const MACHINE = new Set<string>(MACHINE_FIELDS);
 
-export function serializeProject(p: ProjectInput): string {
+export function serializeProject(p: ProjectInput, now = new Date()): string {
   const entries = Object.entries(p.params);
+  const app: ProjectApp = { commit: BUILD.commit, build: BUILD.date, saved: now.toISOString() };
   return JSON.stringify({
     format: PROJECT_FORMAT,
     version: PROJECT_VERSION,
+    app,
     name: p.name,
     svg: p.svg,
     params: Object.fromEntries(entries.filter(([k]) => !MACHINE.has(k))),
@@ -113,6 +121,12 @@ export function shapeDoc(v: unknown): ShapeDoc | null {
   return { ...pick<ShapeDoc>(v, SHAPE_KINDS), family: v.family, contours: v.contours ?? null } as ShapeDoc;
 }
 
+function projectApp(v: unknown): ProjectApp | null {
+  if (!isObj(v) || typeof v.commit !== 'string' || !v.commit) return null;
+  const str = (x: unknown) => typeof x === 'string' ? x : '';
+  return { commit: v.commit, build: str(v.build), saved: str(v.saved) };
+}
+
 function shape(v: unknown): ProjectShape | null {
   if (!isObj(v)) return null;
   const doc = shapeDoc(v.doc);
@@ -159,5 +173,6 @@ export function parseProject(text: string, defaults: PrintParams): Project | { e
     keyframes: list(data.keyframes, keyframe).sort((a, b) => a.t - b.t),
     paths: list(data.paths, pathState),
     shape: sh,
+    app: projectApp(data.app),
   };
 }
