@@ -44,7 +44,38 @@ export function superformulaN3(m: number, n2: number, n3: number): number {
  * valleys pinch into cusps.
  */
 export function lobes(count: number, depth: number, sharp: number): Pt[] {
-  return polar(phi => 1 - depth * (1 - ((1 + Math.cos(count * phi)) / 2) ** sharp));
+  return polar(phi => lobeProfile(count, depth, sharp, phi));
+}
+
+function lobeProfile(count: number, depth: number, sharp: number, phi: number): number {
+  return 1 - depth * (1 - ((1 + Math.cos(count * phi)) / 2) ** sharp);
+}
+
+/**
+ * `count` sine lobes of `depth` (0–1) laid over an outline that every ray
+ * from (0, 0) crosses once, as all three families do: each point moves along
+ * its ray, its radius scaled by the lobe profile at its angle. Edges are
+ * split to the polar families' angular step first, so the polygon's straight
+ * sides get the lobes too.
+ */
+export function overlayLobes(pts: Pt[], count: number, depth: number): Pt[] {
+  if (depth <= 0) return pts;
+  const maxStep = (2 * Math.PI) / POLAR_SAMPLES;
+  const out: Pt[] = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length];
+    let span = Math.atan2(b.y, b.x) - Math.atan2(a.y, a.x);
+    while (span > Math.PI) span -= 2 * Math.PI;
+    while (span < -Math.PI) span += 2 * Math.PI;
+    const steps = Math.max(1, Math.ceil(Math.abs(span) / maxStep - 1e-9));
+    for (let s = 0; s < steps; s++) {
+      const f = s / steps;
+      const x = a.x + (b.x - a.x) * f, y = a.y + (b.y - a.y) * f;
+      const k = lobeProfile(count, depth, 1, Math.atan2(y, x));
+      out.push({ x: x * k, y: y * k });
+    }
+  }
+  return out;
 }
 
 /**

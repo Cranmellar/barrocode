@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { GRID_SIZE, isVariantOf, rng, variations, type Batch } from '../discovery';
-import { DEFAULT_SHAPE, FAMILY_PARAMS, shapePoints, type Family } from '../shape';
+import { GRID_SIZE, batchParams, isVariantOf, rng, variations, type Batch } from '../discovery';
+import { DEFAULT_SHAPE, FAMILY_PARAMS, OVERLAY_PARAMS, shapePoints, type Family } from '../shape';
 
 const FAMILIES: Family[] = ['lobes', 'polygon', 'superformula'];
 const batch = (family: Family, spread = 1, seed = 42): Batch => ({ base: { ...DEFAULT_SHAPE, family }, spread, seed });
@@ -68,6 +68,18 @@ describe('variations', () => {
       });
     });
   }
+
+  it('varies the secondary lobes only once they are on', () => {
+    const on = { ...DEFAULT_SHAPE, subLobeDepthPct: 10 };
+    expect(batchParams(DEFAULT_SHAPE)).toEqual(FAMILY_PARAMS.lobes);
+    expect(batchParams(on).map(s => s.key)).toEqual([...FAMILY_PARAMS.lobes, ...OVERLAY_PARAMS].map(s => s.key));
+    for (const v of variations({ base: on, spread: 1, seed: 3 }, 200)) {
+      for (const s of OVERLAY_PARAMS) {
+        expect(v[s.key]!).toBeGreaterThanOrEqual(s.explore[0]);
+        expect(v[s.key]!).toBeLessThanOrEqual(s.explore[1]);
+      }
+    }
+  });
 
   it('ties n3 to n2 for odd symmetries, as the outline does', () => {
     for (const v of variations(batch('superformula'), 200)) {

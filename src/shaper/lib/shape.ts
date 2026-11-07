@@ -1,4 +1,4 @@
-import { lobes, polygon, superformula, type Pt } from './families';
+import { lobes, overlayLobes, polygon, superformula, type Pt } from './families';
 import { flattenPath, type PathNode } from './pathModel';
 
 export type Family = 'superformula' | 'polygon' | 'lobes';
@@ -27,6 +27,9 @@ export interface ShapeDoc {
   lobeCount: number;
   lobeDepthPct: number;
   lobeSharp: number;
+  /** Lobes laid over any family's outline; depth 0 leaves it as it is. */
+  subLobeCount: number;
+  subLobeDepthPct: number;
   /**
    * Set once the shape is turned into editable nodes, or imported: closed
    * contours, each printed as its own path from its node 0. They replace the
@@ -64,16 +67,19 @@ export const DEFAULT_SHAPE: ShapeDoc = {
   lobeCount: 6,
   lobeDepthPct: 20,
   lobeSharp: 1,
+  subLobeCount: 12,
+  subLobeDepthPct: 0,
   contours: null,
   pathOrder: 1,
   pathSymmetric: true,
 };
 
-/** The family parameters' numeric fields. */
+/** The numeric fields that sliders and discovery vary: each family's, and the overlay's. */
 export type FamilyKey =
   | 'sfM' | 'sfN1' | 'sfN2' | 'sfN3'
   | 'polySides' | 'polyStarPct' | 'polyFilletMM'
-  | 'lobeCount' | 'lobeDepthPct' | 'lobeSharp';
+  | 'lobeCount' | 'lobeDepthPct' | 'lobeSharp'
+  | 'subLobeCount' | 'subLobeDepthPct';
 
 export interface ParamSpec {
   key: FamilyKey;
@@ -105,8 +111,14 @@ export const FAMILY_PARAMS: Record<Family, ParamSpec[]> = {
   ],
 };
 
+/** Secondary lobes, shared by every family. */
+export const OVERLAY_PARAMS: ParamSpec[] = [
+  { key: 'subLobeCount', min: 2, max: 60, step: 1, explore: [4, 24] },
+  { key: 'subLobeDepthPct', min: 0, max: 50, step: 1, explore: [3, 15] },
+];
+
 export function paramSpec(key: FamilyKey): ParamSpec {
-  for (const specs of Object.values(FAMILY_PARAMS)) {
+  for (const specs of [...Object.values(FAMILY_PARAMS), OVERLAY_PARAMS]) {
     const spec = specs.find(s => s.key === key);
     if (spec) return spec;
   }
@@ -119,18 +131,20 @@ const MIN_PTS = 64;
 const MAX_PTS = 6000;
 
 function familyOutline(doc: ShapeDoc): Pt[] {
+  const overlay = (pts: Pt[]) => overlayLobes(pts, doc.subLobeCount, doc.subLobeDepthPct / 100);
   switch (doc.family) {
     case 'superformula':
-      return superformula(doc.sfM, doc.sfN1, doc.sfN2, doc.sfN3);
+      return overlay(superformula(doc.sfM, doc.sfN1, doc.sfN2, doc.sfN3));
     case 'lobes':
-      return lobes(doc.lobeCount, doc.lobeDepthPct / 100, doc.lobeSharp);
+      return overlay(lobes(doc.lobeCount, doc.lobeDepthPct / 100, doc.lobeSharp));
     case 'polygon': {
       // The fillets pull the corners in, so the circumradius grows until the
       // farthest point lands on the requested size with the fillet in mm.
       const star = doc.polyStarPct / 100;
+      const outline = (radius: number) => overlay(polygon(doc.polySides, star, radius, doc.polyFilletMM));
       let radius = doc.sizeMM / 2;
-      for (let i = 0; i < 4; i++) radius *= doc.sizeMM / 2 / maxRadius(polygon(doc.polySides, star, radius, doc.polyFilletMM));
-      return polygon(doc.polySides, star, radius, doc.polyFilletMM);
+      for (let i = 0; i < 4; i++) radius *= doc.sizeMM / 2 / maxRadius(outline(radius));
+      return outline(radius);
     }
   }
 }

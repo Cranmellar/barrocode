@@ -13,6 +13,11 @@ const mm = (v: number) => v.toFixed(1);
 const LOWER_WAVE = 'o baja la amplitud de la onda en Impresión.';
 
 function fix(doc: ShapeDoc, wave: WaveLimit): string {
+  const family = familyFix(doc, wave);
+  return doc.subLobeDepthPct > 0 ? `${family} Con lóbulos secundarios, menos profundidad o menos lóbulos también ayudan.` : family;
+}
+
+function familyFix(doc: ShapeDoc, wave: WaveLimit): string {
   switch (doc.family) {
     case 'polygon':
       // A fillet never takes more than half of either edge, so asking for

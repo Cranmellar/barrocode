@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_SHAPE, outerDiameter, shapeBounds, shapeLabel, shapeOutlines, shapePoints, type ShapeDoc } from '../shape';
 import { fitOutline } from '../fit';
-import { superformulaN3, type Pt } from '../families';
+import { overlayLobes, superformulaN3, type Pt } from '../families';
 import { shapeToSvg } from '../toSvg';
 
 const CASES: Partial<ShapeDoc>[] = [
@@ -16,6 +16,11 @@ const CASES: Partial<ShapeDoc>[] = [
   { family: 'superformula', sfM: 5, sfN1: 2, sfN2: 7, sfN3: 7 },
   { family: 'superformula', sfM: 5, sfN1: 1, sfN2: 3, sfN3: 9 },
   { family: 'superformula', sfM: 0, sfN1: 1, sfN2: 1, sfN3: 1 },
+  { family: 'lobes', subLobeDepthPct: 10 },
+  { family: 'lobes', lobeCount: 5, lobeDepthPct: 40, lobeSharp: 3, subLobeCount: 7, subLobeDepthPct: 25 },
+  { family: 'polygon', subLobeCount: 30, subLobeDepthPct: 8 },
+  { family: 'polygon', polySides: 5, polyStarPct: 50, polyFilletMM: 2, subLobeCount: 2, subLobeDepthPct: 50 },
+  { family: 'superformula', sfM: 5, sfN1: 1, sfN2: 3, sfN3: 9, subLobeCount: 20, subLobeDepthPct: 15 },
 ];
 
 const docs: ShapeDoc[] = CASES.flatMap(c => [
@@ -23,7 +28,7 @@ const docs: ShapeDoc[] = CASES.flatMap(c => [
   { ...DEFAULT_SHAPE, ...c, sizeMM: 137, rotation: 23, seamAngle: 200, clockwise: true },
 ]);
 
-const label = (d: ShapeDoc) => `${d.family} m${d.sfM} s${d.polySides} n${d.lobeCount} Ø${d.sizeMM} ${d.clockwise ? 'cw' : 'ccw'}`;
+const label = (d: ShapeDoc) => `${d.family} m${d.sfM} s${d.polySides} n${d.lobeCount} sub${d.subLobeCount}×${d.subLobeDepthPct} Ø${d.sizeMM} ${d.clockwise ? 'cw' : 'ccw'}`;
 
 function signedArea(pts: Pt[]): number {
   let a = 0;
@@ -72,6 +77,35 @@ describe('shapePoints', () => {
     const ab = dist(a, b), bc = dist(b, c), ca = dist(c, a);
     const area = Math.abs((b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y)) / 2;
     expect((ab * bc * ca) / (4 * area)).toBeCloseTo(8, 1);
+  });
+});
+
+describe('secondary lobes', () => {
+  it('change nothing at depth 0, whatever their number', () => {
+    for (const family of ['lobes', 'polygon', 'superformula'] as const) {
+      const doc = { ...DEFAULT_SHAPE, family };
+      expect(shapePoints({ ...doc, subLobeCount: 7 })).toEqual(shapePoints({ ...doc, subLobeCount: 31 }));
+    }
+  });
+
+  it('scale each point along its ray by the lobe profile, straight edges included', () => {
+    // A unit square on its corners: r(φ) = 1 / (|cos φ| + |sin φ|).
+    const square = [{ x: 1, y: 0 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 0, y: -1 }];
+    const out = overlayLobes(square, 12, 0.2);
+    expect(out.length).toBeGreaterThan(4000);
+    for (const p of out) {
+      const phi = Math.atan2(p.y, p.x);
+      const base = 1 / (Math.abs(Math.cos(phi)) + Math.abs(Math.sin(phi)));
+      expect(Math.hypot(p.x, p.y)).toBeCloseTo(base * (1 - 0.2 * (1 - Math.cos(12 * phi)) / 2), 9);
+    }
+  });
+
+  it('turn a circle into lobes of that number and depth', () => {
+    const doc = { ...DEFAULT_SHAPE, family: 'superformula' as const, sfM: 0, sizeMM: 100, subLobeCount: 5, subLobeDepthPct: 20 };
+    for (const p of shapePoints(doc)) {
+      const phi = Math.atan2(p.y, p.x);
+      expect(Math.hypot(p.x, p.y)).toBeCloseTo(50 * (1 - 0.2 * (1 - Math.cos(5 * phi)) / 2), 2);
+    }
   });
 });
 
