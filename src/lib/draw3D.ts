@@ -680,6 +680,24 @@ export function drawGeometry(ctx: CanvasRenderingContext2D, scene: GeometryScene
       }
       ctx.stroke();
     }
+
+    // Drop zones: the clay falls and coils there, which the line can't
+    // show, so a wide translucent band marks where.
+    if (params.dropZones && !ghost && !isInteracting) {
+      ctx.lineWidth *= 3.5;
+      ctx.globalAlpha = alpha * 0.3;
+      ctx.beginPath();
+      for (const pts of toolpath[li].paths) {
+        let open = false;
+        for (const p of pts) {
+          if ((p.drop ?? 0) < 0.5) { open = false; continue; }
+          const [sx, sy] = toScreen(p.x, p.y, p.z);
+          if (open) ctx.lineTo(sx, sy); else ctx.moveTo(sx, sy);
+          open = true;
+        }
+      }
+      ctx.stroke();
+    }
     ctx.restore();
   }
 

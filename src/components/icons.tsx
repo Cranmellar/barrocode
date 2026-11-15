@@ -70,6 +70,11 @@ const PATHS = {
     <path d="M1.5 12.5h6c2.5 0 2.5-5 5-5h2" />
     <path d="M1.5 7.5h5" strokeDasharray="1.5 2" />
   </>),
+  // A rope falling from the nozzle and coiling on the line.
+  caida: (<>
+    <path d="M1.5 13.5h13" />
+    <path d="M8 1.5v4.5c0 1.5-3 2-3 4.2 0 1.6 1.8 2.2 3 1.2s.4-3.2 1.6-3.2c1.4 0 1.6 2.3.4 3.3" />
+  </>),
   zhop: (<>
     <path d="M1.5 11h3.5c.8-4.5 5.2-4.5 6 0h3.5" />
     <path d="M8 10v4.5M8 2.5V5" opacity="0.45" />

@@ -656,6 +656,51 @@ export function roundCorners(path: SampledPath, radius: number): SampledPath {
   return { ...path, points, totalLength: arc };
 }
 
+// ── Drop zones ───────────────────────────────────────────────────────────────
+
+/** Clay laid per mm of path inside a drop zone, relative to a normal bead. */
+export function dropFlowPerMM(params: PrintParams): number {
+  return params.dropFlow / Math.max(1, params.dropSpeed);
+}
+
+/**
+ * Height of what a drop zone leaves, mm, estimated from its volume: a bead's
+ * height times the clay per mm, as if the coils kept the bead's width.
+ * The layer above passes half a layer over it.
+ */
+export function dropPile(params: PrintParams): number {
+  return params.layerHeight * dropFlowPerMM(params);
+}
+
+/** Which zone layer this is (0, 1…), or −1 on a layer without zones; never layer 0. */
+export function dropLayerIndex(li: number, params: PrintParams): number {
+  if (!params.dropZones || li < 1) return -1;
+  const every = Math.max(1, Math.round(params.dropEvery));
+  return (li - 1) % every === 0 ? (li - 1) / every : -1;
+}
+
+/**
+ * Zone weight, 0–1, at each arc length (mm) of a path: 1 over the middle
+ * half of each zone, smoothstep ramps over the quarters either side. A
+ * closed path holds a whole number of zones, so the pattern meets itself
+ * at the seam. Zone layer j is shifted by j · dropShift % of the spacing.
+ */
+export function dropWeights(arcs: number[], total: number, loop: boolean, params: PrintParams, j: number): number[] {
+  const spacing = Math.max(1, params.dropSpacing);
+  const period = loop ? total / Math.max(1, Math.round(total / spacing)) : spacing;
+  const half = Math.min(params.dropLength, period) / 2;
+  const ramp = half / 2;
+  const shift = j * params.dropShift / 100;
+  return arcs.map(s => {
+    const u = s / period - 0.5 - shift;
+    const d = Math.abs(u - Math.round(u)) * period;
+    if (d >= half) return 0;
+    if (d <= half - ramp) return 1;
+    const t = (half - d) / ramp;
+    return t * t * (3 - 2 * t);
+  });
+}
+
 // ── All layers ───────────────────────────────────────────────────────────────
 
 // Every PrintParams field generateWaveLayers reads; App keys its memo on
@@ -664,6 +709,7 @@ export const WAVE_PARAMS = [
   'lissAmpN', 'lissAmpT', 'lissAmpZ', 'lissWlN', 'lissWlT', 'lissWlZ',
   'lissDelta', 'lissPhaseZ', 'lissPhaseOffset', 'phaseShiftPerLayer',
   'phaseShiftZPerLayer', 'lissZLockT',
+  'dropZones', 'dropHeight', 'dropLength', 'dropSpacing', 'dropShift', 'dropEvery', 'dropSpeed', 'dropFlow',
   'layerHeight', 'numLayers', 'useNumLayers', 'totalHeight', 'nozzleHeightOffset',
   'reversePath', 'alternateDirection', 'closePath',
   'wallPasses', 'wallSpacing', 'wallSide', 'lineWidth',
@@ -734,6 +780,7 @@ export function generateWaveLayers(
   // wave (one per direction with alternateDirection); only the Z floor
   // differs. It is computed once per direction, before the floor, and copied.
   const lockZ = params.lissZLockT;
+  const pileRise = dropPile(params) - params.layerHeight;
   const reuse = !useKeyframes && params.phaseShiftPerLayer === 0
     && (lockZ || params.phaseShiftZPerLayer === 0);
   const waveCache = new Map<boolean, PathWave[]>();
@@ -851,6 +898,7 @@ export function generateWaveLayers(
     let maxGap = 0;
     const cached = reuse ? waveCache.get(reverse) : undefined;
     const computed: PathWave[] = [];
+    const dropLayer = dropLayerIndex(li, params);
 
     const pathPoints: WavePoint[][] = enabled.map((path, pi) => {
       const n = path.points.length;
@@ -860,17 +908,28 @@ export function generateWaveLayers(
       // The first layer never dips below its set height, and each later
       // point stays a thin bead above the same sample on the layer below,
       // so the Z wave can't drive the nozzle into the bed or the part.
+      // A drop zone lifts the nozzle on top of that, and what it leaves
+      // (dropPile) becomes the floor for the layer above.
       const below = prevZ[pi];
       const pathZ: number[] = new Array(n);
       layerZ.push(pathZ);
+      const drops = dropLayer >= 0
+        ? dropWeights(path.points.map(p => p.arcLength * sf), path.totalLength * sf, loops[pi], params, dropLayer)
+        : null;
       for (let i = 0; i < n; i++) {
         const si = reverse ? n - 1 - i : i;
         const floor = below ? below[si] + params.layerHeight * MIN_LAYER_GAP : z;
-        wave[i].zOffset = Math.max(wave[i].zOffset, floor - z);
-        pathZ[si] = z + wave[i].zOffset;
-        if (below) maxGap = Math.max(maxGap, pathZ[si] - below[si]);
+        const base = Math.max(wave[i].zOffset, floor - z);
+        const w = drops ? drops[si] : 0;
+        wave[i].zOffset = base + params.dropHeight * w;
+        if (params.dropZones) wave[i].drop = w;
+        pathZ[si] = z + base + pileRise * w;
+        if (below && w === 0) maxGap = Math.max(maxGap, pathZ[si] - below[si]);
       }
-      if (wave.length > n) wave[n].zOffset = wave[0].zOffset;
+      if (wave.length > n) {
+        wave[n].zOffset = wave[0].zOffset;
+        if (params.dropZones) wave[n].drop = wave[0].drop;
+      }
 
       if (offsets.length === 1) return wave;
 
@@ -879,7 +938,7 @@ export function generateWaveLayers(
       flatIdx += (offsets.length - 1) * wave.length;
       return offsets.flatMap((off, k) => {
         const d = off * passStep;
-        const pass = wave.map((p, i) => ({ x: p.x + d * dirX[i], y: p.y + d * dirY[i], zOffset: p.zOffset }));
+        const pass = wave.map((p, i) => ({ x: p.x + d * dirX[i], y: p.y + d * dirY[i], zOffset: p.zOffset, drop: p.drop }));
         return closed[pi] || k % 2 === 0 ? pass : pass.reverse();
       });
     });

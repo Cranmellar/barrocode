@@ -76,6 +76,8 @@ Hoy se puede a mano poniendo `wlZ = wlT`, pero se pierde al editar o con keyfram
 
 ### Z3. Zonas de caída: enrollamiento programado
 
+**Hecho** (15 nov 2026): *Zonas de caída* en *Trayecto*. El montón se estima por volumen (altura de capa × caudal ÷ avance), sin parámetro propio: si la prueba lo desmiente, agregar una altura medida. Falta imprimirlo.
+
 El accidente programado en sentido estricto. Cada `L` mm de recorrido, un tramo de largo `w` donde la boquilla sube `H` sobre el cordón (con entrada y salida suaves), frena y mantiene o aumenta el caudal. El barro cae y se enrolla o serpentea solo; entre zonas imprime normal. Con un desfase por capa las zonas se alternan como ladrillos.
 
 Parámetros, en lenguaje de la pieza: *altura de caída* (mm), *largo de zona*, *separación*, *desfase por capa* y una *razón de avance* (velocidad de la boquilla dividida por la velocidad de salida del cordón, `Q / (π d² / 4)`). Esa razón es la variable que ordena los patrones en Jawed, Brun y Reis: cerca de 1 meandros, más baja bucles, mucho más baja espirales.

@@ -170,6 +170,9 @@ function buildHeader(params: PrintParams, box: GcodeBox, keyframes: WaveKeyframe
     `; Phase offset           : ${(params.lissPhaseOffset * 180 / Math.PI).toFixed(1)}°`,
     `; Phase shift / layer    : ${(params.phaseShiftPerLayer * 180 / Math.PI).toFixed(1)}°`,
     ...keyframeLines(keyframes, params),
+    ...(params.dropZones
+      ? [`; Drop zones             : ${params.dropLength} mm every ${params.dropSpacing} mm, ${params.dropHeight} mm up, shift ${params.dropShift} %, every ${params.dropEvery} layer(s) from layer 2; speed ${params.dropSpeed} %, flow ${params.dropFlow} %`]
+      : []),
     `; Layer height           : ${params.layerHeight} mm`,
     `; Number of layers       : ${layerCount(params)}`,
     `; Nozzle Z offset        : ${params.nozzleHeightOffset} mm`,
@@ -381,7 +384,12 @@ function pathToGcode(
     const d = dist3(prev.x, prev.y, prev.z, curr.x, curr.y, curr.z);
     if (d < 1e-6) continue;
 
-    eRef.value += d * ePerMM(params);
+    // In a drop zone the nozzle slows to dropSpeed % while the clay keeps
+    // flowing at dropFlow % per second, so each mm gets flow ÷ speed.
+    const w = curr.drop !== undefined ? (prev.drop! + curr.drop) / 2 : 0;
+    const speed = 1 + (Math.max(1, params.dropSpeed) / 100 - 1) * w;
+    const flow = 1 + (params.dropFlow / 100 - 1) * w;
+    eRef.value += d * ePerMM(params) * (w > 0 ? flow / speed : 1);
     const zChanged = Math.abs(curr.z - zRef.value) > 0.001;
     if (zChanged) zRef.value = curr.z;
 
@@ -390,7 +398,7 @@ function pathToGcode(
       y: curr.y,
       z: zChanged ? curr.z : undefined,
       e: params.generateE ? eRef.value : undefined,
-    }, feed));
+    }, w > 0 ? Math.max(1, Math.round(feed * speed)) : feed));
   }
 
   return lines;

@@ -10,7 +10,8 @@ import type { WaveLayer, PrintParams } from '../types';
 import { arcLengths, findCrossings, hopAtArc, hopSampleArcs } from './hopUtils';
 import { computeCentroid, type MM2 } from './skirtUtils';
 
-export interface ToolpathPoint { x: number; y: number; z: number }
+// `drop`: weight of a drop zone (0–1), present on every point while dropZones is on.
+export interface ToolpathPoint { x: number; y: number; z: number; drop?: number }
 
 export interface ToolpathLayer {
   index: number;
@@ -98,6 +99,7 @@ export function buildToolpath(
         x: (p.x - centre.x) * sf + originX,
         y: (flipY ? centre.y - p.y : p.y - centre.y) * sf + originY,
         zOffset: p.zOffset,
+        drop: p.drop,
       }));
       if (layer.closed[pi]) closed.add(mm);
       return [mm];
@@ -139,14 +141,18 @@ export function buildToolpath(
           const prev = path[i - 1], prevArc = arcs[k - 2];
           for (const a of hopSampleArcs(prevArc, arc, crossings, params.hopRadius)) {
             const f = (a - prevArc) / (arc - prevArc);
-            out.push({
+            const q: ToolpathPoint = {
               x: prev.x + (p.x - prev.x) * f,
               y: prev.y + (p.y - prev.y) * f,
               z: zAt(prev.zOffset + (p.zOffset - prev.zOffset) * f, a) + ramp(a),
-            });
+            };
+            if (p.drop !== undefined) q.drop = prev.drop! + (p.drop - prev.drop!) * f;
+            out.push(q);
           }
         }
-        out.push({ x: p.x, y: p.y, z: zAt(p.zOffset, arc) + ramp(arc) });
+        const q: ToolpathPoint = { x: p.x, y: p.y, z: zAt(p.zOffset, arc) + ramp(arc) };
+        if (p.drop !== undefined) q.drop = p.drop;
+        out.push(q);
       });
       return out;
     });

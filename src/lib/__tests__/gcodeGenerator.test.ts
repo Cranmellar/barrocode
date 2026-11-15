@@ -43,6 +43,12 @@ for (const softJoin of [true, false]) CONFIGS.push({ ...WAVE, ...HOP, ...FILAMEN
 for (const [wallPasses, wallSide] of [[2, 'out'], [2, 'in'], [3, 'centre']] as const) {
   CONFIGS.push({ ...WAVE, ...HOP, numLayers: 3, softJoin: true, wallPasses, wallSide });
 }
+// Drop zones: the nozzle rises, slows and comes back down while extruding.
+for (const softJoin of [true, false]) {
+  CONFIGS.push({
+    ...WAVE, ...HOP, numLayers: 4, softJoin, dropZones: true, dropHeight: 5, dropLength: 12, dropSpacing: 30, dropEvery: 1,
+  });
+}
 
 const ORIGIN = { gcodeOrigin: 'corner' as const, marginX: 0, marginY: 0 };
 
@@ -54,7 +60,8 @@ describe('generateGcode — invariants', () => {
     for (const config of CONFIGS) {
       const label = `${name} softJoin=${config.softJoin} priming=${config.primingMove} alt=${config.alternateDirection}`
         + (config.material ? ` ${config.material}` : '')
-        + (config.wallPasses ? ` wall=${config.wallPasses}${config.wallSide}` : '');
+        + (config.wallPasses ? ` wall=${config.wallPasses}${config.wallSide}` : '')
+        + (config.dropZones ? ' drop' : '');
 
       it(label, () => {
         const { gcode, params, stats, toolpath } = run(geometry(), config);
@@ -63,7 +70,8 @@ describe('generateGcode — invariants', () => {
         // No long or plunging extrusion. A soft-join transition is split
         // into short steps, so its span is checked as a whole.
         const body = interpret(gcode.slice(gcode.indexOf('; ===== Layer 1')));
-        const maxDz = params.layerHeight + params.zHopHeight + 2 * params.lissAmpZ + 0.01;
+        const maxDz = params.layerHeight + params.zHopHeight + 2 * params.lissAmpZ + 0.01
+          + (params.dropZones ? params.dropHeight : 0);
         let span = 0;
         for (const m of body.filter(m => m.extruding)) {
           const d = Math.hypot(m.to.x - m.from.x, m.to.y - m.from.y);

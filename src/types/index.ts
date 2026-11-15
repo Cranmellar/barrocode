@@ -53,6 +53,8 @@ export interface WavePoint {
   y: number;
   /** Z oscillation offset in mm (added on top of WaveLayer.z at emit time). */
   zOffset: number;
+  /** Weight of a drop zone here, 0–1; set on every point while dropZones is on. */
+  drop?: number;
 }
 
 /**
@@ -123,6 +125,16 @@ export interface PrintParams {
   phaseShiftPerLayer: number;    // radians — extra phase added per layer (N and T)
   phaseShiftZPerLayer: number;   // radians — the same for the Z wave
   lissZLockT: boolean;           // Z runs on T's wave (its wavelength, cycles and per-layer phase); phaseZ is then relative to T
+
+  // ── Drop zones: the nozzle rises, slows and lets the clay rope coil ──
+  dropZones: boolean;
+  dropHeight: number;            // mm — lift over where the layer would print
+  dropLength: number;            // mm — zone length along the path, ramps included
+  dropSpacing: number;           // mm — from one zone's centre to the next (whole number per closed path)
+  dropShift: number;             // % of dropSpacing the zones move on each zone layer
+  dropEvery: number;             // zones on layers 1, 1 + n, 1 + 2n…
+  dropSpeed: number;             // % of the print feed inside a zone
+  dropFlow: number;              // % of the clay per second inside a zone
 
   // ── Layer stacking ──
   layerHeight: number;           // mm

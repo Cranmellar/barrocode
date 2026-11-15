@@ -66,8 +66,9 @@ Cada punto (`SampledPoint`) lleva posición, tangente, normal y largo recorrido 
 3. **Fase de la capa.** `desfase inicial + capa × desfase por capa`, y para la Z lo mismo con su propio desfase por capa (`phaseShiftZPerLayer`). Con keyframes, ambos se leen al inicio de cada capa, así que una capa tiene una sola fase y cierra en su costura. Con *Z sigue a T* (`lissZLockT`), la Z usa el ciclo de T y su fase de capa.
 4. **Onda.** Para cada punto, la fase avanza con el largo recorrido (`cyc += 2π·ds/λ`) y el punto se desplaza sobre la normal y la tangente; la Z, en altura. Con keyframes, `createKeyframeSampler` interpola los valores a lo largo de la impresión.
 5. **Piso en Z.** La capa 0 no baja de su altura; cada punto queda al menos media capa sobre el mismo punto de la capa de abajo. Cada capa guarda en `maxGap` su mayor subida sobre la capa de abajo, para la revisión.
-6. **Forma.** Escala y luego giro alrededor del centro de la pieza más `centerX/Y`.
-7. **Muro.** Con varias pasadas por capa, cada pasada es la primera desplazada hacia afuera o adentro, y todas forman una sola ruta.
+6. **Zonas de caída.** En las capas con zonas (`dropLayerIndex`), `dropWeights` da a cada muestra un peso de 0 a 1 según su largo sobre el trazo (rampas en los cuartos de cada zona). La boquilla sube *Altura de caída* × peso sobre el piso, y el piso de la capa de arriba se calcula sobre el montón estimado (`dropPile`: altura de capa × caudal ÷ avance). Esos puntos no cuentan para `maxGap`. El peso viaja en cada punto (`drop`) hasta el G-code.
+7. **Forma.** Escala y luego giro alrededor del centro de la pieza más `centerX/Y`.
+8. **Muro.** Con varias pasadas por capa, cada pasada es la primera desplazada hacia afuera o adentro, y todas forman una sola ruta.
 
 Sin keyframes ni desfase por capa (el de la Z incluido), todas las capas tienen la misma onda (una por sentido con *Alternar por capa*). En ese caso se calcula una vez y solo el piso en Z se repite por capa.
 
@@ -91,7 +92,7 @@ Cada punto (`ToolpathPoint`) lleva su Z final: altura de la capa + onda Z + salt
 4. Entre rutas, un viaje 2 mm por encima de lo más alto impreso, en arco alrededor de la capa si es largo. Entre capas, si la siguiente empieza cerca, un tramo continuo que sube mientras extruye; si no, un viaje.
 5. El final: subida, plantilla de fin y apagado.
 
-`E` es absoluta y acumula el largo 3D de cada movimiento por `ePerMM` (en arcilla, el multiplicador). Solo retrocede en las retracciones de filamento, que el movimiento siguiente recupera. Con `generateE` desactivado no se escribe `E`.
+`E` es absoluta y acumula el largo 3D de cada movimiento por `ePerMM` (en arcilla, el multiplicador). En una zona de caída, el avance se multiplica por *Avance en la zona* y la `E` por mm por caudal ÷ avance, según el peso medio del tramo. Solo retrocede en las retracciones de filamento, que el movimiento siguiente recupera. Con `generateE` desactivado no se escribe `E`.
 
 Cada línea `G1` pasa por `move`, que lleva la cuenta del tiempo, los largos y la `E` con los mismos valores redondeados que escribe. `summarizeGcode` vuelve a leer un programa y solo lo usan las pruebas, para comprobar esa cuenta.
 

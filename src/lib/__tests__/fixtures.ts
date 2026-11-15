@@ -18,6 +18,8 @@ export const PARAMS: PrintParams = {
   lissWlN: 20, lissWlT: 20, lissWlZ: 20,
   lissDelta: 0, lissPhaseZ: 0, lissPhaseOffset: 0, phaseShiftPerLayer: 0,
   phaseShiftZPerLayer: 0, lissZLockT: false,
+  dropZones: false, dropHeight: 6, dropLength: 15, dropSpacing: 40, dropShift: 50, dropEvery: 2,
+  dropSpeed: 40, dropFlow: 100,
   layerHeight: 2.5, numLayers: 2, useNumLayers: true, totalHeight: 15,
   nozzleHeightOffset: 1, safeZ: 20,
   softJoin: true, transitionLength: 10,

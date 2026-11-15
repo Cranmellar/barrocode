@@ -46,9 +46,9 @@ There is **no** desktop / Electron / portable distribution. It was removed; don'
 
 A summary. How each piece came to be, with measurements and the reasons behind each choice, is in [docs/history.md](docs/history.md); check it before changing an area it covers.
 
-- **Health.** `npm test` (309 tests; the G-code matrix runs every invariant on one program per geometry × config) and `npm run build` pass. Loaded at start: ≈200 kB app JS + 141 kB vendor + 57 kB CSS (≈123 kB gzip) and the regular font (54 kB WOFF2). Forma (≈45 kB) and the Máquina panels (≈17 kB) are separate chunks, loaded when first opened.
+- **Health.** `npm test` (328 tests; the G-code matrix runs every invariant on one program per geometry × config) and `npm run build` pass. Loaded at start: ≈206 kB app JS + 141 kB vendor + 57 kB CSS (≈123 kB gzip) and the regular font (54 kB WOFF2). Forma (≈45 kB) and the Máquina panels (≈17 kB) are separate chunks, loaded when first opened.
 - **Pipeline complete**: SVG → sampling → Lissajous N/T/Z wave → layers → shared mm toolpath → G-code, with keyframes, centre/scale/rotation pivot, z-hop, skirt travel, soft join, dwell (`G4`), priming and wall passes. Preview and G-code draw from the same `buildToolpath` output, and the tests check they agree.
-- **Z wave.** One sine per point, with its own per-layer shift (`phaseShiftZPerLayer`, keyframe `phaseShiftZ`) separate from N and T's, so a turning texture doesn't move Z crests over troughs. *Z sigue a T* (`lissZLockT`) runs Z on T's cycle and per-layer phase; *Fase Z* is then from T, and the *Puntada* preset (−90°) lifts the nozzle where T makes it back up. [docs/trayectorias-z.md](docs/trayectorias-z.md) has the references and the next proposals (Z3–Z6).
+- **Z wave.** One sine per point, with its own per-layer shift (`phaseShiftZPerLayer`, keyframe `phaseShiftZ`) separate from N and T's, so a turning texture doesn't move Z crests over troughs. *Z sigue a T* (`lissZLockT`) runs Z on T's cycle and per-layer phase; *Fase Z* is then from T, and the *Puntada* preset (−90°) lifts the nozzle where T makes it back up. *Zonas de caída* (`dropZones`, *Trayecto*): every `dropSpacing` mm the nozzle rises `dropHeight`, slows to `dropSpeed` % and lays flow ÷ speed the clay per mm, so the rope coils; weights per sample (`dropWeights`) ride on `WavePoint.drop` / `ToolpathPoint.drop` to `pathToGcode`, and the layer above passes over the estimated pile (`dropPile`). [docs/trayectorias-z.md](docs/trayectorias-z.md) has the references and the next proposals (Z4–Z6).
 - **Machine safety.** `M82` when `generateE` is on. Final lift to `max(safeZ, highest printed Z) + 10`, at most `bedZ`. Skirt travel lifts 2 mm above the highest Z printed so far and descends to the next path's real start Z (NP-0b). Z floor in `generateWaveLayers`: layer 0 never dips below its set height, later points stay ≥ `layerHeight · MIN_LAYER_GAP` (0.5) above the same sample below. Priming runs along +X 10 mm beside the first layer's bounding box. E follows the 3D length of each move, Z-only steps included (NP-0a).
 - **Seam ramp (soft join).** `buildToolpath` spreads the layer rise over the last `transitionLength` mm of every closed path, only when the next layer starts within `transitionLength` in XY; otherwise a normal lift travel. Open paths and `alternateDirection` keep the old transition. Layer 0's tail lifts off the bed by up to one layer height (accepted).
 - **SVG input** (`parseSVG`). The viewBox's top-left corner becomes (0, 0); a physical root `width`/`height` sets `mmPerUnit`, adopted as `scaleFactor` on load (*Usar tamaño real* when they differ). Skips geometry that is never drawn (`defs`, `clipPath`, `mask`, `symbol`, `marker`, `pattern`, `display:none`). Strips `<script>`, `<foreignObject>`, `on*` and `javascript:` links and inserts with `importNode`, never `innerHTML`. Lengths under scale transforms are converted to root units (`lengthScale`); multi-subpath `<path>`s are split (`splitSubpaths`). Only `splitSubpaths` is tested.
@@ -76,7 +76,7 @@ Open work, ordered by impact ÷ effort; done steps are recorded in [docs/history
 
 Built but never printed or opened in the target software. A short test part per item settles it; record the result here and in `docs/fabrication-notes.md`.
 - Z-hop at crossings (step 1 below), wall passes, the seam ramp's layer 0 tail.
-- *Puntada* and large Z waves with *Desfase Z por capa* 0 (test parts 1 and 3 in `docs/trayectorias-z.md`).
+- *Puntada*, large Z waves with *Desfase Z por capa* 0 and drop zones (test parts 1–3 in `docs/trayectorias-z.md`; for zones, measure the pile against `dropPile`).
 - Layer markers in PrusaSlicer / Cura / Orca's G-code viewer.
 - Filament metadata and thumbnail on a Creality K1.
 - Every printer profile but the generic clay ones and those with a `source`.
@@ -178,6 +178,8 @@ SampledPath[] + PrintParams + WaveKeyframe[]
                            zOffset = ampZ*sin(cycZ + phaseZ + phase)   (mm)
        • Z floor: layer 0 ≥ its base Z; later points ≥ same sample on the
          layer below + layerHeight·MIN_LAYER_GAP (0.5)
+       • drop zones (dropZones): + dropHeight · weight over the floor; the
+         floor kept for the layer above is the estimated pile (dropPile)
        • applyTransformSVG: scale, then rotate, around pivot in SVG space;
          pivot = bounding-box centre of the enabled paths + (centerX, centerY)
        • alternateDirection: reverse every other layer
@@ -210,7 +212,8 @@ ToolpathLayer[] consumed by BOTH:
   │    • buildTransition for softJoin: smoothstep XY + linear Z, no retract;
   │      skipped when the seam ramp already reached the next start
   │    • E accumulates: E += 3D dist * ePerMM (clay: extrusionMultiplier;
-  │      filament: lineWidth · layerHeight / filament section · flowRatio)
+  │      filament: lineWidth · layerHeight / filament section · flowRatio);
+  │      in a drop zone, feed × dropSpeed % and E per mm × flow ÷ speed
   │    • start/end templates around the program ({nozzleTemp}… TEMPLATE_VARS);
   │      filament: M107, then M106 at fanFromLayer, retraction on skirt travel
   │    • per-layer feed (layerFeeds): firstLayerSpeed, minLayerTime

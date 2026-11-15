@@ -3,7 +3,7 @@ import type { PrintParams, WallSide } from '../types';
 import { NumInput } from './NumInput';
 import { CenterScaleParams } from './CenterScaleParams';
 import { Icon, type IconName } from './icons';
-import { MAX_LAYERS, MAX_WALL_PASSES, SAMPLES_PER_CYCLE, layerCount, suggestedSpacingMM, wallPassCount, wallSpacingMM } from '../lib/waveGenerator';
+import { MAX_LAYERS, MAX_WALL_PASSES, SAMPLES_PER_CYCLE, dropFlowPerMM, dropPile, layerCount, suggestedSpacingMM, wallPassCount, wallSpacingMM } from '../lib/waveGenerator';
 import { wrapHint } from '../lib/wrapHint';
 
 interface Props {
@@ -45,6 +45,60 @@ function Sec({ title, icon, children }: { title: string; icon?: IconName; childr
       <div className="section-title">{icon && <Icon name={icon} />}{title}</div>
       {children}
     </div>
+  );
+}
+
+function DropZones({ params, set }: {
+  params: PrintParams; set: <K extends keyof PrintParams>(k: K, v: PrintParams[K]) => void;
+}) {
+  const fmt = (v: number, d = 1) => v.toFixed(d).replace('.', ',');
+  const perMM = dropFlowPerMM(params);
+  const pile = dropPile(params);
+  // How much faster the rope leaves the nozzle than the nozzle moves: the
+  // normal bead's section over the nozzle's, times flow over speed.
+  const ropeOverNozzle = params.lineWidth * params.layerHeight / (Math.PI * params.nozzleDiameter ** 2 / 4) * perMM;
+  return (
+    <Sec title="Zonas de caída" icon="caida">
+      <Check label="Dejar caer el cordón" checked={params.dropZones}
+        hint={'Cada cierta distancia la boquilla sube, frena y deja caer el cordón: el barro se dobla, serpentea o se enrolla solo y deja un nudo en la pared. Entre zonas imprime normal.\nLa primera capa nunca tiene zonas. El visor las marca con una banda ancha, porque el enrollamiento no se puede dibujar: lo decide el barro.'}
+        onChange={v => set('dropZones', v)} />
+      {params.dropZones && <>
+        <Num label="Altura de caída" value={params.dropHeight} min={0} max={40} step={0.5} unit="mm"
+          hint="Cuánto sube la boquilla en la zona sobre donde habría impreso. Más alto, el cordón cae más y los bucles salen más grandes. Sube y baja en rampas suaves, en el primer y el último cuarto de la zona."
+          onChange={v => set('dropHeight', v)} />
+        <Num label="Largo de zona" value={params.dropLength} min={2} max={200} step={1} unit="mm"
+          hint="Largo de cada zona a lo largo del trazo, con sus rampas."
+          onChange={v => set('dropLength', v)} />
+        <Num label="Separación" value={params.dropSpacing} min={5} max={500} step={1} unit="mm"
+          hint="Distancia a lo largo del trazo entre el centro de una zona y el de la siguiente. En un contorno cerrado se ajusta un poco para que quepa un número entero de zonas."
+          onChange={v => set('dropSpacing', v)} />
+        <Num label="Desfase por capa" value={params.dropShift} min={-100} max={100} step={5} unit="%"
+          hint={'Cuánto se corren las zonas de una capa con zonas a la siguiente, en % de la separación. 50\u00a0% las alterna como ladrillos; 0\u00a0% las apila en columnas.'}
+          onChange={v => set('dropShift', v)} />
+        <Num label="Cada" value={params.dropEvery} min={1} max={20} step={1} unit="capas"
+          hint={'Cada cuántas capas hay zonas, desde la capa\u00a02. Con 2, una sí y una no: la capa del medio cubre los montones antes de la caída siguiente.'}
+          onChange={v => set('dropEvery', Math.max(1, Math.round(v)))} />
+        <Num label="Avance en la zona" value={params.dropSpeed} min={5} max={100} step={5} unit="%"
+          hint="Velocidad de la boquilla en la zona, en % de la de impresión. Cuanto más lenta respecto del cordón que sale, más se amontona: cerca del ritmo del cordón serpentea, más lenta hace bucles, mucho más lenta se enrolla."
+          onChange={v => set('dropSpeed', v)} />
+        <Num label="Caudal en la zona" value={params.dropFlow} min={10} max={300} step={5} unit="%"
+          hint="Barro por segundo en la zona, en % del normal. La extrusión por mm se multiplica por caudal ÷ avance, así el barro sigue saliendo a este ritmo aunque la boquilla frene."
+          onChange={v => set('dropFlow', v)} />
+        <p className="state-line">
+          <Icon name="info" />
+          <span>
+            El cordón sale {fmt(ropeOverNozzle)} veces más rápido de lo que avanza la boquilla.
+            Deja {fmt(perMM)} veces el barro de un cordón por mm: un montón de unos {fmt(pile)}{'\u00a0'}mm, que la capa de arriba pasa por encima.
+          </span>
+        </p>
+        {params.dropHeight < pile - params.layerHeight && (
+          <p className="state-line">
+            <Icon name="aviso" />
+            La boquilla quedaría por debajo del montón que deja la zona. Sube la altura de caída o el avance.
+          </p>
+        )}
+      </>}
+    </Sec>
   );
 }
 
@@ -296,6 +350,8 @@ export function PathParams({ params, onChange, svgMmPerUnit, shortestWl, onOpenM
             hint="Distancia a cada lado del cruce en que la boquilla sube y vuelve a bajar, en un arco de parábola. Menor, salto más corto y brusco; mayor, más suave, pero levanta más trazo."
             onChange={v => set('hopRadius', v)} />
         </Sec>
+
+        <DropZones params={params} set={set} />
 
         <Sec title="Desplazamientos" icon="desplazamiento">
           <Num label="Umbral arco desvío" value={params.skirtThreshold}

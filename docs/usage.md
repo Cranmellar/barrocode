@@ -90,6 +90,12 @@ Pestaña **Trayecto** del panel izquierdo.
 | **Arco de transición** | Largo del tramo final de la vuelta en que la boquilla sube a la capa siguiente. Más largo, rampa más suave. En un trazo abierto, es la distancia máxima a la que puede empezar la capa siguiente para unirlas sin levantar. |
 | **Altura de salto** (Z-hop en cruces) | Cuánto sube la boquilla donde la ruta se cruza a sí misma, para no aplastar el cordón que ya está. Solo salta la segunda pasada. 0 = sin saltos. |
 | **Radio de cruce** | Distancia a cada lado del cruce en que la boquilla sube y vuelve a bajar, en parábola. |
+| **Dejar caer el cordón** (Zonas de caída) | Cada cierta distancia la boquilla sube, frena y deja caer el cordón: el barro se dobla, serpentea o se enrolla solo y deja un nudo en la pared. La primera capa nunca tiene zonas. El visor las marca con una banda ancha; el enrollamiento real lo decide el barro. |
+| **Altura de caída** | Cuánto sube la boquilla en la zona. Más alto, bucles más grandes. Sube y baja en rampas en el primer y último cuarto de la zona. |
+| **Largo de zona** / **Separación** | Largo de cada zona y distancia entre sus centros, sobre el trazo. En un contorno cerrado la separación se ajusta para que quepa un número entero de zonas. |
+| **Desfase por capa** (zonas) | Cuánto se corren las zonas de una capa con zonas a la siguiente, en % de la separación. 50 % las alterna como ladrillos; 0 % las apila. |
+| **Cada** | Cada cuántas capas hay zonas, desde la capa 2. Con 2, la capa del medio cubre los montones. |
+| **Avance en la zona** / **Caudal en la zona** | Velocidad de la boquilla y barro por segundo en la zona, en % de lo normal. La extrusión por mm se multiplica por caudal ÷ avance. Cuanto más lenta la boquilla respecto del cordón, más se amontona: serpentea, hace bucles o se enrolla. Debajo, el panel dice cuántas veces más rápido sale el cordón que la boquilla y la altura estimada del montón, que la capa de arriba pasa por encima. Avisa si la boquilla quedaría bajo el montón. |
 | **Umbral arco desvío** | Los desplazamientos entre rutas más largos que esto rodean la pieza en arco en vez de cruzarla. Siempre van 2 mm por encima de lo más alto ya impreso. |
 
 ## 6. Onda
