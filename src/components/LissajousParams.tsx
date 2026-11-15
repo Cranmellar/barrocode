@@ -87,6 +87,19 @@ function Slider({ label, icon, value, min, max, step, unit, hint, def, morph, on
   );
 }
 
+function Check({ label, checked, hint, onChange }: {
+  label: string; checked: boolean; hint?: string; onChange: (v: boolean) => void;
+}) {
+  return (
+    <div className="param-row param-check" title={wrapHint(hint)}>
+      <label>
+        <input type="checkbox" checked={checked} onChange={e => onChange(e.target.checked)} />
+        {label}
+      </label>
+    </div>
+  );
+}
+
 function Sec({ title, icon, axis, children, accentColor }: {
   title: string; icon?: IconName; axis?: 'N' | 'T' | 'Z'; children: React.ReactNode; accentColor?: string;
 }) {
@@ -109,9 +122,12 @@ function Sec({ title, icon, axis, children, accentColor }: {
 const TWO_PI = Math.PI * 2;
 
 const LissajousMini = React.memo(function LissajousMini({
-  ampN, ampT, wlN, wlT, delta, color = 'currentColor',
+  ampN, ampT, wlN, wlT, delta, side, color = 'currentColor',
 }: {
-  ampN: number; ampT: number; wlN: number; wlT: number; delta: number; color?: string;
+  ampN: number; ampT: number; wlN: number; wlT: number; delta: number;
+  // Seen from the side instead of from above: Z on T's wave at this phase.
+  side?: { phaseZ: number };
+  color?: string;
 }) {
   const W = 56, H = 30;
   const pad = 3;
@@ -126,15 +142,16 @@ const LissajousMini = React.memo(function LissajousMini({
   for (let i = 0; i <= nPts; i++) {
     const s = (i / nPts) * totalArc;
     xs.push(s + (ampT > 0 ? ampT * Math.sin(TWO_PI * s / wlT) : 0));
-    ys.push(ampN * Math.sin(TWO_PI * s / wlN + delta));
+    ys.push(side ? Math.sin(TWO_PI * s / wlT + side.phaseZ) : ampN * Math.sin(TWO_PI * s / wlN + delta));
   }
+  const ampY = side ? 1 : ampN;
 
   let minX = Infinity, maxX = -Infinity;
   for (const x of xs) { if (x < minX) minX = x; if (x > maxX) maxX = x; }
   const rangeX = maxX - minX || 1;
   const halfH = drawH * 0.5;
   const px = (x: number) => pad + ((x - minX) / rangeX) * drawW;
-  const py = (y: number) => H / 2 - (ampN > 0 ? (y / ampN) * halfH : 0);
+  const py = (y: number) => H / 2 - (ampY > 0 ? (y / ampY) * halfH : 0);
 
   const d = xs.map((x, i) => `${i === 0 ? 'M' : 'L'}${px(x).toFixed(1)},${py(ys[i]).toFixed(1)}`).join(' ');
 
@@ -147,12 +164,16 @@ const LissajousMini = React.memo(function LissajousMini({
 
 // ── Preajustes ──────────────────────────────────────────────────────────────
 
-const PRESETS = [
+// `z`: the preset also sets the Z wave, locked to T at this phase (degrees),
+// with half a layer of amplitude.
+const PRESETS: { label: string; ampN: number; ampT: number; wlN: number; wlT: number; d: number; z?: number }[] = [
   { label: 'Sinusoide', ampN: 3,  ampT: 0, wlN: 20, wlT: 20, d: 0   },
   { label: 'Elipse',    ampN: 3,  ampT: 3, wlN: 20, wlT: 20, d: 90  },
   { label: 'Figura 8',  ampN: 3,  ampT: 3, wlN: 20, wlT: 10, d: 0   },
   { label: 'Espiral',   ampN: 3,  ampT: 2, wlN: 15, wlT: 20, d: 60  },
   { label: 'Trébol',    ampN: 3,  ampT: 3, wlN: 20, wlT: 15, d: 45  },
+  // T past λT ÷ 2π makes the nozzle back up each cycle; Z lifts it there.
+  { label: 'Puntada',   ampN: 0,  ampT: 3, wlN: 20, wlT: 12, d: 0, z: -90 },
   { label: 'Plano',     ampN: 0,  ampT: 0, wlN: 20, wlT: 20, d: 0   },
 ];
 
@@ -165,6 +186,11 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
 
   const deg = (r: number) => r * (180 / Math.PI);
   const rad = (d: number) => d * (Math.PI / 180);
+
+  // Largest change of a point's Z from one layer to the next; past half a
+  // layer the Z floor cuts the troughs.
+  const zShift = params.lissZLockT ? params.phaseShiftPerLayer : params.phaseShiftZPerLayer;
+  const zStep = 2 * params.lissAmpZ * Math.abs(Math.sin(zShift / 2));
 
   return (
     <div className="lissajous-params">
@@ -216,7 +242,9 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
           {PRESETS.map(p => {
             const on = params.lissAmpN === p.ampN && params.lissAmpT === p.ampT
               && params.lissWlN === p.wlN && params.lissWlT === p.wlT
-              && Math.abs(params.lissDelta - rad(p.d)) < 1e-9;
+              && Math.abs(params.lissDelta - rad(p.d)) < 1e-9
+              && (p.z === undefined || (params.lissZLockT && params.lissAmpZ > 0
+                && Math.abs(params.lissPhaseZ - rad(p.z)) < 1e-9));
             return (
             <button key={p.label} className={`btn-preset${on ? ' btn-preset--on' : ''}`} aria-pressed={on}
               onClick={() =>
@@ -224,12 +252,17 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
                 lissAmpN: p.ampN, lissAmpT: p.ampT,
                 lissWlN: p.wlN,  lissWlT: p.wlT,
                 lissDelta: rad(p.d),
+                ...(p.z !== undefined && {
+                  lissZLockT: true, lissPhaseZ: rad(p.z),
+                  lissAmpZ: Math.max(0.1, Math.round(params.layerHeight * 5) / 10),
+                }),
               }, true)
             }>
               <LissajousMini
                 ampN={p.ampN} ampT={p.ampT}
                 wlN={p.wlN}   wlT={p.wlT}
                 delta={rad(p.d)}
+                side={p.z !== undefined ? { phaseZ: rad(p.z) } : undefined}
               />
               {p.label}
             </button>
@@ -264,26 +297,40 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
 
       {/* ── Eje Z ── */}
       <Sec axis="Z" title="Vertical">
-        {params.lissAmpZ > params.layerHeight && (
+        {zStep > params.layerHeight / 2 + 1e-9 && (
           <div className="warn-note">
             <Icon name="aviso" />
-            Amplitud Z ({params.lissAmpZ.toFixed(1)} mm) mayor que la altura de capa ({params.layerHeight} mm):
-            los valles se recortan para no chocar con la capa anterior.
+            Con este desfase por capa, la onda Z sube o baja hasta {zStep.toFixed(1)} mm de una capa a la siguiente,
+            más de media capa ({+(params.layerHeight / 2).toFixed(2)} mm): los valles se recortan para no chocar con la capa anterior.
           </div>
         )}
         <Slider morph={morph} def={defaults.lissAmpZ} icon="amplitud" label="Amplitud Z" value={params.lissAmpZ}
           min={0} max={20} step={0.1} unit="mm"
-          hint={'Cuánto sube y baja la boquilla sobre la altura de su capa. La primera capa nunca baja de su altura, y cada punto queda al menos media capa por encima de la capa de abajo: con amplitudes grandes los valles se aplanan.'}
+          hint={'Cuánto sube y baja la boquilla sobre la altura de su capa. La primera capa nunca baja de su altura, y cada punto queda al menos media capa por encima de la capa de abajo. Con Desfase\u00a0Z por capa en 0° las capas suben y bajan juntas y la amplitud puede ser grande; con otro desfase, los valles se aplanan.'}
           onChange={v => set('lissAmpZ', v)} />
         {params.lissAmpZ > 0 && <>
-          <Slider morph={morph} def={defaults.lissWlZ} icon="longitud" label="Longitud de onda Z" value={params.lissWlZ}
-            min={1} max={200} step={1} unit="mm"
-            hint={'Distancia a lo largo del trazo en que la boquilla sube, baja y vuelve. Igual a λN: sube y baja al mismo ritmo con que oscila a los lados.'}
-            onChange={v => set('lissWlZ', v)} />
-          <Slider morph={morph} def={deg(defaults.lissPhaseZ)} icon="fase" label="Fase Z" value={deg(params.lissPhaseZ)}
+          <Check label="Z sigue a T" checked={params.lissZLockT}
+            hint={'La onda vertical toma la longitud de onda de T y su desfase por capa: la boquilla sube y baja al mismo ritmo con que se adelanta y se atrasa, en todas las capas.\nCon Fase\u00a0Z en −90° va arriba justo cuando retrocede. Si T pasa de λT\u00a0÷\u00a06,3, el rizo que dibuja pasa por encima de su propio cordón, como una puntada.'}
+            onChange={v => set('lissZLockT', v)} />
+          {!params.lissZLockT && (
+            <Slider morph={morph} def={defaults.lissWlZ} icon="longitud" label="Longitud de onda Z" value={params.lissWlZ}
+              min={1} max={200} step={1} unit="mm"
+              hint={'Distancia a lo largo del trazo en que la boquilla sube, baja y vuelve. Igual a λN: sube y baja al mismo ritmo con que oscila a los lados.'}
+              onChange={v => set('lissWlZ', v)} />
+          )}
+          <Slider morph={morph} def={deg(defaults.lissPhaseZ)} icon="fase"
+            label={params.lissZLockT ? 'Fase Z respecto a T' : 'Fase Z'} value={deg(params.lissPhaseZ)}
             min={-180} max={180} step={1} unit="°"
-            hint={'Corre la onda vertical a lo largo del trazo, en grados de una onda. Con Delta\u00a00° y λZ igual a λN: con 0° el punto más alto cae en el extremo de un lado; con 90°, donde la onda cruza el trazo.'}
+            hint={params.lissZLockT
+              ? 'Dónde cae lo más alto de la onda vertical respecto del avance, en grados de una onda. Con −90° la boquilla va arriba cuando retrocede; con 90°, cuando avanza más rápido.'
+              : 'Corre la onda vertical a lo largo del trazo, en grados de una onda. Con Delta\u00a00° y λZ igual a λN: con 0° el punto más alto cae en el extremo de un lado; con 90°, donde la onda cruza el trazo.'}
             onChange={v => set('lissPhaseZ', rad(v))} />
+          {!params.lissZLockT && (
+            <Slider morph={morph} def={deg(defaults.phaseShiftZPerLayer)} icon="desfaseCapa" label="Desfase Z por capa" value={deg(params.phaseShiftZPerLayer)}
+              min={-360} max={360} step={1} unit="°"
+              hint={'Cuánto se corre la onda vertical de una capa a la siguiente, aparte del desfase de N y T. Con 0° las crestas quedan una sobre otra: toda la pared ondula en altura sin que se recorten los valles, aunque la textura en planta gire.\nCon otros valores las ondas suben en diagonal. Cuanto más cerca de 180°, más cambia el grosor de cada cordón y más se recortan los valles.'}
+              onChange={v => set('phaseShiftZPerLayer', rad(v))} />
+          )}
         </>}
       </Sec>
 
@@ -303,7 +350,7 @@ export function LissajousParams({ params, onChange, onReset, morph, defaults, ed
           onChange={v => set('lissPhaseOffset', rad(v))} />
         <Slider morph={morph} def={deg(defaults.phaseShiftPerLayer)} icon="desfaseCapa" label="Desfase por capa" value={deg(params.phaseShiftPerLayer)}
           min={-360} max={360} step={1} unit="°"
-          hint={'Cuánto se corre la onda de una capa a la siguiente, en grados de una onda. Las crestas suben en diagonal y la pared se ve torcida, en espiral. 180° alterna crestas sobre valles, como un tejido. 360° es una onda entera: igual que 0°. Cuanto más cerca de 180°, más corrido queda cada cordón respecto del de abajo y menos se apoya en él.'}
+          hint={'Cuánto se corre la onda lateral y la de avance de una capa a la siguiente, en grados de una onda (la vertical tiene su propio desfase, salvo que siga a T). Las crestas suben en diagonal y la pared se ve torcida, en espiral. 180° alterna crestas sobre valles, como un tejido. 360° es una onda entera: igual que 0°. Cuanto más cerca de 180°, más corrido queda cada cordón respecto del de abajo y menos se apoya en él.'}
           onChange={v => set('phaseShiftPerLayer', rad(v))} />
       </Sec>
     </div>

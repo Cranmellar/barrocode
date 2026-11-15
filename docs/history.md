@@ -54,7 +54,13 @@ Verified on branch `claude/quirky-wright-bw4mdv`, on top of `main` @ `899f21a`, 
 
 - **Version stamp** ([muestras-plan.md](muestras-plan.md) B, section 8). To tie printed samples to the code that made them: `__BUILD__` (commit and build date, `dev` outside `vite build`) goes into the project file (`app`), the G-code header (`; Version`, `; Project`) and the help dialog's footer; opening a project from another commit says it may look different. `PROJECT_VERSION` stays 1, since the block is optional both ways. The project name in the header has newlines stripped: a `.barrocode.json` is user input, and a name with `\nG1 Z-50` would otherwise write a G-code line. Checked in Chromium on a production build: the saved file and the header carry the commit, the help shows it, and the three toasts (same commit, other commit, no `app`) read as intended; the longer ones stay 5 s.
 
-## "Next steps" as they stood in Nov 2026
+## 2026-11-15: more Z ([trayectorias-z.md](trayectorias-z.md) Z1, Z2)
+
+- **Z keeps its own per-layer shift** (`phaseShiftZPerLayer`, keyframe `phaseShiftZ`, *Desfase Z por capa*). The Z wave used to take `phaseShiftPerLayer` with N and T, so a twisting texture moved the Z crests over the troughs below and the Z floor cut them: at layer 1.5 mm, Z 1 mm and 90° per layer the gap swung from 0.09 to 2.91 mm. Now `generateWaveLayers` keeps a second phase base for Z (`phaseBaseZ`, summed the same way from keyframes); at 0° the whole wall undulates in Z while the plan texture turns. Projects and sessions saved before have no `phaseShiftZPerLayer` and get 0: one with both a per-layer shift and a Z wave opens with the Z no longer turning (the version toast says it may look different). `checkMachine`'s lifted-bead test now uses the Z shift.
+- **Z locked to T** (`lissZLockT`, *Z sigue a T*). Z runs on T's cycle (its wavelength, its whole-cycle fit on closed paths and its per-layer phase), so *Fase Z* becomes the phase from T; λZ and the Z shift hide. With T past λT ÷ 2π the nozzle backs up each cycle, and at −90° the Z crest sits on that backward stroke: the loop passes over its own bead. The *Puntada* preset sets it (N 0, T 3 / 12 mm, Z half a layer at −90°); its card is drawn from the side. `shortestWavelength` reads λT for Z while locked. *Restablecer* turns the lock off only for the global wave, since it isn't keyframed. Not printed yet: whether the loop stands or flattens, and how it meets the z-hop at its crossing, are open.
+- The *Vertical* warning now fires when the Z shift moves a point more than half a layer between layers (`2·ampZ·|sin(Δφ/2)|`), not when the amplitude passes the layer height, which no longer cuts anything while Z stays aligned.
+- G-code header: the Z line adds `shift / layer`, or `follows T, phase … from T`; the reference files changed only there.
+
 
 The list `CLAUDE.md` kept, with the steps done since struck through.
 

@@ -142,7 +142,7 @@ function keyframeLines(kfs: WaveKeyframe[], params: PrintParams): string[] {
     `; Keyframes              : ${kfs.length} (they override the wave above along the print)`,
     ...kfs.map((k, i) => `;   ${i + 1} at ${(k.t * 100).toFixed(1)} %`
       + ` · N ${n(k.ampN)} / ${n(k.wlN)} · T ${n(k.ampT)} / ${n(k.wlT)}`
-      + ` · Z ${n(k.ampZ ?? params.lissAmpZ)} / ${n(k.wlZ ?? params.lissWlZ)} mm · delta ${deg(k.delta)}°`
+      + ` · Z ${n(k.ampZ ?? params.lissAmpZ)} / ${params.lissZLockT ? 'T' : n(k.wlZ ?? params.lissWlZ)} mm · delta ${deg(k.delta)}°`
       + ` · scale ${n(k.scaleX ?? params.scaleX)} / ${n(k.scaleY ?? params.scaleY)} · rotation ${n(k.rotation ?? params.rotation)}°`
       + (k.smooth ? ' · smooth' : '')),
   ];
@@ -163,7 +163,9 @@ function buildHeader(params: PrintParams, box: GcodeBox, keyframes: WaveKeyframe
     `; Box X ${fmt(box.minX)}…${fmt(box.maxX)}  Y ${fmt(box.minY)}…${fmt(box.maxY)}  Z ${fmt(box.minZ)}…${fmt(box.maxZ)} mm`,
     `; Lissajous amp N / T   : ${params.lissAmpN} / ${params.lissAmpT} mm`,
     `; Lissajous wl  N / T   : ${params.lissWlN} / ${params.lissWlT} mm`,
-    `; Lissajous amp / wl Z  : ${params.lissAmpZ} / ${params.lissWlZ} mm, phase ${deg(params.lissPhaseZ)}°`,
+    params.lissZLockT
+      ? `; Lissajous amp / wl Z  : ${params.lissAmpZ} mm, follows T, phase ${deg(params.lissPhaseZ)}° from T`
+      : `; Lissajous amp / wl Z  : ${params.lissAmpZ} / ${params.lissWlZ} mm, phase ${deg(params.lissPhaseZ)}°, shift / layer ${deg(params.phaseShiftZPerLayer)}°`,
     `; Lissajous delta        : ${(params.lissDelta * 180 / Math.PI).toFixed(1)}°`,
     `; Phase offset           : ${(params.lissPhaseOffset * 180 / Math.PI).toFixed(1)}°`,
     `; Phase shift / layer    : ${(params.phaseShiftPerLayer * 180 / Math.PI).toFixed(1)}°`,

@@ -13,6 +13,10 @@
  *   cyc_X(s)   = ∫₀ˢ 2π / wlX(u) du        (= 2π·s / wlX when wlX is constant)
  *   offset_N   = ampN * sin( cyc_N(s)  +  lissDelta  +  phase_base )
  *   offset_T   = ampT * sin( cyc_T(s)              +  phase_base )
+ *   offset_Z   = ampZ * sin( cyc_Z(s)  +  phaseZ     +  phase_base_Z )   (mm)
+ *   phase_base_Z is phase_base with phaseShiftZPerLayer instead of
+ *   phaseShiftPerLayer; with lissZLockT, cyc_Z = cyc_T and phase_base_Z =
+ *   phase_base, so Z keeps step with T on every layer.
  *   point      = centerline(s) + N(s)·offset_N + T(s)·offset_T
  *
  * If keyframes are provided, ampN/ampT/wlN/wlT/delta/centerX/Y/scaleX/Y/rotation
@@ -50,7 +54,7 @@ export interface LocalParams {
   centerX: number; centerY: number;  // mm
   scaleX:  number; scaleY:  number;  // multipliers
   rotation: number;                  // degrees
-  phaseOffset: number; phaseShift: number;  // radians
+  phaseOffset: number; phaseShift: number; phaseShiftZ: number;  // radians
 }
 
 // ── Keyframe interpolation ──────────────────────────────────────────────────
@@ -65,6 +69,7 @@ function baseToLocal(base: PrintParams): LocalParams {
     scaleX:  base.scaleX,  scaleY:  base.scaleY,
     rotation: base.rotation,
     phaseOffset: base.lissPhaseOffset, phaseShift: base.phaseShiftPerLayer,
+    phaseShiftZ: base.phaseShiftZPerLayer,
   };
 }
 
@@ -81,6 +86,7 @@ function kfToLocal(k: WaveKeyframe, base: PrintParams): LocalParams {
     rotation: k.rotation ?? base.rotation,
     phaseOffset: k.phaseOffset ?? base.lissPhaseOffset,
     phaseShift:  k.phaseShift  ?? base.phaseShiftPerLayer,
+    phaseShiftZ: k.phaseShiftZ ?? base.phaseShiftZPerLayer,
   };
 }
 
@@ -107,6 +113,7 @@ function lerpLocalInto(out: LocalParams, loF: LocalParams, hiF: LocalParams, alp
   out.rotation = lerp(loF.rotation, hiF.rotation);
   out.phaseOffset = lerp(loF.phaseOffset, hiF.phaseOffset);
   out.phaseShift = lerp(loF.phaseShift, hiF.phaseShift);
+  out.phaseShiftZ = lerp(loF.phaseShiftZ, hiF.phaseShiftZ);
   return out;
 }
 
@@ -201,10 +208,11 @@ function lissajousPoint(
   delta: number,
   phaseZ: number,
   phaseBase: number,
+  phaseBaseZ: number,
 ): WavePoint {
   const oN = ampN * Math.sin(cycN + delta + phaseBase);
   const oT = ampT * Math.sin(cycT         + phaseBase);
-  const zOffset = ampZ * Math.sin(cycZ + phaseZ + phaseBase);
+  const zOffset = ampZ * Math.sin(cycZ + phaseZ + phaseBaseZ);
   return {
     x: p.x + p.normalX * oN + p.tangentX * oT,
     y: p.y + p.normalY * oN + p.tangentY * oT,
@@ -396,11 +404,11 @@ export function shortestWavelength(params: PrintParams, keyframes: WaveKeyframe[
   const waves = keyframes.length > 0
     ? keyframes.map(k => ({
         ampN: k.ampN, wlN: k.wlN, ampT: k.ampT, wlT: k.wlT,
-        ampZ: k.ampZ ?? params.lissAmpZ, wlZ: k.wlZ ?? params.lissWlZ,
+        ampZ: k.ampZ ?? params.lissAmpZ, wlZ: params.lissZLockT ? k.wlT : k.wlZ ?? params.lissWlZ,
       }))
     : [{
         ampN: params.lissAmpN, wlN: params.lissWlN, ampT: params.lissAmpT, wlT: params.lissWlT,
-        ampZ: params.lissAmpZ, wlZ: params.lissWlZ,
+        ampZ: params.lissAmpZ, wlZ: params.lissZLockT ? params.lissWlT : params.lissWlZ,
       }];
   const wls = waves.flatMap(w => [
     ...(Math.abs(w.ampN) > 1e-3 ? [w.wlN] : []),
@@ -655,6 +663,7 @@ export function roundCorners(path: SampledPath, radius: number): SampledPath {
 export const WAVE_PARAMS = [
   'lissAmpN', 'lissAmpT', 'lissAmpZ', 'lissWlN', 'lissWlT', 'lissWlZ',
   'lissDelta', 'lissPhaseZ', 'lissPhaseOffset', 'phaseShiftPerLayer',
+  'phaseShiftZPerLayer', 'lissZLockT',
   'layerHeight', 'numLayers', 'useNumLayers', 'totalHeight', 'nozzleHeightOffset',
   'reversePath', 'alternateDirection', 'closePath',
   'wallPasses', 'wallSpacing', 'wallSide', 'lineWidth',
@@ -724,20 +733,26 @@ export function generateWaveLayers(
   // Without keyframes or a per-layer phase shift every layer has the same
   // wave (one per direction with alternateDirection); only the Z floor
   // differs. It is computed once per direction, before the floor, and copied.
-  const reuse = !useKeyframes && params.phaseShiftPerLayer === 0;
+  const lockZ = params.lissZLockT;
+  const reuse = !useKeyframes && params.phaseShiftPerLayer === 0
+    && (lockZ || params.phaseShiftZPerLayer === 0);
   const waveCache = new Map<boolean, PathWave[]>();
 
   // Sum of the keyframed per-layer shifts of the layers below.
-  let shiftBelow = 0;
+  let shiftBelow = 0, shiftZBelow = 0;
 
   for (let li = 0; li < numLayers; li++) {
     const z = li * params.layerHeight + params.nozzleHeightOffset;
     let phaseBase = params.lissPhaseOffset + li * params.phaseShiftPerLayer;
+    let phaseBaseZ = params.lissPhaseOffset + li * params.phaseShiftZPerLayer;
     if (useKeyframes) {
       const lp = getParamsAtT(flatIdx / tDenom, keyframes, params);
       phaseBase = lp.phaseOffset + shiftBelow;
+      phaseBaseZ = lp.phaseOffset + shiftZBelow;
       shiftBelow += lp.phaseShift;
+      shiftZBelow += lp.phaseShiftZ;
     }
+    if (lockZ) phaseBaseZ = phaseBase;
 
     const isAlt = params.alternateDirection && li % 2 === 1;
     const reverse = params.reversePath !== isAlt;
@@ -759,6 +774,7 @@ export function generateWaveLayers(
         scaleX:  params.scaleX,  scaleY:  params.scaleY,
         rotation: params.rotation,
         phaseOffset: params.lissPhaseOffset, phaseShift: params.phaseShiftPerLayer,
+        phaseShiftZ: params.phaseShiftZPerLayer,
       };
       // Wavelengths in SVG units; keyframe values are still in mm.
       const wlScale = useKeyframes ? sf : 1;
@@ -798,10 +814,10 @@ export function generateWaveLayers(
 
         cycN += TWO_PI * fitN * ds / wN;
         cycT += TWO_PI * fitT * ds / wT;
-        cycZ += TWO_PI * fitZ * ds / wZ;
+        cycZ = lockZ ? cycT : cycZ + TWO_PI * fitZ * ds / wZ;
 
         const wavePt = lissajousPoint(
-          p, aN, aT, aZ, cycN, cycT, cycZ, lp.delta, lp.phaseZ, phaseBase,
+          p, aN, aT, aZ, cycN, cycT, cycZ, lp.delta, lp.phaseZ, phaseBase, phaseBaseZ,
         );
 
         if (offsets.length > 1) {

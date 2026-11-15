@@ -79,7 +79,7 @@ function pick<T>(src: Record<string, unknown>, kinds: Record<string, Kind>): Par
 const KF_KINDS: Record<keyof WaveKeyframe, Kind> = {
   id: 'string', t: 'number', ampN: 'number', ampT: 'number', wlN: 'number', wlT: 'number', delta: 'number',
   ampZ: 'number', wlZ: 'number', phaseZ: 'number', centerX: 'number', centerY: 'number',
-  scaleX: 'number', scaleY: 'number', rotation: 'number', phaseOffset: 'number', phaseShift: 'number',
+  scaleX: 'number', scaleY: 'number', rotation: 'number', phaseOffset: 'number', phaseShift: 'number', phaseShiftZ: 'number',
   smooth: 'boolean',
 };
 const KF_REQUIRED = ['id', 't', 'ampN', 'ampT', 'wlN', 'wlT', 'delta'] as const;

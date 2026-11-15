@@ -91,6 +91,8 @@ const DEFAULT_PARAMS: PrintParams = {
   lissPhaseZ: 0,
   lissPhaseOffset: 0,
   phaseShiftPerLayer: 0,
+  phaseShiftZPerLayer: 0,
+  lissZLockT: false,
   layerHeight: 2.5,
   numLayers: 6,
   useNumLayers: true,
@@ -326,14 +328,16 @@ function hasSeenHelp() {
 function uid() { return Math.random().toString(36).slice(2, 9); }
 
 type LissKey = 'lissAmpN' | 'lissAmpT' | 'lissAmpZ' | 'lissWlN' | 'lissWlT' | 'lissWlZ' | 'lissDelta' | 'lissPhaseZ'
-  | 'lissPhaseOffset' | 'phaseShiftPerLayer';
-type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ' | 'phaseOffset' | 'phaseShift';
+  | 'lissPhaseOffset' | 'phaseShiftPerLayer' | 'phaseShiftZPerLayer';
+type KfLissKey = 'ampN' | 'ampT' | 'ampZ' | 'wlN' | 'wlT' | 'wlZ' | 'delta' | 'phaseZ' | 'phaseOffset' | 'phaseShift'
+  | 'phaseShiftZ';
 
 const KF_LISS_FIELDS: Array<[LissKey, KfLissKey]> = [
   ['lissAmpN', 'ampN'], ['lissAmpT', 'ampT'], ['lissAmpZ', 'ampZ'],
   ['lissWlN', 'wlN'],   ['lissWlT', 'wlT'],   ['lissWlZ', 'wlZ'],
   ['lissDelta', 'delta'], ['lissPhaseZ', 'phaseZ'],
   ['lissPhaseOffset', 'phaseOffset'], ['phaseShiftPerLayer', 'phaseShift'],
+  ['phaseShiftZPerLayer', 'phaseShiftZ'],
 ];
 
 // Placement fields a keyframe can hold besides its wave.
@@ -476,6 +480,8 @@ export default function App() {
   function resetLissParams() {
     const next = { ...lissParams };
     for (const k of LISS_PANEL_FIELDS) next[k] = DEFAULT_PARAMS[k];
+    // The lock is global; a keyframe's reset leaves it alone.
+    if (!shownWave) next.lissZLockT = DEFAULT_PARAMS.lissZLockT;
     setLissParams(next, true);
   }
 
@@ -515,7 +521,7 @@ export default function App() {
       centerX: lp.centerX, centerY: lp.centerY,
       scaleX: lp.scaleX, scaleY: lp.scaleY,
       rotation: lp.rotation,
-      phaseOffset: lp.phaseOffset, phaseShift: lp.phaseShift,
+      phaseOffset: lp.phaseOffset, phaseShift: lp.phaseShift, phaseShiftZ: lp.phaseShiftZ,
     };
   }
 

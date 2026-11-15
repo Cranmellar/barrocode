@@ -8,7 +8,7 @@
 ; Box X 0.000…100.000  Y 0.000…49.990  Z 1.000…30.000 mm
 ; Lissajous amp N / T   : 0 / 0 mm
 ; Lissajous wl  N / T   : 20 / 20 mm
-; Lissajous amp / wl Z  : 0 / 20 mm, phase 0.0°
+; Lissajous amp / wl Z  : 0 / 20 mm, phase 0.0°, shift / layer 0.0°
 ; Lissajous delta        : 0.0°
 ; Phase offset           : 0.0°
 ; Phase shift / layer    : 0.0°

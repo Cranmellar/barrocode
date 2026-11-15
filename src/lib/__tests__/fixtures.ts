@@ -17,6 +17,7 @@ export const PARAMS: PrintParams = {
   lissAmpN: 0, lissAmpT: 0, lissAmpZ: 0,
   lissWlN: 20, lissWlT: 20, lissWlZ: 20,
   lissDelta: 0, lissPhaseZ: 0, lissPhaseOffset: 0, phaseShiftPerLayer: 0,
+  phaseShiftZPerLayer: 0, lissZLockT: false,
   layerHeight: 2.5, numLayers: 2, useNumLayers: true, totalHeight: 15,
   nozzleHeightOffset: 1, safeZ: 20,
   softJoin: true, transitionLength: 10,

@@ -55,7 +55,7 @@ Cada punto del trayecto se desplaza desde la línea central según la distancia 
 punto(s) = centro(s)
          + N(s) · ampN · sin(2π·s/λN + δ + φ)
          + T(s) · ampT · sin(2π·s/λT + φ)
-         + Z    · ampZ · sin(2π·s/λZ + φZ + φ)
+         + Z    · ampZ · sin(2π·s/λZ + φZ + φz)
 ```
 
 | Símbolo | Qué es |
@@ -66,6 +66,7 @@ punto(s) = centro(s)
 | `λN`, `λT`, `λZ` | Longitud de onda, medida sobre el trazo y no sobre un eje recto. |
 | `δ` | Desfase entre N y T. Con longitudes iguales, `0°` da una línea y `90°` una elipse. |
 | `φ` | Fase de la capa: un desfase inicial más un desfase por capa. El desfase por capa produce torsiones y espirales. |
+| `φz` | Lo mismo para la Z, con su propio desfase por capa. Con *Z sigue a T*, la Z usa `λT` y `φ`. |
 
 Tres ajustes automáticos hacen que la onda se pueda imprimir:
 

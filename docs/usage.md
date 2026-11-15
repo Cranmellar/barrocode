@@ -100,14 +100,16 @@ El panel derecho. Arriba, una figura pequeña muestra la onda que recorre la boq
 
 | Parámetro | Qué hace |
 |---|---|
-| **Preajustes** | Combinaciones listas: Sinusoide, Elipse, Figura 8, Espiral, Trébol y Plano. |
+| **Preajustes** | Combinaciones listas: Sinusoide, Elipse, Figura 8, Espiral, Trébol, Puntada y Plano. *Puntada* hace retroceder la boquilla en cada ciclo de T y la sube justo ahí, con media capa de amplitud Z: el rizo pasa por encima de su propio cordón. Necesita un espaciado fino; el panel *Resolución* sugiere uno. |
 | **Amplitud N** | Cuánto se separa la boquilla de la línea, hacia los lados. Las curvas más cerradas de lo que la onda puede seguir se redondean con un radio de unas 1,25 veces esta amplitud. Con 0, la línea queda tal cual. |
 | **Longitud de onda N** | Largo de un ciclo, medido sobre el trazo. En un contorno cerrado se ajusta un poco para que entre un número entero de ciclos y la onda cierre en la costura. |
 | **Amplitud T** / **Longitud de onda T** | Lo mismo hacia adelante y atrás, sobre el sentido de avance. |
 | **Amplitud Z** / **Longitud de onda Z** / **Fase Z** | Oscilación en altura. La primera capa no baja de su altura y cada punto queda al menos media capa sobre la capa de abajo. Si una cresta queda muy por encima de la capa de abajo, la revisión avisa que el cordón puede caer al aire. |
+| **Z sigue a T** | La onda Z toma la longitud de onda de T y su desfase por capa: la boquilla sube y baja al ritmo con que avanza y retrocede, también de una capa a la otra. *Fase Z respecto a T* elige dónde va arriba: con −90°, donde retrocede. |
+| **Desfase Z por capa** | Cuánto se corre la onda Z en cada capa, aparte de N y T. Con 0°, las crestas quedan una sobre otra y toda la pared ondula en altura, aunque la textura en planta gire. Cerca de 180°, el grosor de cada cordón cambia mucho y los valles se recortan. |
 | **Delta (N respecto a T)** | Desfase entre N y T. Con longitudes iguales, 0° da una línea y 90° una elipse. |
 | **Desfase inicial** | Dónde empieza la onda en la primera capa. |
-| **Desfase por capa** | Cuánto se corre la onda en cada capa. Produce torsiones y espirales. |
+| **Desfase por capa** | Cuánto se corren las ondas N y T en cada capa. Produce torsiones y espirales. La Z tiene su propio desfase. |
 
 *Restablecer* (junto al título *Onda*) vuelve los valores de la onda a los iniciales. Con un keyframe elegido, solo los de ese keyframe.
 

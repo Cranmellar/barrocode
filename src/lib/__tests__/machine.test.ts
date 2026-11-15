@@ -204,7 +204,7 @@ describe('checkMachine', () => {
     expect(inPhase.maxGap).toBeCloseTo(1.5, 6);
     expect(inPhase.check).toBeUndefined();
 
-    const opposed = gap({ phaseShiftPerLayer: Math.PI });
+    const opposed = gap({ phaseShiftZPerLayer: Math.PI });
     // Layer 0 never dips below its height, so the worst crest sits 1 mm over it.
     expect(opposed.maxGap).toBeCloseTo(2.5, 2);
     expect(opposed.check).toMatchObject({ level: 'warn', part: true });

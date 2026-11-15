@@ -98,6 +98,7 @@ export interface WaveKeyframe {
   rotation?: number; // degrees, CCW seen from above, around the same pivot
   phaseOffset?: number; // radians — lissPhaseOffset at this keyframe
   phaseShift?: number;  // radians — phaseShiftPerLayer at this keyframe
+  phaseShiftZ?: number; // radians — phaseShiftZPerLayer at this keyframe
   // Values arrive at and leave this keyframe with zero slope (no kink in the
   // wall); otherwise segments touching it are straight.
   smooth?: boolean;
@@ -119,7 +120,9 @@ export interface PrintParams {
   lissDelta: number;             // radians — phase shift of N relative to T
   lissPhaseZ: number;            // radians — phase offset for Z oscillation
   lissPhaseOffset: number;       // radians — global start phase at arc=0
-  phaseShiftPerLayer: number;    // radians — extra phase added per layer
+  phaseShiftPerLayer: number;    // radians — extra phase added per layer (N and T)
+  phaseShiftZPerLayer: number;   // radians — the same for the Z wave
+  lissZLockT: boolean;           // Z runs on T's wave (its wavelength, cycles and per-layer phase); phaseZ is then relative to T
 
   // ── Layer stacking ──
   layerHeight: number;           // mm

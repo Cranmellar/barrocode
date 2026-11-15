@@ -278,6 +278,76 @@ describe('keyframed phase', () => {
   });
 });
 
+describe('Z wave per layer and locked to T', () => {
+  const line = sampledPath('line', polyline([[20, 100], [180, 100]]));
+  // Small Z against a 2.5 mm layer, so the Z floor never acts.
+  const base: PrintParams = {
+    ...PARAMS, numLayers: 4, lissAmpN: 3, lissAmpT: 2, lissAmpZ: 0.3,
+    lissWlN: 20, lissWlT: 13, lissWlZ: 30, lissDelta: 0.7, lissPhaseZ: 0.3,
+  };
+  const zs = (params: PrintParams, kfs: WaveKeyframe[] = []) =>
+    generateWaveLayers([line], params, kfs).map(l => l.paths[0].map(p => p.zOffset));
+  const kf = (t: number, over: Partial<WaveKeyframe>): WaveKeyframe =>
+    ({ id: `k${t}`, t, ampN: 3, ampT: 2, wlN: 20, wlT: 13, delta: 0.7, ...over });
+
+  it('keeps the Z wave in place while N and T shift per layer', () => {
+    const layers = generateWaveLayers([line], { ...base, phaseShiftPerLayer: 1.1 });
+    // Layer 0 is cut at its own height; the ones above aren't.
+    const z1 = layers[1].paths[0].map(p => p.zOffset);
+    expect(Math.min(...z1)).toBeLessThan(-0.2);
+    for (const layer of layers.slice(2)) {
+      layer.paths[0].forEach((p, i) => expect(p.zOffset).toBeCloseTo(z1[i], 12));
+    }
+    expect(layers[1].paths[0][0].y).not.toBeCloseTo(layers[0].paths[0][0].y, 3);
+  });
+
+  it('shifts the Z wave by its own amount per layer', () => {
+    const shifted = zs({ ...base, phaseShiftZPerLayer: 0.8 });
+    shifted.forEach((layer, li) => {
+      if (li === 0) return;
+      // Layer 1 of a part without a Z shift has phase base lissPhaseOffset.
+      const want = zs({ ...base, lissPhaseOffset: li * 0.8 })[1];
+      layer.forEach((z, i) => expect(z).toBeCloseTo(want[i], 9));
+    });
+  });
+
+  it('adds up the keyframed Z shift like the N and T one', () => {
+    const kfs = [kf(0, { phaseShiftZ: 0.5 }), kf(1, { phaseShiftZ: 0.5 })];
+    const want = zs({ ...base, phaseShiftZPerLayer: 0.5 });
+    zs(base, kfs).forEach((layer, li) => layer.forEach((z, i) => expect(z).toBeCloseTo(want[li][i], 9)));
+  });
+
+  it('locked, runs on T: its wavelength and its per-layer shift', () => {
+    const locked = { ...base, lissZLockT: true, phaseShiftPerLayer: 0.9, phaseShiftZPerLayer: 2 };
+    const want = zs({ ...base, lissWlZ: base.lissWlT, phaseShiftPerLayer: 0.9, phaseShiftZPerLayer: 0.9 });
+    zs(locked).forEach((layer, li) => layer.forEach((z, i) => expect(z).toBeCloseTo(want[li][i], 9)));
+  });
+
+  it('locked, follows a keyframed T wavelength', () => {
+    const kfs = [kf(0, { wlT: 10, wlZ: 40 }), kf(1, { wlT: 25, wlZ: 40 })];
+    const want = zs(base, [kf(0, { wlT: 10, wlZ: 10 }), kf(1, { wlT: 25, wlZ: 25 })]);
+    zs({ ...base, lissZLockT: true }, kfs)
+      .forEach((layer, li) => layer.forEach((z, i) => expect(z).toBeCloseTo(want[li][i], 9)));
+  });
+
+  it('at −90° from T, lifts the nozzle where it backs up (Puntada)', () => {
+    const dense = sampledPath('dense', curve(u => [20 + 160 * u, 100], 400));
+    const params = {
+      ...PARAMS, numLayers: 1, lissAmpT: 3, lissWlT: 12, lissAmpZ: 1,
+      lissZLockT: true, lissPhaseZ: -Math.PI / 2,
+    };
+    const pts = generateWaveLayers([dense], params)[0].paths[0];
+    let back = 0;
+    for (let i = 1; i < pts.length; i++) {
+      if (pts[i].x < pts[i - 1].x) {
+        back++;
+        expect(pts[i].zOffset).toBeGreaterThan(0.4);
+      }
+    }
+    expect(back).toBeGreaterThan(20);
+  });
+});
+
 describe('sampling resolution', () => {
   const kf = (over: Partial<WaveKeyframe>): WaveKeyframe =>
     ({ id: 'k', t: 0, ampN: 0, ampT: 0, wlN: 20, wlT: 20, delta: 0, ...over });

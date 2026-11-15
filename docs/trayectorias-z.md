@@ -60,11 +60,15 @@ Por impacto ÷ esfuerzo. Las dos primeras son casi gratis porque la matemática 
 
 ### Z1. Desfase por capa propio para Z
 
+**Hecho** (15 nov 2026): *Desfase Z por capa*, en *Vertical*.
+
 Un `phaseShiftZPerLayer` (o un interruptor *La Z gira con la capa*) separado del de N y T. Con 0, la textura en planta puede girar en hélice mientras la onda Z queda alineada entre capas: toda la pared ondula con amplitud grande, sin tocar el suelo. Con un valor pequeño, la ondulación sube en diagonal por la pieza.
 
 Esfuerzo bajo: un campo en `PrintParams`, `WAVE_PARAMS`, el keyframe, el encabezado del G-code y un control en el panel *Onda*. `paramDeps.test.ts` avisa si falta algo.
 
 ### Z2. Puntada: Z sincronizada con T
+
+**Hecho** (15 nov 2026): *Z sigue a T* y el preajuste *Puntada*. Falta imprimirlo.
 
 Cuando la onda T es grande (`ampT · 2π / wlT > 1`) la boquilla retrocede en cada ciclo y dibuja un rizo en planta. Si la Z va al mismo ritmo, con la cresta en el tramo de retroceso (fase Z −90° respecto de T), el rizo pasa por encima de sí mismo como una puntada de crochet. Es la versión programada de los bucles de Yuk y Zhao, sin depender de la física.
 

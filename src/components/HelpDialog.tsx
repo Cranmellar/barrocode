@@ -256,7 +256,8 @@ const SECTIONS: { id: string; title: string; body: ReactNode }[] = [
       <Defs items={[
         ['Delta', 'Desfase de N respecto de T. Con 0° la onda se inclina; con 90° se redondea y, si T es grande, forma bucles.'],
         ['Desfase inicial', 'Dónde empieza el ciclo en la primera capa.'],
-        ['Desfase por capa', 'Corre la onda un poco en cada capa, para torcer la pared.'],
+        ['Desfase por capa', 'Corre las ondas N y T un poco en cada capa, para torcer la pared. La Z tiene el suyo, en Vertical.'],
+        ['Z sigue a T', 'La boquilla sube y baja al ritmo con que avanza y retrocede. Con T grande y la fase en −90°, cada rizo pasa sobre su cordón: el preajuste Puntada.'],
       ]} />
     </>,
   },

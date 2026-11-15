@@ -63,13 +63,13 @@ Cada punto (`SampledPoint`) lleva posición, tangente, normal y largo recorrido 
 
 1. **Esquinas.** `roundCorners` redondea los tramos más cerrados que `cornerRadius(ampN, ampT, λT)`, unas 1,25 veces la amplitud N. Un contorno cerrado se corta en su punto más suave, para que una esquina en la costura también se redondee.
 2. **Costura.** En un contorno cerrado, los dos puntos de la costura comparten tangente (`joinSeamFrame`) y cada onda se ajusta a un número entero de ciclos.
-3. **Fase de la capa.** `desfase inicial + capa × desfase por capa`. Con keyframes, ambos se leen al inicio de cada capa, así que una capa tiene una sola fase y cierra en su costura.
+3. **Fase de la capa.** `desfase inicial + capa × desfase por capa`, y para la Z lo mismo con su propio desfase por capa (`phaseShiftZPerLayer`). Con keyframes, ambos se leen al inicio de cada capa, así que una capa tiene una sola fase y cierra en su costura. Con *Z sigue a T* (`lissZLockT`), la Z usa el ciclo de T y su fase de capa.
 4. **Onda.** Para cada punto, la fase avanza con el largo recorrido (`cyc += 2π·ds/λ`) y el punto se desplaza sobre la normal y la tangente; la Z, en altura. Con keyframes, `createKeyframeSampler` interpola los valores a lo largo de la impresión.
 5. **Piso en Z.** La capa 0 no baja de su altura; cada punto queda al menos media capa sobre el mismo punto de la capa de abajo. Cada capa guarda en `maxGap` su mayor subida sobre la capa de abajo, para la revisión.
 6. **Forma.** Escala y luego giro alrededor del centro de la pieza más `centerX/Y`.
 7. **Muro.** Con varias pasadas por capa, cada pasada es la primera desplazada hacia afuera o adentro, y todas forman una sola ruta.
 
-Sin keyframes ni desfase por capa, todas las capas tienen la misma onda (una por sentido con *Alternar por capa*). En ese caso se calcula una vez y solo el piso en Z se repite por capa.
+Sin keyframes ni desfase por capa (el de la Z incluido), todas las capas tienen la misma onda (una por sentido con *Alternar por capa*). En ese caso se calcula una vez y solo el piso en Z se repite por capa.
 
 ## La trayectoria
 
